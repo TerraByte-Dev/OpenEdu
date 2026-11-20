@@ -213,3 +213,60 @@ describe("a classification key many times in a level test", () => {
     expect(levelTestShortfall(t)).toBeNull();
   }, 30_000);
 });
+
+// TerraTutor live test part 12 issue 6: a level 5 test's review section took the last four levels' topics oldest
+// first, round-robin, so 10 questions over 17 topics gave level 4, the level just finished, none.
+describe("the review section spreads its questions over the levels it reviews", () => {
+  const level = (lv: number, topics: number) => ({
+    level: lv, title: `Volcanoes level ${lv}`,
+    subtopics: Array.from({ length: topics }, (_, i) => ({ id: `${lv}.${i + 1}`, title: `Volcano idea ${lv}.${i + 1}`, key_concepts: ["magma"] })),
+  }) as unknown as Syllabus;
+
+  // Each question is on the subtopic its prompt names, so the section's subtopic ids are what it asked about.
+  // A batch call (a cloud provider) writes as many as its prompt asks for; batchCalls counts them per subtopic.
+  let batchCalls = new Map<string, number>();
+  async function reviewLevels(previous: Syllabus[], config: LLMConfig = GEN): Promise<number[]> {
+    n = 0;
+    batchCalls = new Map();
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (messages, _config, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] } as never;
+      const content = messages.map((m) => m.content).join("\n");
+      const id = /^- id="([^"]+)"/m.exec(content)?.[1] ?? "5.1";
+      if (opts.toolName === "emit_quiz_questions") {
+        batchCalls.set(id, (batchCalls.get(id) ?? 0) + 1);
+        const count = Number(/^Generate (\d+) quiz question/m.exec(content)?.[1] ?? 1);
+        return { questions: Array.from({ length: count }, () => question(id)) } as never;
+      }
+      return question(id) as never;
+    });
+    const t = await generatePromotionTestQuestions(level(5, 4), previous, { ...config });
+    expect(t.review).toHaveLength(10);
+    return t.review.map((q) => Number(String(q.subtopic_id).split(".")[0]));
+  }
+  const count = (levels: number[], lv: number) => levels.filter((l) => l === lv).length;
+
+  it("gives the level just finished its share: 17 topics over levels 1-4, 10 questions", async () => {
+    const levels = await reviewLevels([level(1, 4), level(2, 4), level(3, 4), level(4, 5)]);
+    expect(levels[0]).toBe(4);
+    for (const lv of [1, 2, 3, 4]) expect(count(levels, lv), `level ${lv}`).toBeGreaterThanOrEqual(2);
+    expect(count(levels, 4)).toBe(3);
+  }, 30_000);
+
+  // The share follows the levels, not their topic counts: a level with one topic beside levels with 8 and 6
+  // still gets its even share, and the newest goes first (4 of 10; by topic it would get 1).
+  it("gives each level an even share whatever its topic count: one topic beside 8 and 6", async () => {
+    const levels = await reviewLevels([level(1, 8), level(2, 6), level(3, 1)]);
+    expect(levels[0]).toBe(3);
+    expect([count(levels, 3), count(levels, 2), count(levels, 1)]).toEqual([4, 3, 3]);
+  }, 30_000);
+
+  it("batch path (a cloud provider): the same shares, one call per subtopic", async () => {
+    const cloud = { provider: "openai", model: "gpt-4o-mini", modelTier: "medium" } as LLMConfig;
+    const levels = await reviewLevels([level(1, 8), level(2, 6), level(3, 1)], cloud);
+    expect([count(levels, 3), count(levels, 2), count(levels, 1)]).toEqual([4, 3, 3]);
+    expect(batchCalls.get("3.1")).toBe(1);
+    const spread = await reviewLevels([level(1, 4), level(2, 4), level(3, 4), level(4, 5)], cloud);
+    expect([4, 3, 2, 1].map((lv) => count(spread, lv))).toEqual([3, 3, 2, 2]);
+  }, 30_000);
+});

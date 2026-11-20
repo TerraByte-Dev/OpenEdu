@@ -1,5 +1,5 @@
 {
- "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice. Live test part 11 added 7 repeats and 6 different pairs from a cells quiz pair and a volcanoes level test (model text as the run saved it; quiz 2's and the level test's options were not saved). The live test part 11 branch review added 5 different pairs written fresh by its reviewer: an infinitive with and without \"to\" after \"made\" / \"wants\" (also as multiple choice) and after \"let\" / \"tell\", and two mirror questions with one key, one of them asking what is not true. OpenEdu #410's take-back added 2 different pairs written fresh by Claude, keys that the same-key cap folded before the fix (a particle in a cause tail, \"giving off oxygen\" / \"giving off carbon dioxide\", and a number in a relative tail, \"which makes 2 cells\" / \"which makes 4 cells\"), each also as multiple choice.",
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice. Live test part 11 added 7 repeats and 6 different pairs from a cells quiz pair and a volcanoes level test (model text as the run saved it; quiz 2's and the level test's options were not saved). The live test part 11 branch review added 5 different pairs written fresh by its reviewer: an infinitive with and without \"to\" after \"made\" / \"wants\" (also as multiple choice) and after \"let\" / \"tell\", and two mirror questions with one key, one of them asking what is not true. OpenEdu #410's take-back added 2 different pairs written fresh by Claude, keys that the same-key cap folded before the fix (a particle in a cause tail, \"giving off oxygen\" / \"giving off carbon dioxide\", and a number in a relative tail, \"which makes 2 cells\" / \"which makes 4 cells\"), each also as multiple choice. Live test part 12 added 5 repeats from a fractions quiz pair (numeric keys: 3/8 and 2/6 asked twice in quiz 1, 11/15, 5/9 and 5/12 asked again in quiz 2) and 5 different pairs from it (the same numbers with another key, one key from other numbers), and 14 different pairs written fresh by Claude before the rule that reads them (sameNumericKey): shaded / unshaded, a fraction and its simplest form, one key from other numbers, other arithmetic on the same numbers, no number in the stem, and a negation, each also as multiple choice. Its branch review added 1 repeat from the same quiz 2, 5/12 asked as \"a circle is divided into 12 equal sectors\" and \"a pizza is cut into 12 equal slices\", which the rule missed while it read \"divided\" as an operation.",
  "repeats": [
   {
    "a": {
@@ -1098,6 +1098,158 @@
     "question_type": "multiple_choice",
     "options": [],
     "correct_answer": "D) Elevated $\\text{H2S}$ alongside moderate $\\text{SO2}$ and $\\text{CO2}$"
+   }
+  },
+  {
+   "note": "3/8 in two wordings, both re-posed by quiz 2's review (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #1",
+    "question_text": "A rectangle is divided into 8 equal vertical strips. If 3 of these strips are shaded, what fraction represents the shaded part of the rectangle?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/8",
+     "B) 8/3",
+     "C) 3/8",
+     "D) 5/8"
+    ],
+    "correct_answer": "C) 3/8"
+   },
+   "b": {
+    "from": "fractions L2 quiz 1, live test part 12, #12",
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction represents the shaded portion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 8/3",
+     "B) 3/8",
+     "C) 3/5",
+     "D) 5/8"
+    ],
+    "correct_answer": "B) 3/8"
+   }
+  },
+  {
+   "note": "2/6 pizza asked twice in one quiz (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #6",
+    "question_text": "If a pizza is cut into 6 equal slices and 2 of those slices are eaten, what fraction represents the portion of the pizza that was eaten?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2/6",
+     "B) 1/6",
+     "C) 6/2",
+     "D) 4/6"
+    ],
+    "correct_answer": "A) 2/6"
+   },
+   "b": {
+    "from": "fractions L2 quiz 1, live test part 12, #18",
+    "question_text": "A pizza is cut into 6 equal slices. If you eat 2 of those slices, what fraction of the whole pizza did you eat?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/6",
+     "B) 3/6",
+     "C) 2/6",
+     "D) 4/6"
+    ],
+    "correct_answer": "C) 2/6"
+   }
+  },
+  {
+   "note": "11/15 asked again in quiz 2 (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #17",
+    "question_text": "A rectangular piece of paper is divided into 15 equal sections. If 11 of these sections are colored green, what fraction represents the colored sections?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "11/15"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #3",
+    "question_text": "A long rectangle is divided into 15 equal sections. If 11 of these sections are shaded, what fraction represents the shaded portion?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "11/15"
+   }
+  },
+  {
+   "note": "5/9 asked again in quiz 2 (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #8",
+    "question_text": "A square is divided into 9 equal smaller squares. If 5 of these smaller squares are colored red, what fraction of the square is colored red?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 4/9",
+     "B) 5/4",
+     "C) 5/9",
+     "D) 9/5"
+    ],
+    "correct_answer": "C) 5/9"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #6",
+    "question_text": "A shape is divided into 9 equal parts. If 5 of these parts are shaded, what fraction represents the shaded portion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 9/5",
+     "B) 5/4",
+     "C) 4/9",
+     "D) 5/9"
+    ],
+    "correct_answer": "D) 5/9"
+   }
+  },
+  {
+   "note": "5/12 asked again in quiz 2 (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #3",
+    "question_text": "A shape is divided into 12 equal parts, and 5 of those parts are colored green. What fraction represents the shaded portion of the shape?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 12/5",
+     "B) 1/12",
+     "C) 7/12",
+     "D) 5/12"
+    ],
+    "correct_answer": "D) 5/12"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #1",
+    "question_text": "A circle is divided into 12 equal sectors. If 5 of these sectors are shaded, what fraction represents the shaded portion of the circle?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 7/12",
+     "B) 5/12",
+     "C) 5/7",
+     "D) 12/5"
+    ],
+    "correct_answer": "B) 5/12"
+   }
+  },
+  {
+   "note": "5/12 asked twice in quiz 2, \"divided into\" / \"cut into\" (live test part 12 branch review)",
+   "a": {
+    "from": "fractions L2 quiz 2, live test part 12, #1",
+    "question_text": "A circle is divided into 12 equal sectors. If 5 of these sectors are shaded, what fraction represents the shaded portion of the circle?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 7/12",
+     "B) 5/12",
+     "C) 5/7",
+     "D) 12/5"
+    ],
+    "correct_answer": "B) 5/12"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #10",
+    "question_text": "A pizza is cut into 12 equal slices. If a customer eats 5 slices, what fraction of the pizza has been eaten?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 5/12",
+     "B) 7/12",
+     "C) 5/7",
+     "D) 12/5"
+    ],
+    "correct_answer": "A) 5/12"
    }
   }
  ],
@@ -3685,6 +3837,382 @@
      "D) Cell division, which makes 4 cells"
     ],
     "correct_answer": "D) Cell division, which makes 4 cells"
+   }
+  },
+  {
+   "note": "shaded / unshaded, same numbers (written for live test part 12)",
+   "a": {
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction of the shape is shaded?",
+    "question_type": "short_answer",
+    "correct_answer": "3/8"
+   },
+   "b": {
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction of the shape is unshaded?",
+    "question_type": "short_answer",
+    "correct_answer": "5/8"
+   }
+  },
+  {
+   "note": "shaded / unshaded, same numbers (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction of the shape is shaded?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/8",
+     "B) 3/8",
+     "C) 5/8",
+     "D) 8/3"
+    ],
+    "correct_answer": "B) 3/8"
+   },
+   "b": {
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction of the shape is unshaded?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/8",
+     "B) 3/8",
+     "C) 5/8",
+     "D) 8/3"
+    ],
+    "correct_answer": "C) 5/8"
+   }
+  },
+  {
+   "note": "2/4 / simplest form 1/2, same numbers (written for live test part 12)",
+   "a": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded?",
+    "question_type": "short_answer",
+    "correct_answer": "2/4"
+   },
+   "b": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded, in simplest form?",
+    "question_type": "short_answer",
+    "correct_answer": "1/2"
+   }
+  },
+  {
+   "note": "2/4 / simplest form 1/2, same numbers (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/4",
+     "B) 2/4",
+     "C) 3/4",
+     "D) 4/4"
+    ],
+    "correct_answer": "B) 2/4"
+   },
+   "b": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded, in simplest form?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/2",
+     "B) 1/4",
+     "C) 3/4",
+     "D) 4/4"
+    ],
+    "correct_answer": "A) 1/2"
+   }
+  },
+  {
+   "note": "1/2 from 2 of 4 / from 1 of 2, one key (written for live test part 12)",
+   "a": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded, in simplest form?",
+    "question_type": "short_answer",
+    "correct_answer": "1/2"
+   },
+   "b": {
+    "question_text": "A square is divided into 2 equal parts. If 1 of the parts is shaded, what fraction is shaded?",
+    "question_type": "short_answer",
+    "correct_answer": "1/2"
+   }
+  },
+  {
+   "note": "1/2 from 2 of 4 / from 1 of 2, one key (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "A square is divided into 4 equal parts. If 2 of the parts are shaded, what fraction is shaded, in simplest form?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/2",
+     "B) 1/4",
+     "C) 2/1"
+    ],
+    "correct_answer": "A) 1/2"
+   },
+   "b": {
+    "question_text": "A square is divided into 2 equal parts. If 1 of the parts is shaded, what fraction is shaded?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/2",
+     "B) 1/4",
+     "C) 2/1"
+    ],
+    "correct_answer": "A) 1/2"
+   }
+  },
+  {
+   "note": "4 times 1 / 4 divided by 1, one key (written for live test part 12)",
+   "a": {
+    "question_text": "What is 4 × 1?",
+    "question_type": "short_answer",
+    "correct_answer": "4"
+   },
+   "b": {
+    "question_text": "What is 4 ÷ 1?",
+    "question_type": "short_answer",
+    "correct_answer": "4"
+   }
+  },
+  {
+   "note": "4 times 1 / 4 divided by 1, one key (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "What is 4 × 1?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 0",
+     "B) 4",
+     "C) 5"
+    ],
+    "correct_answer": "B) 4"
+   },
+   "b": {
+    "question_text": "What is 4 ÷ 1?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 0",
+     "B) 4",
+     "C) 5"
+    ],
+    "correct_answer": "B) 4"
+   }
+  },
+  {
+   "note": "2 plus 2 / 2 times 2, one key (written for live test part 12)",
+   "a": {
+    "question_text": "What is 2 plus 2?",
+    "question_type": "short_answer",
+    "correct_answer": "4"
+   },
+   "b": {
+    "question_text": "What is 2 times 2?",
+    "question_type": "short_answer",
+    "correct_answer": "4"
+   }
+  },
+  {
+   "note": "2 plus 2 / 2 times 2, one key (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "What is 2 plus 2?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2",
+     "B) 4",
+     "C) 6"
+    ],
+    "correct_answer": "B) 4"
+   },
+   "b": {
+    "question_text": "What is 2 times 2?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2",
+     "B) 4",
+     "C) 6"
+    ],
+    "correct_answer": "B) 4"
+   }
+  },
+  {
+   "note": "spider legs / octopus arms, no stem number (written for live test part 12)",
+   "a": {
+    "question_text": "How many legs does a spider have?",
+    "question_type": "short_answer",
+    "correct_answer": "8"
+   },
+   "b": {
+    "question_text": "How many arms does an octopus have?",
+    "question_type": "short_answer",
+    "correct_answer": "8"
+   }
+  },
+  {
+   "note": "spider legs / octopus arms, no stem number (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "How many legs does a spider have?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 10",
+     "B) 6",
+     "C) 8"
+    ],
+    "correct_answer": "C) 8"
+   },
+   "b": {
+    "question_text": "How many arms does an octopus have?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 10",
+     "B) 6",
+     "C) 8"
+    ],
+    "correct_answer": "C) 8"
+   }
+  },
+  {
+   "note": "less than 1/2 / not equal to 1/2, one key (written for live test part 12)",
+   "a": {
+    "question_text": "Which fraction is less than 1/2?",
+    "question_type": "short_answer",
+    "correct_answer": "3/8"
+   },
+   "b": {
+    "question_text": "Which fraction is not equal to 1/2?",
+    "question_type": "short_answer",
+    "correct_answer": "3/8"
+   }
+  },
+  {
+   "note": "less than 1/2 / not equal to 1/2, one key (written for live test part 12) (multiple choice)",
+   "a": {
+    "question_text": "Which fraction is less than 1/2?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2/4",
+     "B) 3/8",
+     "C) 4/8"
+    ],
+    "correct_answer": "B) 3/8"
+   },
+   "b": {
+    "question_text": "Which fraction is not equal to 1/2?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2/4",
+     "B) 3/8",
+     "C) 4/8"
+    ],
+    "correct_answer": "B) 3/8"
+   }
+  },
+  {
+   "note": "8 squares 3 eaten, left / 8 parts 3 shaded (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #11",
+    "question_text": "A chocolate bar is divided into 8 equal squares. If 3 of the squares are eaten, what fraction of the chocolate bar is left?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "5/8"
+   },
+   "b": {
+    "from": "fractions L2 quiz 1, live test part 12, #12",
+    "question_text": "A shape is divided into 8 equal parts. If 3 of these parts are shaded, what fraction represents the shaded portion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 8/3",
+     "B) 3/8",
+     "C) 3/5",
+     "D) 5/8"
+    ],
+    "correct_answer": "B) 3/8"
+   }
+  },
+  {
+   "note": "15 sections 11 green / 15 squares 11 eaten, left (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #17",
+    "question_text": "A rectangular piece of paper is divided into 15 equal sections. If 11 of these sections are colored green, what fraction represents the colored sections?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "11/15"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #17",
+    "question_text": "A rectangular chocolate bar is divided into 15 equal squares. If 11 of these squares are eaten, what fraction of the chocolate bar is left?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "4/15"
+   }
+  },
+  {
+   "note": "5 parts 2 shaded / 2 red, uncolored (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #7",
+    "question_text": "A shape is divided into 5 equal parts. If 2 of these parts are shaded, what fraction represents the shaded portion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 2/5",
+     "B) 5/2",
+     "C) 3/5",
+     "D) 1/5"
+    ],
+    "correct_answer": "A) 2/5"
+   },
+   "b": {
+    "from": "fractions L2 quiz 2, live test part 12, #4",
+    "question_text": "A shape is divided into 5 equal parts. If 2 of these parts are colored red, what fraction represents the uncolored (not red) parts?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/5",
+     "B) 2/5",
+     "C) 4/5",
+     "D) 3/5"
+    ],
+    "correct_answer": "D) 3/5"
+   }
+  },
+  {
+   "note": "10 sections 4 red, uncolored / 4 shaded (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #5",
+    "question_text": "A rectangular piece of paper is divided into 10 equal sections. If 4 of these sections are colored red, what fraction represents the uncolored (not red) sections?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/10",
+     "B) 4/10",
+     "C) 3/10",
+     "D) 6/10"
+    ],
+    "correct_answer": "D) 6/10"
+   },
+   "b": {
+    "from": "fractions L2 quiz 1, live test part 12, #16",
+    "question_text": "A rectangle is divided into 10 equal sections. If 4 of these sections are shaded, what fraction represents the shaded portion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 6/10",
+     "B) 4/6",
+     "C) 10/4",
+     "D) 4/10"
+    ],
+    "correct_answer": "D) 4/10"
+   }
+  },
+  {
+   "note": "6/10 from 4 red, uncolored / from 6 red (live test part 12)",
+   "a": {
+    "from": "fractions L2 quiz 1, live test part 12, #5",
+    "question_text": "A rectangular piece of paper is divided into 10 equal sections. If 4 of these sections are colored red, what fraction represents the uncolored (not red) sections?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 1/10",
+     "B) 4/10",
+     "C) 3/10",
+     "D) 6/10"
+    ],
+    "correct_answer": "D) 6/10"
+   },
+   "b": {
+    "from": "fractions L2 quiz 1, live test part 12, #9",
+    "question_text": "A shape is divided into 10 equal parts. If 6 of these parts are colored red, what fraction of the shape is colored red?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) 4/10",
+     "B) 10/6",
+     "C) 1/10",
+     "D) 6/10"
+    ],
+    "correct_answer": "D) 6/10"
    }
   }
  ]
