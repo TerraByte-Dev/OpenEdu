@@ -237,7 +237,9 @@ written: they came from a once-a-minute timer whose only reader was the learning
   "she herself is kind"), with the same numbers in the same order and the
   same last clause word for word, so only the setup differs; TerraTutor #259; keys compared as `keyForm`
   reads them, without a leading article or punctuation other than the apostrophe, so "it's" / "its" stay
-  apart; TerraTutor #263), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  apart, with symbols kept, so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word read as a
+  minus sign, so "Cl-" / "Cl" stay apart too, and a key that is only punctuation is never blank;
+  TerraTutor #263, #264; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
   counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
@@ -1052,12 +1054,21 @@ So the verdict on the child's answer is the app's, not the reply's:
   pieces", the answer to the hint's "How could you share a chocolate bar equally?", passes when the grader
   finds it right for "what a fraction is, using a real-life example", as it would with no hint (TerraTutor
   click test 2026-11-19 part 7, issue 2). A hint that asks nothing is not keyed. A hint that ends on a
-  question with no one right answer ("Think of a time you shared food. What did you notice?"), or whose
-  key call failed, has nothing to grade the answer against: an answer the grader finds right for the
-  check's question is the check's; anything else is `unsure`, tagged `on: "hint"`, so no verdict is said,
-  the mark is refused and the check's question is asked again. A hint whose question is not its last
-  sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊") is tried in step (d) by code's match only,
-  with no grader call on the hint's (#404). That is one more key call after any hint with a "?" in it, a
+  question with no one right answer ("Think of a time you shared food. What did you notice?", with or
+  without "You can do it!" after it), or whose key call failed, has nothing to grade the answer against:
+  an answer the grader finds right for the check's question is the check's; anything else is `unsure`,
+  tagged `on: "hint"`, so no verdict is said, the mark is refused and the check's question is asked again.
+  An answer wrong for the check's question is so `unsure` too, not `incorrect`. A hint "ends on" its
+  question when nothing after its last "?" is more than `TrailingQuestionHold` (below) would hold with it:
+  a choice line, an emoji, "Take your time!" (`endsOnQuestion` runs the hint through that class, so the
+  two never disagree; #405's review note: "What did you notice? You can do it!" was read as not ending on
+  a question and the answer was "not right yet"; ported from TerraTutor #264). That class also holds a
+  line that opens with one of its phrases and goes on with help ("Try it with 4 friends and 1 pizza.",
+  "Think about it like cutting a pizza.", "Good luck, and remember ..."), so such a hint ends on its
+  question too and its question is graded; no mark comes of it, since a verdict on the hint's question is
+  the hint's. A hint with other feedback after its question ("Is it more than 40? Count by 8s.") is tried
+  in step (d) by code's match only, with no grader call on the hint's (#404); "What is 8 + 8? Try it!" and
+  "What is 8 + 8? 😊" end on theirs. That is one more key call after any hint with a "?" in it, a
   rhetorical one ("Did you know ...?") included. A verdict on the hint's question is tagged `on: "hint"`
   and never passes the check: every `mastered` mark on that turn is refused by code
   (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
@@ -1067,10 +1078,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   held, with a lead-in before it and a choice line, emoji or "Take your time!" after it; feedback after it
   lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
   model call is dropped there, and the next call's text starts after a break), so code's question is
-  usually the one open question on screen and never the same one twice (TerraTutor click test part 8,
-  issue 4). A model question followed by feedback ("What is 16 + 8? Try it with 6 x 8: ...") is let out
-  by design, so then the model's question and code's are both on screen. Its praise and feedback stay; a reply that was only a question gets a short verdict line that
-  asks nothing ("That's right.", "That's partly right."). On a turn the learner stopped the held text is
+  usually the only open question on screen, with no second one and not the same one twice (TerraTutor
+  click test part 8, issue 4). Usually, not always: a question with feedback after it is let out on
+  purpose ("What is 16 + 8? Count by 8s."), since holding it would hold back the feedback, the part the
+  learner needs, so then two questions can be open. Its praise and feedback stay; a reply that was only a
+  question gets a short verdict line that asks nothing ("That's right.", "That's partly right."). On a turn the learner stopped the held text is
   let out as it came. The next turn
   keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
   against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
