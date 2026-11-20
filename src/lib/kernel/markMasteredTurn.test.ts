@@ -34,12 +34,16 @@ type TurnEvent =
   | { type: "done"; finishReason: "stop" | "tool_calls" };
 const sent: Sent[] = [];
 const events: ToolUIEvent[] = [];
+// The tools an "Is that okay?" card was shown for (ctx.confirmTool), in order.
+const confirms: string[] = [];
 let script: TurnEvent[][] = [];
 // The assess answer check's calls (answerCheck.ts): the key call, then the grading call when code cannot
 // settle the answer. By default the answer to the tutor's question is 12, so the student's "12, because
 // ..." is correct by code and a "mastered" mark may run.
 const KEY_12 = { question: "How many legs do 3 stools with 4 legs each have?", working: "3 x 4 = 12", answer: "12" };
-let keyOut: { question: string; working: string; answer: string } = KEY_12;
+type Key = { question: string; working: string; answer: string };
+// A key can be worked out from what the key call was sent (a hint's question gets its own key).
+let keyOut: Key | ((sent: Sent) => Key) = KEY_12;
 let gradeOut: { student_answer: string; verdict: string } | null = null;
 vi.mock("../llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../llm")>()),
@@ -48,7 +52,7 @@ vi.mock("../llm", async (importOriginal) => ({
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
   callLLMStructured: vi.fn(async (_messages: unknown, _config: unknown, opts: { toolName: string }) =>
-    (opts.toolName === "AnswerKey" ? keyOut : gradeOut)),
+    (opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(_messages as Sent) : keyOut) : gradeOut)),
 }));
 
 import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_UNCHECKED, type TutorTurnResult } from "./TutorEngine";
@@ -114,7 +118,7 @@ async function assessTurn(syllabus: Syllabus | null = null, conversation = CHECK
     },
     {
       courseId: "c1", level: 1, syllabus, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
-      abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true,
+      abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async (tool) => { confirms.push(tool); return true; },
     },
   );
 }
@@ -130,6 +134,7 @@ const toolResultSeen = () => sent[1].find((m) => m.role === "tool")?.content ?? 
 beforeEach(async () => {
   sent.length = 0;
   events.length = 0;
+  confirms.length = 0;
   script = [];
   keyOut = KEY_12;
   gradeOut = null;
@@ -305,5 +310,234 @@ describe("progress.mark_mastered on a course with no completed quiz", () => {
     await assessTurn();
     expect(progressRow()?.total_quiz_score_avg).toBe(80);
     expect(progressContext()).toContain("Quiz average: 80%");
+  });
+});
+
+// TerraTutor live tests 2026-11-19 parts 7 and 8, 2026-11-20 part 9: gemma4:e2b, the default model below
+// 16 GB, never called progress.mark_mastered after a check answer graded correct (4 of 4 turns in part 9), so
+// a check never moved mastery. Code now makes the mark the model's call would, under the same gate, through
+// the same tool: the "Is that okay?" card, the chip, the saved mark and its subtopic_events row (ported from
+// TerraTutor #266).
+describe("the mark code makes after a correct check answer", () => {
+  const Q = "How many legs do 3 stools with 4 legs each have?";
+  const PICKED = `Which one should we check first?\n\n*You picked: Equal Groups*\n\n${Q}`;
+  const picked = (answer: string, hint?: string) => [
+    { role: "user", content: "Check if I've got this." },
+    { role: "assistant", content: PICKED },
+    ...(hint ? [{ role: "user", content: "Give me a hint." }, { role: "assistant", content: hint }] : []),
+    { role: "user", content: answer },
+  ];
+  const appMark = { name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: true, byApp: true };
+  const modelMark = { name: "progress.mark_mastered", args: { subtopic_id: "Equal Groups", status: "mastered" } };
+  const recordEvents = () => sqlite.prepare("SELECT subtopic_id, event, source FROM subtopic_events WHERE course_id = 'c1' ORDER BY id").all();
+  const chips = () => events.filter((e) => e.kind === "result").map((e) => (e.kind === "result" ? describeToolDone(e.name, e.value) : ""));
+  // A turn in assess mode, as an eval runner sends it (or ChatTab after the assess chip), with the learner's
+  // answer on the "Is that okay?" card and their picks on question cards, in order.
+  const assessRun = async (conversation: Sent, syllabus: Syllabus, yes = true, picks: string[] = []) => {
+    const { activeSkill, domainSkill } = chatTurnSkills("assess", "Multiplication", "tiny", true);
+    return tutorEngine.run(
+      { messages: [{ role: "system", content: "You are a tutor." }, ...conversation], config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev) },
+      {
+        courseId: "c1", level: 1, syllabus, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
+        confirmTool: async (tool) => { confirms.push(tool); return yes; },
+        askUser: async () => picks.shift() ?? "",
+      },
+    );
+  };
+  const askCall = (question: string, labels: string[]): TurnEvent[] => [
+    { type: "tool_call", id: "call_0", name: "ask_user.question", args: { question, choices: labels.map((l) => ({ label: l, value: l })) } },
+    { type: "done", finishReason: "tool_calls" },
+  ];
+  // The key call on a card that asks nothing with one right answer ("Which one next?") finds no key.
+  const NO_KEY: Key = { question: "", working: "", answer: "" };
+  const keyed = (byQuestion: Record<string, Key>) => (sentToKey: Sent) =>
+    Object.entries(byQuestion).find(([q]) => sentToKey.some((m) => m.content.includes(q)))?.[1] ?? KEY_12;
+
+  it("marks the picked subtopic when the model makes no tool call", async () => {
+    script = [reply("Yes, 3 groups of 4 is 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12, because 3 groups of 4 is 12."));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+    // Shown as the model's mark is: the card asks first, the chip says it, subtopic_events keeps the tutor's mark.
+    expect(confirms).toEqual(["progress.mark_mastered"]);
+    expect(chips()).toEqual(["Marked “Equal Groups” as learned"]);
+    expect(recordEvents()).toEqual([{ subtopic_id: "1.1", event: "practiced", source: "tutor" }, { subtopic_id: "1.1", event: "mastered", source: "tutor" }]);
+    expect(progressContext()).toContain("Mastered subtopics: Equal Groups");
+    // It comes under the reply, which was not told of it and claims nothing.
+    expect(result.text).toBe("Yes, 3 groups of 4 is 12.");
+  });
+
+  it("makes no second mark when the model marked it already", async () => {
+    script = [markCall("mastered"), reply("Yes, 3 groups of 4 is 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12, because 3 groups of 4 is 12."));
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: true }]);
+    expect(confirms).toEqual(["progress.mark_mastered"]);
+    expect(recordEvents()).toHaveLength(2);
+  });
+
+  it("asks nothing again after the learner said no to the model's mark", async () => {
+    script = [markCall("mastered"), reply("Okay.")];
+    const result = await assessRun(picked("12"), OPENED_WITH, false);
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: false }]);
+    expect(confirms).toEqual(["progress.mark_mastered"]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it.each([
+    ["partly right", { student_answer: "3 groups of 4", verdict: "partly" }, "3 groups of 4", "partly"],
+    ["unsure (the grading call failed)", null, "a dozen legs I think", "unsure"],
+    ["wrong", { student_answer: "11", verdict: "incorrect" }, "11", "incorrect"],
+  ])("makes none for an answer that is %s", async (_, grade, answer, verdict) => {
+    gradeOut = grade;
+    script = [reply("Let's look at it again.")];
+    const result = await assessTurn(OPENED_WITH, picked(answer));
+    expect(result.answerCheck?.verdict).toBe(verdict);
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("makes none for a right answer to a hint's own question", async () => {
+    keyOut = (sentToKey) => (sentToKey.some((m) => m.content.includes("Count by 4s"))
+      ? { question: "What is 4 + 4?", working: "4 + 4 = 8", answer: "8" } : KEY_12);
+    script = [reply("Yes, 4 + 4 is 8.")];
+    const result = await assessTurn(OPENED_WITH, picked("8", "Count by 4s. What is 4 + 4?"));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "hint" });
+    expect(result.toolCalls).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("makes none when two subtopics are not mastered and none was picked: code does not guess", async () => {
+    script = [reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("marks the level's one subtopic not mastered when no picker was shown", async () => {
+    const oneLeft = { ...OPENED_WITH, subtopics: SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s)) };
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(oneLeft.subtopics));
+    script = [reply("Yes, 12.")];
+    const result = await assessTurn(oneLeft);
+    expect(result.toolCalls).toEqual([appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", true]]);
+  });
+
+  it("makes none for a subtopic already mastered, read from the saved syllabus, not the course view's snapshot", async () => {
+    // Saved as mastered since the course view opened: its snapshot (ctx.syllabus) still says not mastered.
+    const saved = SUBTOPICS.map((s) => (s.id === "1.1" ? { ...s, mastered: true, practiced: true } : s));
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(saved));
+    script = [reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12"));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(chips()).toEqual([]);
+  });
+
+  // TerraTutor #266's review: the pick on the model's "which one next?" card after a right answer won over the
+  // skill the question was on, and marked "Sharing Fairly", on which nothing had been asked.
+  it("marks the skill the answer was on, not one picked on a card after it", async () => {
+    keyOut = keyed({ "check next": NO_KEY });
+    script = [askCall("Which one should we check next?", ["Sharing Fairly", "Equal Groups"]), reply("Okay, Sharing Fairly next.")];
+    const result = await assessRun(picked("12"), OPENED_WITH, true, ["Sharing Fairly"]);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.text).toContain("*You picked: Sharing Fairly*");
+    expect(result.toolCalls.slice(-1)).toEqual([appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+    expect(chips().slice(-1)).toEqual(["Marked “Equal Groups” as learned"]);
+  });
+
+  it("marks the skill the typed answer was on when a card after it has skill titles as its choices", async () => {
+    keyOut = keyed({ "splitting 12 cookies": { question: "Which skill is splitting 12 cookies among 3?", working: "", answer: "Sharing Fairly" } });
+    script = [askCall("Which skill is splitting 12 cookies among 3?", ["Sharing Fairly", "Equal Groups"]), reply("Yes, that is sharing.")];
+    const result = await assessRun(picked("12"), OPENED_WITH, true, ["Sharing Fairly"]);
+    expect(result.cardChecks).toMatchObject([{ verdict: "correct" }]);
+    expect(result.toolCalls.slice(-1)).toEqual([appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+  });
+
+  it("on the turn that opens the check, marks the skill picked before the card answered right, not one picked after", async () => {
+    keyOut = keyed({ "check next": NO_KEY });
+    script = [
+      askCall(Q, ["10", "12"]),
+      askCall("Which one should we check next?", ["Sharing Fairly", "Equal Groups"]),
+      reply("Okay, Sharing Fairly next."),
+    ];
+    // The app's topic picker first (two not mastered), then the model's question card, then its "next" card.
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], OPENED_WITH, true, ["Equal Groups", "12", "Sharing Fairly"]);
+    expect(result.answerCheck).toBeNull();
+    expect(result.cardChecks).toMatchObject([{ verdict: "correct" }]);
+    expect(result.toolCalls.slice(-1)).toEqual([appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+  });
+
+  // The session's rule: a hint answer never awards mastery, also when the hint's key is the check's.
+  it("makes none for a right answer given right after a hint, even one whose key is the check's", async () => {
+    script = [reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12", "Count by 4s: 4, 8, what comes next?"));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.toolCalls).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  // Review of the port: only a learner message with the word "hint" counted as a hint, so a help request or a
+  // wrong answer, then the tutor's easier question answered right, was graded on that question and marked.
+  // Code marks only on the learner's first message since the check opened.
+  it.each([
+    "I'm stuck. Can you help me?", "I don't get it", "help", "Give me a clue please", "I don't know", "10",
+  ])("makes none for a right answer to an easier question asked after %j", async (first) => {
+    keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "4 + 4 + 4 = 12", answer: "12" } });
+    script = [reply("Yes, 4 + 4 + 4 is 12.")];
+    const result = await assessTurn(OPENED_WITH, [
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: PICKED },
+      { role: "user", content: first },
+      { role: "assistant", content: "Let's make it smaller. What is 4 + 4 + 4?" },
+      { role: "user", content: "12" },
+    ]);
+    expect(result.answerCheck).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("makes none for a right pick on a card that answered a hint request", async () => {
+    keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "", answer: "12" } });
+    script = [askCall("What is 4 + 4 + 4?", ["8", "12"]), reply("Yes, 12.")];
+    const result = await assessRun([...picked("Give me a hint.")], OPENED_WITH, true, ["12"]);
+    expect(result.cardChecks).toMatchObject([{ verdict: "correct" }]);
+    expect(result.toolCalls.map((c) => c.name)).toEqual(["ask_user.question"]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("still marks when the model's own mark failed on a wrong id", async () => {
+    script = [markCall("mastered", "Nonsense Topic"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12"));
+    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Nonsense Topic", status: "mastered" }, ok: false }, appMark]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
+  it("makes none when the model marked the skill practiced: its call is the turn's mark", async () => {
+    script = [markCall("practiced"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12"));
+    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Equal Groups", status: "practiced" }, ok: true }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("makes none once the check has closed", async () => {
+    // Four answers used the check up (answerCheck.ts ASSESS_LOOKBACK). The fifth still runs in assess, as an
+    // eval runner sends it, and is graded, but no check is open, so code knows no subtopic.
+    const closed = [...picked("10")];
+    for (const wrong of ["11", "13", "14"]) closed.push({ role: "assistant", content: Q }, { role: "user", content: wrong });
+    closed.push({ role: "assistant", content: Q }, { role: "user", content: "12" });
+    script = [reply("Yes, 12.")];
+    const result = await assessRun(closed, OPENED_WITH);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 });

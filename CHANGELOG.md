@@ -24,6 +24,20 @@ The section for each release is also what the app shows when you press Check for
 - Claude Opus 5.5, Sonnet 5.5 and Fable 5.2 can build courses. Anthropic's newest models refused the way
   OpenEdu asked for structured answers; it now uses structured outputs, which every current Claude model
   accepts.
+- **A right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
+  The default tutor model on computers under 16 GB never marked a skill after a right answer in a check
+  in TerraTutor's live tests, so a check never moved a skill. Now, when OpenEdu's answer check finds the
+  answer to the check's own question right and the tutor marks nothing, OpenEdu makes the same mark
+  itself, after the reply: the "Is that okay?" card asks first where marking a skill is set to Ask, and the
+  line under the reply says "Marked … as learned". It marks the skill the question was on: the one picked
+  from "Which one should we check first?" before the answer (a skill picked on a "which one next?" card
+  after it is not the one marked), or the level's one skill left. Only for the learner's first answer in
+  the check: never after a hint, a request for help, "I don't know" or a wrong answer (the tutor may then
+  have asked an easier question), so a second skill in the same check is left to the tutor. Never on a
+  partly right, unsure or wrong answer, or after the check has ended; never for a skill already marked
+  learned; and never a second time when the tutor marked the skill itself or after a "No" on the card. It
+  does this with every tutor model, cloud models included, not only the small default. One right answer
+  is enough, as it already was for the tutor's own mark; moving up a level still takes the level test.
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
@@ -177,9 +191,10 @@ The section for each release is also what the app shows when you press Check for
   like a whole pizza" after "What is that complete object called?"). Only an answer that is not right for
   the check's question is checked against the hint's; one right for neither now gets the check's verdict.
   A hint question with no one right answer ("What did you notice?") is not marked wrong when the hint
-  ends on it, or adds only a short line such as "You can do it!", "Take your time!" or an emoji: the app
-  says no verdict and asks the check's question again. After other lines ("What did you notice? Keep
-  going!") the answer can still be marked wrong for now. A hint that only asks the check's question again, with
+  ends on it, or adds only a short line such as "You can do it!", "Take your time!", "Keep going!", "Let
+  me know!", "I believe in you!" or an emoji: the app says no verdict and asks the check's question again
+  (usually: it rests on the answer key finding no one right answer). After other lines ("What did you
+  notice? Remember: equal parts.") the answer can still be marked wrong for now. A hint that only asks the check's question again, with
   a line after it ("What is a noun? You can do it!"), no longer turns a right answer to the check into
   the hint's. And when the app asks the check's question again after the hint's answer, the tutor's own
   question at the end of its reply is left out, so usually only one question is waiting on screen (a
@@ -199,10 +214,20 @@ The section for each release is also what the app shows when you press Check for
   numbers differ, or come in another order ("what does 7 represent in 7/10" and "what does 10 represent"),
   stay apart, as do ones whose answers share no word ("numerator" and "denominator") and ones that ask
   something else at the end ("what does the numerator tell you?" and "the denominator", the job of the
-  roots and of the leaves). Number, fraction, time, money, multiple-choice and word-problem answers still
-  count as a repeat only when they are the same, and so do signs: "34 ___ 43" (<) and "43 ___ 34" (>) are
-  both asked, and so are "Cl-" and "Cl". Keys that share only a pronoun, a reflexive one included
-  ("she herself is kind" and "she herself is rude"), stay apart.
+  roots and of the leaves). Number, fraction, time, money and word-problem answers still count as a
+  repeat only when they are the same, and so do signs: "34 ___ 43" (<) and "43 ___ 34" (>) are both
+  asked, and so are "Cl-" and "Cl", and "Cl-, Na+" and "Cl, Na+". Keys that share only a pronoun, a
+  reflexive one included ("she herself is kind" and "she herself is rude"), stay apart.
+- **A multiple-choice question asked again in other words counts as a repeat too**, when the second
+  only adds to the first or swaps a framing word ("the main difference" / "the fundamental difference",
+  "the primary role" / "the primary function") and its answer is the first's in other words. A TerraTutor
+  live quiz had asked what the cell membrane does in relation to the cytoplasm 3 times, and a level test
+  asked about a low-silica magma's flow twice. A question that swaps what it asks about ("high silica" /
+  "low silica"), adds the one word that changes the answer ("a ball" / "a rolling ball": potential or
+  kinetic energy) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
+- **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
+  came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
+  last question had been the one before's, word for word.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
   one), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
@@ -211,8 +236,9 @@ The section for each release is also what the app shows when you press Check for
   set-aside ones used, and then before any question an earlier quiz on the level already asked.
   True/false answers, numbers, fractions, times and money are not counted, nor is a pick the question
   names itself or offers from 3 or fewer choices ("Is 8 even or odd?", noun or verb, solid, liquid or
-  gas), so an "Even and odd" quiz stays full. Answers that differ only in an apostrophe ("its" and "it's",
-  "well" and "we'll") stay different answers.
+  gas), so an "Even and odd" quiz stays full. An answer with a digit in it counts unless it is a number
+  at heart: "The percentage of silica (SiO2) content" had been asked 3 times in one TerraTutor level test.
+  Answers that differ only in an apostrophe ("its" and "it's", "well" and "we'll") stay different answers.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an
   English question asks about ("an eighth" and "a eighth"), and so do a hyphen or a space in a question

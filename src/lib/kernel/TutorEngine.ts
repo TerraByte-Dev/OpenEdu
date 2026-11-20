@@ -16,9 +16,10 @@
 // Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
 import { callLLMTurn, log, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
-import type { LLMConfig } from "../../types";
+import type { LLMConfig, Syllabus } from "../../types";
+import { getSyllabus } from "../db";
 import type { ToolContext } from "../tools/EduTool";
-import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
+import { selectTools, buildProviderToolDefs, dispatchToolCall, declinedError, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
 import { toolRegistry } from "../tools/registry";
 import { evaluatePermission } from "../permissions/evaluate";
 import { loadPermissionRules } from "../permissions/store";
@@ -40,8 +41,8 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
-import { assessPickerCard } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, type AnswerCheck } from "./answerCheck";
+import { assessPickerCard, checkedSubtopic } from "./assessPicker";
+import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -86,6 +87,55 @@ const APP_FLASHCARD_CALL_ID = "app_flashcard";
 // The id of the ask_user.question call the app makes itself (the topic picker, assessPicker.ts). The model
 // reads it back as its own call, so it keeps to the ids every provider accepts.
 const APP_PICKER_CALL_ID = "app_picker";
+// The id of the progress.mark_mastered call the app makes itself after a correct check answer (appMark). It
+// runs after the reply and never reaches a provider.
+const APP_MARK_CALL_ID = "app_mark";
+
+/**
+ * The "mastered" mark code makes after the turn, or null for none (TerraTutor live tests 2026-11-19 parts 7
+ * and 8 and 2026-11-20 part 9: gemma4:e2b, the default below 16 GB, never called progress.mark_mastered
+ * after a check answer graded correct, 4 of 4 turns in part 9, so on the default model a check never moved
+ * mastery; OpenEdu runs the same assess.md on the same default model). It is
+ * the mark the model's call would save, under the gate that call passes (respond): the tool is offered
+ * (assess mode, tools on, not denied), the newest message is not a safety disclosure, every answer checked
+ * this turn is "correct". Stricter than that gate: a typed answer marks only when it is the learner's first
+ * message since the check opened (`firstAttempt`). After any other message (a hint or help request, "I
+ * don't know", a wrong answer) the tutor may have asked an easier question, and the answer is graded on
+ * that one (review of the TerraTutor #266 port: "help", then "What is 4 + 4 + 4?" answered "12", marked
+ * the check's skill). A turn graded only on cards marks only when its newest message opened the check (a
+ * hint request answered with a card, in a caller that runs every turn in assess, does not).
+ * Not when the model's own progress.mark_mastered call ran this turn, whatever its status, or the learner
+ * said no to it on the "Is that okay?" card (`modelMarked`); a model call that failed (a wrong id) or was
+ * refused does not count. Not on a turn that was stopped or ended at a card. The subtopic is the one code
+ * knows the check is on, from what was shown before the graded answer (assessPicker.ts checkedSubtopic),
+ * read with the saved syllabus (`load`, never ctx.syllabus, the course view's snapshot), and one already
+ * mastered gets none. "partly", "incorrect", "unsure", an answer that answered nothing, any answer after
+ * the first (so a second skill in the same check is left to the model's own call) and a closed check give
+ * no mark.
+ */
+async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
+  if (disclosureTurn || !offered.has(MARK_MASTERED_TOOL)) return null;
+  if (result.stopReason === "aborted" || result.stopReason === "stalled" || result.cardMessage !== null) return null;
+  const { beforeCard, modelMarked } = result.markInput ?? { beforeCard: null, modelMarked: false };
+  if (modelMarked) return null;
+  const checked = [result.answerCheck, ...result.cardChecks].filter((c): c is AnswerCheck => !!c);
+  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer)) return null;
+  if (result.answerCheck ? !firstAttempt(conversation) : !asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? "")) return null;
+  // A typed answer was graded on what came before the student's newest message, so a pick in this reply
+  // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
+  // before that card.
+  const syllabus = await load().catch(() => null);
+  const sub = checkedSubtopic(conversation, result.answerCheck ? "" : beforeCard ?? "", syllabus);
+  return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
+}
+
+/** True when the learner's message before the newest is the request that opened the check: the newest is their first try. */
+function firstAttempt(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
+  for (let j = conversation.length - 2; j >= 0; j--) {
+    if (conversation[j].role === "user") return asksForMasteryCheck(conversation[j].content);
+  }
+  return false;
+}
 
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
 // can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
@@ -129,8 +179,8 @@ export interface TutorTurn {
 export interface TutorTurnResult {
   text: string;
   // `byApp` marks a call the app made itself rather than the model (the flashcard stage,
-  // flashcardRequest.ts, and the topic picker, assessPicker.ts), so an eval can tell the model's tool
-  // choice from the app's. `fromText` marks a
+  // flashcardRequest.ts, the topic picker, assessPicker.ts, and the mark after a correct check answer,
+  // appMark), so an eval can tell the model's tool choice from the app's. `fromText` marks a
   // call the model wrote as reply text and the kernel parsed (textToolCalls.ts) rather than a call the
   // provider returned.
   toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true }>;
@@ -210,6 +260,11 @@ export interface TutorTurnResult {
   // model call, ran no tool and looked nothing up (ported from TerraTutor #246). The caller saves and reads
   // it like any reply, and offers nothing after it: no citation note, follow-up chips or reply choices.
   fixedReply: boolean;
+  // For the mark code makes after a correct check answer (appMark), not for callers. `beforeCard`: what the
+  // reply showed before the first card graded this turn (its question and the learner's answer), null when
+  // none was. `modelMarked`: the model's progress.mark_mastered call ran this turn, or the learner said no
+  // to it. Absent on a turn with no model call.
+  markInput?: { beforeCard: string | null; modelMarked: boolean };
 }
 
 /**
@@ -526,11 +581,20 @@ ${lastUser.content}` };
       turn.onText(result.text);
       return result;
     }
+    let result: TutorTurnResult;
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
+    // A correct check answer the model did not mark: code makes the mark, through the tool's own dispatch
+    // (the "Is that okay?" card where it is set to Ask, the chip), under the reply (appMark).
+    const mark = ctx.abort.aborted ? null : await appMark(result, conversation, offered, disclosure, () => getSyllabus(ctx.courseId, ctx.level));
+    if (mark) {
+      const marked = await dispatchToolCall({ id: APP_MARK_CALL_ID, name: MARK_MASTERED_TOOL, args: mark }, ctx, turn.onToolEvent, offered);
+      result = { ...result, toolCalls: [...result.toolCalls, { name: MARK_MASTERED_TOOL, args: mark, ok: marked.ok, byApp: true }] };
+    }
+    return result;
   }
 
   // The model loop, after grounding: everything that calls the model and can fail.
@@ -622,6 +686,10 @@ ${lastUser.content}` };
     // check's verdict, never reach the student or the transcript. It holds each sentence until it ends.
     // On any other turn it passes text straight through.
     let masteryWritten = false;
+    // For appMark: what the reply showed before the first card graded this turn, and whether the model's own
+    // mark ran or the learner said no to it.
+    let beforeCard: string | null = null;
+    let modelMarked = false;
     const claimFilter = (check: AnswerCheck | null, answered: string) => new ReplyClaimFilter({
       verdict: check?.verdict ?? null,
       masteryWritten: () => masteryWritten,
@@ -799,6 +867,7 @@ ${lastUser.content}` };
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}), ...(call.byApp ? { byApp: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
+        if (call.name === MARK_MASTERED_TOOL && (result.ok || result.error === declinedError(call.name))) modelMarked = true;
         // An equation or diagram is shown as reply text where the call ran, so it is saved with the reply
         // and stays in the thread (drawnCards.ts), rather than living only in the turn's tool events.
         if (result.ok) {
@@ -823,6 +892,7 @@ ${lastUser.content}` };
             replyOwed = false;
             break;
           }
+          const shownBefore = streamedText;
           show(answeredCard(streamedText, card.question, { text: answer.answer, typed: answer.typed }));
           if (call.byApp) appCardEnd = streamedText.length;
           replyOwed = true;
@@ -834,6 +904,7 @@ ${lastUser.content}` };
             // eslint-disable-next-line no-await-in-loop -- the reply after the pick needs the verdict
             const check = await checkAnswer(cardTutorMessage(iterationText, card), answer.answer, turn.config, { tier: ctx.modelTier, signal: ctx.abort });
             if (check && !ctx.abort.aborted) {
+              if (!cardChecks.length) beforeCard = shownBefore;
               cardChecks.push(check);
               verdictCheck = check;
               earlierRemoved.push(...claims.removed);
@@ -993,6 +1064,7 @@ ${lastUser.content}` };
       cardMessage,
       disclosure: prepared.keepsNothing,
       fixedReply: false,
+      markInput: { beforeCard, modelMarked },
     };
   }
 }

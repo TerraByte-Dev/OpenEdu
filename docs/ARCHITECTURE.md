@@ -235,15 +235,27 @@ written: they came from a once-a-minute timer whose only reader was the learning
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
   fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
   "she herself is kind"), with the same numbers in the same order and the
-  same last clause word for word, so only the setup differs; TerraTutor #259; keys compared as `keyForm`
-  reads them, without a leading article or punctuation other than the apostrophe, so "it's" / "its" stay
-  apart, with symbols kept, so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word read as a
-  minus sign, so "Cl-" / "Cl" stay apart too, and a key that is only punctuation is never blank;
-  TerraTutor #263, #264; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  same last clause word for word, so only the setup differs; TerraTutor #259; or the same question
+  reworded with its key reworded too, `isRewordedRepeat`: neither key routine nor a fill-in-the-blank's,
+  one stem's asked words, its content words less question framing such as "best describes", "main",
+  "primary role", all inside the other's and at least half the two shared, the same negations ("isn't"
+  and "doesn't" read as "not") and numbers, and keys that share half the shorter one's content words and
+  at least 2 of them, but not all of them in another order or with another symbol, so "high silica" /
+  "low silica", "ion" / "atom", "evaporation" / "condensation", "Covalent bond" / "Ionic bond" after a
+  stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; TerraTutor
+  live test part 9 issue 2, bars measured on `src/lib/__fixtures__/near-repeat-pairs.json`; keys compared
+  as `keyForm` reads them, without a leading article or punctuation other than the apostrophe (a numeric
+  key, below, loses only end punctuation; a longer key keeps a minus before a number and a decimal point,
+  so "-5 degrees at the summit" is not "5 degrees ..."), so "it's" / "its" stay apart, with symbols kept,
+  so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word, before a space, punctuation, a
+  quote or the end, read as a minus sign, so "Cl-" / "Cl" and "Cl-, Na+" / "Cl, Na+" stay apart too, and
+  a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
   counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
-  fraction, time or money, and a classification's pick, which the stem names itself ("Is 8 *even* or
+  fraction, time, money or expression (a number standing on its own with at most two words, "5 cm", "x =
+  4"; not a key that only contains a digit, "The percentage of silica (SiO2) content", TerraTutor live
+  test part 9 issue 1), and a classification's pick, which the stem names itself ("Is 8 *even* or
   odd?") or a multiple-choice question offers from 3 or fewer options. More are set aside and the top-up
   asks again (TerraTutor live test part 8 issue 2, part 7 issue 3; ported from TerraTutor #263).
   `quiz.ts fillSetAside` uses them only below the section's minimum (the quiz's `QUIZ_FLOOR` less its
@@ -254,7 +266,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
   (`db.ts getRecentQuizQuestions`, the newest `RECENT_QUESTIONS` answered rows, `GenPlan.earlier`; ported
   from TerraTutor #251): a local model's prompt lists that subtopic's earlier questions to avoid (a cloud
   model is sent none of them, lane 1), and a fresh question that repeats one, exactly or nearly, is set
-  aside and used only when the quiz would otherwise come up short. Both sides are read as what they ask
+  aside and used only when the quiz would otherwise come up short, never when it repeats the last quiz on
+  the level (`repeatsLastQuiz`, by the rows' `attempt_id`; TerraTutor live test part 9 issue 3: a short
+  quiz 2 was filled with quiz 1's question word for word); a missed one comes back through the review
+  pool instead, as it was asked. Both sides are read as what they ask
   (`quiz-grading.ts askedText`: a fill-in-the-blank's sentence, a matching question's left items), so two
   questions that share only "Fill in the blank." or "Match each word to its meaning." are not repeats. A
   fill-in-the-blank question is
@@ -880,8 +895,9 @@ Questions, offers, instructions to the student and conditions are not claims. Th
 shown the claim; the saved reply, which replaces it on screen when the turn ends, does not have it.
 
 Mastery is not one of them: it is decided in code from quiz and promotion-test results
-(`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a
-model's praise alone never marks anything.
+(`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path (the
+model's call, or code's after a check answer found correct, below), and a model's praise alone never
+marks anything.
 
 ### The answer check in assess mode (`kernel/answerCheck.ts`, `answerCompare.ts`, `replyClaims.ts`)
 
@@ -1075,8 +1091,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   check's question is still open, and code shows it again after the reply under "Now back to the
   question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The reply's
   own trailing question is dropped first, as it streams (`TrailingQuestionHold`: a sentence with a "?" is
-  held, with a lead-in before it and a choice line, emoji or "Take your time!" after it; feedback after it
-  lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
+  held, with a lead-in before it and a choice line, emoji or "Take your time!" after it, and "Keep going!",
+  "Let me know!" or "I believe in you!" as a whole line, not one that goes on with help (TerraTutor #266);
+  feedback after it lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
   model call is dropped there, and the next call's text starts after a break), so code's question is
   usually the only open question on screen, with no second one and not the same one twice (TerraTutor
   click test part 8, issue 4). Usually, not always: a question with feedback after it is let out on
@@ -1182,6 +1199,38 @@ So the verdict on the child's answer is the app's, not the reply's:
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
+- **The mark after a correct check answer is code's when the model makes none** (`TutorEngine.ts appMark`;
+  ported from TerraTutor #266). gemma4:e2b, the default below 16 GB, never called `progress.mark_mastered`
+  after a check answer graded correct (TerraTutor live tests 2026-11-19 parts 7 and 8, 2026-11-20 part 9:
+  4 of 4 turns; OpenEdu runs the same `assess.md` on the same default), so a check never moved mastery.
+  After the reply, code dispatches the same call the model would (`status: "mastered"`, `byApp: true` in
+  `toolCalls`) through the tool's own dispatch, so it is shown the same way: the "Is that okay?" card where
+  the rule is Ask, the chip ("Marked “Equal Groups” as learned"), and the saved mark with its
+  `subtopic_events` row (source `tutor`). Only under the gate the model's mark passes: the tool is offered
+  (assess mode), the newest message is not a safety disclosure, every answer checked this turn is
+  `correct`. Stricter than that gate: a typed answer marks only when it is the learner's first message
+  since the request that opened the check (`firstAttempt`). After any other message (a hint or help
+  request, "I don't know", a wrong answer) the tutor may have asked an easier question, and the answer is
+  graded on that one: "help", then "What is 4 + 4 + 4?" answered "12", had marked the check's skill (review
+  of this port). So a second skill checked in the same check is left to the model's own call. A turn
+  graded only on cards marks only when its newest message opened the check (a hint request a caller ran
+  in assess, answered with a card, does not). It runs on every model, cloud ones included (`assess.md`
+  asks for about 90% understanding; one right first answer now marks even when a capable model held off). Not when the
+  model's own `progress.mark_mastered` call ran that turn, `practiced` too, or the learner said no to it on
+  the card (not asked again); a model call that failed (a wrong id) or was refused does not stop it. Nor
+  on a turn the learner stopped, that stalled or that ended at a card. The subtopic is the one code knows
+  the check is on (`assessPicker.ts checkedSubtopic`): the newest pick of a subtopic title on a card made
+  before the graded answer (the topic picker), in the tutor's messages since the request that opened the
+  check and, for a card's answer, in this reply before that card; a pick after it (a "Which one should we
+  check next?" card) is about the next question and never counts. Else the level's one subtopic not
+  mastered. With two or more not mastered and no pick, or no open check, there is no mark (code does not
+  guess). Whether a subtopic is already mastered is read from the saved syllabus (`getSyllabus`), not
+  `ctx.syllabus`, the course view's snapshot. The reply is written before the mark and is not told of it,
+  so its own claims of mastery are still taken out; the chip says it.
+  The bar is the model's mark's bar, and it is generous on purpose: one answer graded correct marks, also
+  when the grader model alone decided it (`by: "model"`, most free answers on e2b) and on a lucky pick from
+  a two-choice card; with one subtopic left and no pick, a right answer to a question off that subtopic
+  marks it. A level still moves only through the promotion test.
 
 The turn result carries `answerCheck` (question, key, verdict, how it was reached) and `removedClaims`.
 `TutorTurn.answerCheck: "off"` turns the check off for an eval's paired baseline. Cost on a checked

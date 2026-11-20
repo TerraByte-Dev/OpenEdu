@@ -81,6 +81,8 @@ describe("getRecentQuizQuestions", () => {
       correct_answer: "key", subtopic_id: "1.1", question_type: "fill_in_blank",
       blank_position: "Second quiz, question 1: the ___ part.", matching_pairs: [{ left: "a", right: "b" }],
     });
+    // Which quiz asked each, so the generator can tell the last quiz's questions (quiz.ts repeatsLastQuiz).
+    expect(got.map((q) => q.attempt_id)).toEqual([second.id, first.id, first.id]);
     expect((await getRecentQuizQuestions(courseId, 1, 1)).map((q) => q.question_text)).toEqual(["Second quiz, question 1"]);
   });
 
