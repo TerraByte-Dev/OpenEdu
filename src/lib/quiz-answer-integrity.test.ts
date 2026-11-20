@@ -764,6 +764,32 @@ describe("near-duplicate questions in one quiz or test", () => {
     expect(keyForm("Cell-membrane!")).toBe("cell membrane");
   });
 
+  it("local path: a K-2 compare question and its mirror both reach the quiz", async () => {
+    const compare = { level: 1, title: "Comparing numbers", subtopics: [{ id: "s1", title: "Compare with <, >, =", key_concepts: ["less than"] }] } as unknown as Syllabus;
+    const script = [
+      { question_text: "Which symbol makes this true: 34 ___ 43?", blank_position: "34 ___ 43", correct_answer: "<", explanation: "34 is less than 43. Therefore the answer is <" },
+      { question_text: "Which symbol makes this true: 43 ___ 34?", blank_position: "43 ___ 34", correct_answer: ">", explanation: "43 is greater than 34. Therefore the answer is >" },
+      { question_text: "Which symbol makes this true: 34 ___ 34?", blank_position: "34 ___ 34", correct_answer: "=", explanation: "34 is equal to 34. Therefore the answer is =" },
+    ];
+    scriptModel([(n) => ({ ...fib({}), ...script[n % script.length] })]);
+    const qs = await generateQuizQuestions(compare, 3, local);
+    expect(qs.map((q) => q.correct_answer)).toEqual(["<", ">", "="]);
+  });
+
+  // #405 review: the minus sign typed as a hyphen ("Cl-") read as "cl", so the ion's question was dropped
+  // as a repeat of the atom's.
+  it("local path: an ion question and its atom's both reach the quiz", async () => {
+    const ions = { level: 3, title: "Ions", subtopics: [{ id: "s1", title: "Ion symbols", key_concepts: ["charge"] }] } as unknown as Syllabus;
+    const script = [
+      { question_text: "Write the chemical symbol for a chlorine ion.", correct_answer: "Cl-", explanation: "A chlorine ion has one extra electron. Therefore the answer is Cl-" },
+      { question_text: "Write the chemical symbol for a chlorine atom.", correct_answer: "Cl", explanation: "Chlorine's symbol is Cl. Therefore the answer is Cl" },
+      { question_text: "Write the chemical symbol for a sodium ion.", correct_answer: "Na+", explanation: "A sodium ion has lost one electron. Therefore the answer is Na+" },
+    ];
+    scriptModel([(n) => ({ ...mc({}), question_type: "short_answer", options: [], ...script[n % script.length] })]);
+    const qs = await generateQuizQuestions(ions, 3, local);
+    expect(qs.map((q) => q.correct_answer)).toEqual(["Cl-", "Cl", "Na+"]);
+  });
+
   it("does not count a classification's pick toward the same-key cap", () => {
     const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
     expect(sameKeyForm(sa("Is 8 even or odd?", "Even"))).toBeNull();
