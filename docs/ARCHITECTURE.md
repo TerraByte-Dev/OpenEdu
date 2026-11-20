@@ -233,9 +233,21 @@ written: they came from a once-a-minute timer whose only reader was the learning
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
   later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
-  fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind"), with the same numbers in the same order and the
-  same last clause word for word, so only the setup differs; TerraTutor #259), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
-  review section is kept apart from its current section the same way. The re-posed missed questions
+  fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
+  "she herself is kind"), with the same numbers in the same order and the
+  same last clause word for word, so only the setup differs; TerraTutor #259; keys compared as `keyForm`
+  reads them, without a leading article or punctuation other than the apostrophe, so "it's" / "its" stay
+  apart; TerraTutor #263), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  review section is kept apart from its current section the same way. A quiz, or one level-test section,
+  takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
+  counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
+  fraction, time or money, and a classification's pick, which the stem names itself ("Is 8 *even* or
+  odd?") or a multiple-choice question offers from 3 or fewer options. More are set aside and the top-up
+  asks again (TerraTutor live test part 8 issue 2, part 7 issue 3; ported from TerraTutor #263).
+  `quiz.ts fillSetAside` uses them only below the section's minimum (the quiz's `QUIZ_FLOOR` less its
+  re-posed questions; a level test's current section `TEST_FLOOR` less a full review section, topped up
+  again from its set-aside ones when the review section comes up short), ahead of repeats of earlier
+  quizzes. The re-posed missed questions
   repeat across quizzes on purpose. Fresh ones are kept apart from the last quizzes on the level
   (`db.ts getRecentQuizQuestions`, the newest `RECENT_QUESTIONS` answered rows, `GenPlan.earlier`; ported
   from TerraTutor #251): a local model's prompt lists that subtopic's earlier questions to avoid (a cloud
@@ -1019,28 +1031,46 @@ So the verdict on the child's answer is the app's, not the reply's:
   Code's own repeats of the check's question (`codeRepeat`, as above) are stepped back over the same way:
   the reply to a non-answer and the reply to a hint's answer are not keyed, the message they repeat is,
   so a topic named only in the check's announcement, which the repeat leaves out ("Let's quiz you on
-  Charlotte's Web. Who is Wilbur?"), is still in the next try's key (#402 review). A hint often ends in a
-  question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: after a hint whose reply
-  ends in a question, an answer that is neither right for the check's question by code (that match wins:
-  "48" is graded against "What is 6 x 8?") nor a non-answer is the hint's answer, graded against the
-  hint's question the same way (its key: code's for a plain operation, else one more key call; code
-  compares, then the grader, with the hint's question and key). When that grade is not right or partly
-  right, the grader also reads the answer against the check's question, and a right or partly right
-  verdict there is the check's, untagged, so a right answer to the check in words code cannot match ("A
-  fraction is a part of a whole, like one slice of a pizza.", "it is 48 because 40 + 8 is 48") is not
-  called wrong. A hint question with no one right answer, or a failed key call, gives "unsure", tagged,
-  and no second grade. Before, only an exact code match with the hint's key was caught, and the grader
-  read "break it into equal pieces", the answer to "How could you share a chocolate bar equally?", as
-  right for "what a fraction is, using a real-life example" (TerraTutor click test 2026-11-19 part 7,
-  issue 2; ported from TerraTutor #260). A hint that asks nothing, or asks only the check's
-  question again, is not keyed. A hint whose question is not its last sentence ("What is 8 + 8? Try it!",
-  "What is 8 + 8? 😊") is keyed for code's match only: an answer that matches its key is right for the
-  hint, tagged; anything else is graded against the check's question, as before this port (review of the
-  port). A verdict on the hint's question, right or not, is tagged `on: "hint"`
+  Charlotte's Web. Who is Wilbur?"), is still in the next try's key (#402 review). A hint often asks a
+  question of its own ("Count by 8s. What is 8 + 8?"), and a learner may answer either question. **The
+  check's question comes first** (TerraTutor's decision on its click test 2026-11-19 part 8, issue 1;
+  ported from TerraTutor #262): (a) code's match with the check's key is the check's ("48" after that
+  hint); (b) a hint whose key is the check's once case, punctuation and an article are set aside ("1/2"
+  and "1/2."), or that asks only the check's question again, at its end or not ("What is a noun? You can
+  do it!"; TerraTutor #261), is not keyed apart; (c) otherwise the grader reads the answer against the
+  check's question, and "correct" there is the check's answer and can pass ("the whole is the complete
+  thing, like a whole pizza, before you cut it into equal parts" after the hint "What is that complete
+  object called in our lesson?"; "it is 48 because 40 + 8 is 48"); (d) only an answer not right for the
+  check's question is tried against the hint's (its key: code's for a plain operation, else one more key
+  call; code compares, then the grader), and right or partly right there is the hint's answer, tagged;
+  (e) anything else keeps the check's verdict, untagged. An answer code matches to the hint's key and
+  finds wrong for the check's ("16") is the hint's with no grader call, since the grader could not make it
+  right for the check's. At most two grader calls a turn, the check's and then the hint's. Before, the
+  answer was graded against the hint's question first and a right or partly right verdict there was the
+  hint's, so a right answer to the check in words was tagged and its mark refused, and "one half" was the
+  hint's when both keys were "1/2". The grader's leniency is not special-cased: "break it into equal
+  pieces", the answer to the hint's "How could you share a chocolate bar equally?", passes when the grader
+  finds it right for "what a fraction is, using a real-life example", as it would with no hint (TerraTutor
+  click test 2026-11-19 part 7, issue 2). A hint that asks nothing is not keyed. A hint that ends on a
+  question with no one right answer ("Think of a time you shared food. What did you notice?"), or whose
+  key call failed, has nothing to grade the answer against: an answer the grader finds right for the
+  check's question is the check's; anything else is `unsure`, tagged `on: "hint"`, so no verdict is said,
+  the mark is refused and the check's question is asked again. A hint whose question is not its last
+  sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊") is tried in step (d) by code's match only,
+  with no grader call on the hint's (#404). That is one more key call after any hint with a "?" in it, a
+  rhetorical one ("Did you know ...?") included. A verdict on the hint's question is tagged `on: "hint"`
   and never passes the check: every `mastered` mark on that turn is refused by code
   (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
   check's question is still open, and code shows it again after the reply under "Now back to the
-  question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The next turn
+  question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The reply's
+  own trailing question is dropped first, as it streams (`TrailingQuestionHold`: a sentence with a "?" is
+  held, with a lead-in before it and a choice line, emoji or "Take your time!" after it; feedback after it
+  lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
+  model call is dropped there, and the next call's text starts after a break), so code's question is the
+  one open question on screen, never a second one or the same one twice (TerraTutor click test part 8,
+  issue 4). Its praise and feedback stay; a reply that was only a question gets a short verdict line that
+  asks nothing ("That's right.", "That's partly right."). On a turn the learner stopped the held text is
+  let out as it came. The next turn
   keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
   against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
   else is graded against the check's question as below (ported from TerraTutor #255).
