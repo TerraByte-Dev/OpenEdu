@@ -718,6 +718,39 @@ function stemWords(text: string): string[] {
 
 export const NEAR_DUPLICATE_OVERLAP = 0.85;
 
+// A key as the repeat checks compare it: normalizeOption, and for a key with no digit also without a
+// leading "the", "a" or "an" and without punctuation, so "The Cell Membrane" and "cell membrane." are one
+// key (TerraTutor live test part 8 issue 2). The apostrophe stays: "it's" / "its", "we'll" / "well" and "can't" /
+// "cant" are the pairs a grammar question contrasts. A key with a digit is left as normalizeOption reads
+// it: "-3" and "3", "$5" and "5" are different answers. Only for telling repeats apart; grading never reads it.
+export function keyForm(s: string): string {
+  const k = normalizeOption(s);
+  if (/\p{N}/u.test(k)) return k;
+  return k.replace(/[^\p{L}\p{M}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
+}
+
+// Keys that many different questions share as a matter of course: true / false, a matching question's
+// "See matching_pairs", an option letter, a number, fraction, clock time or amount of money ("12",
+// "seven", "three quarters", "2:30", "two dimes"), and a classification's pick: a key the stem names
+// itself ("Is 8 even or odd?", "Is ice a solid, liquid or gas?") or a multiple-choice question with 3 or
+// fewer options (even / odd, noun / verb, fact / opinion). K-1 content leans on these.
+function routineKey(q: NearDuplicateQ, key: string): boolean {
+  if (q.question_type === "true_false" || q.question_type === "drag_to_match") return true;
+  if (key === "true" || key === "false" || LETTER_KEY_RE.test(key)) return true;
+  if (/\p{N}/u.test(key) || optionNumber(key) !== null || quantityOf(key) !== null) return true;
+  if (q.question_type === "multiple_choice" && (q.options?.length ?? 0) > 0 && (q.options?.length ?? 0) <= 3) return true;
+  const kw = stemWords(key);
+  const sw = stemWords(q.question_text);
+  return kw.length > 0 && sw.some((_, i) => kw.every((w, j) => sw[i + j] === w));
+}
+
+/** The key the same-key cap reads (quiz.ts SAME_KEY_CAP): keyForm, or null for a blank key and a routine
+ *  one (true / false, a matching question, a number, fraction, time or money, a classification's pick). */
+export function sameKeyForm(q: NearDuplicateQ): string | null {
+  const key = keyForm(String(q.correct_answer ?? ""));
+  return !key || routineKey(q, key) ? null : key;
+}
+
 // The stem's last clause, the part that asks: its words after the last ",", ".", ";", ":", "?" or "!"
 // followed by a space ("..., and you eat 7 of those slices, what does the number 7 represent in the
 // fraction 7/10?" -> "what does the number 7 represent in the fraction 7/10").
@@ -750,7 +783,8 @@ function hasFreeTextKey(q: NearDuplicateQ): boolean {
 // Pronouns are not a shared content word: "she is kind" / "she is unkind and rude" about the same story
 // character share only "she" (review of OpenEdu's port of TerraTutor #259).
 const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", "them", "their", "theirs",
-  "we", "us", "our", "ours", "your", "yours", "mine", "these", "those", "there"]);
+  "we", "us", "our", "ours", "your", "yours", "mine", "these", "those", "there",
+  "himself", "herself", "itself", "themselves", "myself", "yourself", "yourselves", "ourselves"]);
 
 // Two questions a learner would see as the same one: a stem whose words are at least
 // NEAR_DUPLICATE_OVERLAP inside the other's (overlap coefficient: shared words over the shorter stem's,
@@ -769,11 +803,14 @@ const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", 
 //   evaporation / condensation, the main idea of the first / second paragraph.
 // Otherwise two different keys are never duplicates, however alike the stems ("15 minutes after 2:30"
 // vs "after 1:45"; a multiple-choice "B) Numerator" vs "C) Denominator").
+// Keys are compared as keyForm reads them ("The Cell Membrane" = "cell membrane"). Many questions with one
+// key and different stems are not caught here; quiz.ts SAME_KEY_CAP caps them instead.
 export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   if (a.correct_answer === undefined || b.correct_answer === undefined) return false;
   const wa = stemWords(a.question_text);
   const wb = stemWords(b.question_text);
-  if (normalizeOption(a.correct_answer) !== normalizeOption(b.correct_answer)) {
+  const sameKey = keyForm(a.correct_answer) === keyForm(b.correct_answer);
+  if (!sameKey) {
     if (!hasFreeTextKey(a) || !hasFreeTextKey(b)) return false;
     const keyWords = new Set(contentWords(a.correct_answer).filter((w) => !KEY_PRONOUNS.has(w)));
     if (!contentWords(b.correct_answer).some((w) => keyWords.has(w))) return false;

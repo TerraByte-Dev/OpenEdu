@@ -13,9 +13,9 @@ vi.mock("./llm", () => ({
   log: { info: vi.fn(), warn: vi.fn() },
 }));
 
-import { generateQuizQuestions } from "./quiz";
-import type { EarlierQuestion } from "./quiz-grading";
-import { callLLMStructured } from "./llm";
+import { generateQuizQuestions, SAME_KEY_CAP } from "./quiz";
+import { dedupeByQuestionText, keyForm, type EarlierQuestion } from "./quiz-grading";
+import { callLLMStructured, log } from "./llm";
 import type { LLMConfig, Syllabus } from "../types";
 
 const local = { provider: "ollama", model: "qwen3:8b", modelTier: "medium" } as unknown as LLMConfig;
@@ -75,7 +75,7 @@ function model(write: () => object) {
   });
 }
 
-beforeEach(() => { n = 0; prompts.length = 0; });
+beforeEach(() => { n = 0; prompts.length = 0; vi.mocked(log.info).mockClear(); });
 
 describe("a repeat quiz on a level", () => {
   it("asks the model for other questions than the last quizzes asked", async () => {
@@ -198,5 +198,105 @@ describe("a repeat quiz on a level", () => {
     model(() => fresh());
     await generateQuizQuestions(syllabus, 2, { ...local }, [], undefined, null, null);
     for (const p of prompts) expect(p).not.toContain("Earlier quizzes");
+  });
+});
+
+// TerraTutor live test part 8 issue 2: quiz 2 asked about the cell membrane 7 times in 19, under stems too unlike each
+// other for the near-duplicate check, keyed "The cell membrane" and "Cell membrane" by turns.
+const MEMBRANE_STEMS = [
+  "Which part of the cell controls what enters and leaves?",
+  "What thin layer surrounds every cell?",
+  "Which cell structure acts like a gatekeeper?",
+  "What is the outer boundary of an animal cell called?",
+  "Oxygen passes into a cell through which structure?",
+  "Which structure keeps the inside of a cell separate from its surroundings?",
+  "Nutrients get into a cell by crossing what?",
+];
+const membrane = (i: number) => {
+  const key = i % 2 ? "A) Cell membrane" : "A) The cell membrane";
+  return {
+    question_text: MEMBRANE_STEMS[i % MEMBRANE_STEMS.length], question_type: "multiple_choice",
+    options: [key, "B) Nucleus", "C) Cell wall", "D) Mitochondria"], correct_answer: key, difficulty_level: 1,
+    explanation: `The membrane lets things in and out. Therefore the answer is ${key}`,
+    subtopic_id: "1.1", blank_position: "", matching_pairs: [],
+  };
+};
+const isMembrane = (q: { correct_answer: string }) => keyForm(q.correct_answer) === "cell membrane";
+
+describe("the same key many times in one quiz (TerraTutor live test part 8 issue 2)", () => {
+  it("the seven membrane stems are not near-duplicates of each other, so only the cap catches them", () => {
+    expect(dedupeByQuestionText(MEMBRANE_STEMS.map((_, i) => membrane(i)))).toHaveLength(7);
+  });
+
+  it(`asks for others past ${SAME_KEY_CAP} questions with one key, and the quiz is full without them`, async () => {
+    // The live quiz's shape: 7 of the first 19 questions keyed the membrane.
+    const at = new Set([1, 3, 5, 8, 11, 14, 17]);
+    let calls = 0, m = 0;
+    model(() => (at.has(++calls) ? membrane(m++) : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 20, { ...local }, [], undefined, null, null);
+    expect(qs).toHaveLength(20);
+    expect(qs.filter(isMembrane)).toHaveLength(SAME_KEY_CAP);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /5 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
+  });
+
+  it("counts a re-posed missed question toward the cap", async () => {
+    const missed = { ...membrane(0), id: 1, attempt_id: 1, user_answer: "B) Nucleus", is_correct: false } as never;
+    let calls = 0, m = 1;
+    model(() => (++calls <= 3 ? membrane(m++) : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 10, { ...local }, [missed], undefined, null, null);
+    expect(qs).toHaveLength(10);
+    expect(qs.some((q) => q.question_text === MEMBRANE_STEMS[0])).toBe(true);
+    expect(qs.filter(isMembrane)).toHaveLength(SAME_KEY_CAP);
+  });
+
+  it("fills back from the set-aside ones only to the quiz's minimum, when the model writes nothing else", async () => {
+    let calls = 0, m = 0;
+    model(() => (++calls <= 4 ? fresh() : membrane(m++)));
+    const qs = await generateQuizQuestions(syllabus, 20, { ...local }, [], undefined, null, null);
+    // 4 others + 2 membrane, then 4 of the 5 set aside, to QUIZ_FLOOR (10), not to 20.
+    expect(qs).toHaveLength(10);
+    expect(qs.filter(isMembrane)).toHaveLength(6);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /4 question\(s\) past the 2-per-key cap fill the gap/.test(String(c[1])))).toBe(true);
+  });
+
+  // TerraTutor live test part 8 issue 3: a near-duplicate of an earlier quiz's question was shown because the quiz was
+  // short. That is by design (a repeat fills a gap; click test part 3). Below the minimum, a question set
+  // aside by the cap, which no earlier quiz asked, goes first.
+  it("below the minimum, takes a set-aside question that is not a repeat of an earlier quiz first", async () => {
+    let calls = 0, m = 0;
+    model(() => { const c = ++calls; return c <= 4 ? fresh() : c === 5 ? { ...CAKE } : membrane(m++); });
+    const qs = await generateQuizQuestions(syllabus, 20, { ...local }, [], undefined, null, null, undefined, earlier);
+    const texts = qs.map((q) => q.question_text);
+    expect(qs.filter(isMembrane)).toHaveLength(6);
+    // The earlier quiz's question comes after the floor is reached, as the one repeat that fills the gap.
+    expect(texts.indexOf(CAKE.question_text)).toBe(10);
+    expect(qs).toHaveLength(11);
+  });
+});
+
+// Review of TerraTutor #263 (the same-key fix): a classification's pick ("Is 8 even or odd?" keyed "Even") repeats by
+// nature, like true/false, so the cap leaves it alone and an "Even and odd" quiz stays full.
+const evenOdd = (k: number) => {
+  const key = k % 2 ? "Odd" : "Even";
+  return k % 3
+    ? {
+      question_text: `Is ${k} even or odd?`, question_type: "short_answer", options: [], correct_answer: key, difficulty_level: 1,
+      explanation: `Count by twos to check. Therefore the answer is ${key}`, subtopic_id: "1.1", blank_position: "", matching_pairs: [],
+    }
+    : {
+      question_text: `Is the number ${k} even or odd?`, question_type: "multiple_choice",
+      options: ["A) Even", "B) Odd", "C) Both", "D) Neither"], correct_answer: k % 2 ? "B) Odd" : "A) Even", difficulty_level: 1,
+      explanation: `Count by twos to check. Therefore the answer is ${k % 2 ? "B) Odd" : "A) Even"}`, subtopic_id: "1.1", blank_position: "", matching_pairs: [],
+    };
+};
+
+describe("a classification key many times in one quiz", () => {
+  it("an even/odd quiz, 7 of every 10 questions keyed Even or Odd, is full", async () => {
+    let calls = 0;
+    model(() => { const c = ++calls; return c % 10 < 7 ? evenOdd(c + 1) : fresh(); });
+    const qs = await generateQuizQuestions(syllabus, 20, { ...local }, [], undefined, null, null);
+    expect(qs).toHaveLength(20);
+    expect(qs.filter((q) => /even or odd/.test(q.question_text)).length).toBeGreaterThan(SAME_KEY_CAP * 2);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /per-key cap/.test(String(c[1])))).toBe(false);
   });
 });

@@ -7,7 +7,7 @@ import {
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, alignKeyToOption,
   hasSelfCorrection, duplicateOptionPair, optionEqualToKey, rewriteLetterRefs, isNearDuplicate,
-  repeatedMatchSide, questionWithSentence, questionKey, askedText, type EarlierQuestion,
+  repeatedMatchSide, questionWithSentence, questionKey, askedText, sameKeyForm, type EarlierQuestion,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
@@ -39,6 +39,12 @@ export const TEST_FLOOR = 30;
 // (level-test.ts PASS_REVIEW, 60%): with 1 or 2 questions one miss fails it (0% or 50%), and the whole
 // test with it; from 3, one miss leaves 67%. A shorter review section is refused like an empty one.
 export const TEST_REVIEW_FLOOR = 3;
+// The most questions in one quiz, or one level-test section, that share a key (quiz-grading.ts
+// sameKeyForm: "The Cell Membrane" = "cell membrane"; true/false, number, fraction, time and money keys
+// and a classification's pick, "Is 8 even or odd?", are not counted). A TerraTutor live test asked about the cell membrane 7 times in a 19-question quiz (part 8
+// issue 2), and a level test keyed "Lava" 9 times in 31 (part 7 issue 3). More are set aside, and the
+// top-up asks for others; they fill back only below the quiz's or test's minimum (fillSetAside).
+export const SAME_KEY_CAP = 2;
 
 const QUESTION_TYPES = [
   "multiple_choice", "true_false", "fill_in_blank",
@@ -499,7 +505,14 @@ interface GenPlan {
    * asks for others, and a fresh one that repeats one of them, exactly or nearly, is set aside: it is
    * used only when the quiz would otherwise come up short. */
   earlier?: EarlierQuestion[];
+  /** Questions in the same quiz that are not generated here (the re-posed ones): they count toward
+   * SAME_KEY_CAP. A level test's other section is in `avoid` but not here: the cap is per section. */
+  sameQuiz?: GenQuestion[];
 }
+
+/** What a section's generation made, and the questions it set aside and did not use, best first
+ *  (generatePromotionTestQuestions tops the current section up from them when the review section is short). */
+interface GenResult { questions: GenQuestion[]; setAside: GenQuestion[] }
 
 // Compared on askedText, so two fill-in-the-blank questions that share "Fill in the blank." but ask
 // different sentences are not repeats.
@@ -533,17 +546,51 @@ function earlierFor(plan: GenPlan, subtopicId: string): string[] {
     .map((q) => summarizeForLedger({ question_text: askedText(q), subtopic_id: q.subtopic_id }));
 }
 
-/** Questions set aside as repeats of earlier quizzes, checked as fresh ones are, to fill a quiz that came up short. */
-async function fillFromRepeats(
-  plan: GenPlan, produced: GenQuestion[], spares: GenQuestion[], target: number, label: string,
-): Promise<GenQuestion[]> {
-  if (produced.length >= target || spares.length === 0) return produced;
-  let fill = dedupeByQuestionText(spares).filter((q) => !repeatsAny(produced, q));
+// A question that would be one more than SAME_KEY_CAP with that key among `list` and the quiz's re-posed ones.
+function overCap(plan: GenPlan, list: ReadonlyArray<GenQuestion>, q: GenQuestion): boolean {
+  const k = sameKeyForm(q);
+  if (k === null) return false;
+  let n = 0;
+  for (const x of [...(plan.sameQuiz ?? []), ...list]) if (sameKeyForm(x) === k && ++n >= SAME_KEY_CAP) return true;
+  return false;
+}
+
+/**
+ * Fills a section that came up short from the questions set aside, checked as fresh ones are:
+ * 1. below `floor` (the quiz's or test's minimum), a question set aside past SAME_KEY_CAP (`capped`; none repeats an
+ *    earlier quiz);
+ * 2. up to the target, a repeat of an earlier quiz (`repeats`, GenPlan.earlier) that keeps the cap: a quiz
+ *    that came up short takes it rather than a gap, by design (TerraTutor click test 2026-11-19 part 3; live test
+ *    part 8 issue 3 saw one);
+ * 3. below `floor`, the repeats left.
+ * So below the minimum a question that does not repeat an earlier quiz goes first.
+ */
+async function fillSetAside(
+  plan: GenPlan, produced: GenQuestion[], capped: GenQuestion[], repeats: GenQuestion[], target: number, floor: number, label: string,
+): Promise<GenResult> {
+  if (capped.length + repeats.length === 0) return { questions: produced, setAside: [] };
+  let pool = dedupeByQuestionText([...capped, ...repeats]).filter((q) => !repeatsAny(produced, q));
+  const isRepeat = new Set(repeats);
+  const setAside = pool.filter((q) => !isRepeat.has(q)).length;
+  if (setAside) log.info("quiz", `${label}: ${setAside} question(s) set aside past the ${SAME_KEY_CAP}-per-key cap`);
   const check = checkFresh(plan);
-  if (check && fill.length) fill = await check(fill, `${label} repeats`);
+  if (check && pool.length && produced.length < target) pool = await check(pool, `${label} set aside`);
   stopIfAborted(plan.signal);
-  log.info("quiz", `${label}: ${Math.min(fill.length, target - produced.length)} question(s) from earlier quizzes fill the gap`);
-  return [...produced, ...fill.slice(0, target - produced.length)];
+  const out = [...produced];
+  const used = new Set<GenQuestion>();
+  const take = (from: GenQuestion[], limit: number, keepCap: boolean, what: string) => {
+    let n = 0;
+    for (const q of from) {
+      if (out.length >= limit) break;
+      if (used.has(q) || (keepCap && overCap(plan, out, q))) continue;
+      out.push(q); used.add(q); n++;
+    }
+    if (n) log.info("quiz", `${label}: ${n} question(s) ${what} fill the gap`);
+  };
+  take(pool.filter((q) => !isRepeat.has(q)), floor, false, `past the ${SAME_KEY_CAP}-per-key cap`);
+  take(pool.filter((q) => isRepeat.has(q)), target, true, "from earlier quizzes");
+  take(pool.filter((q) => isRepeat.has(q)), floor, false, "from earlier quizzes, past the per-key cap,");
+  return { questions: out, setAside: pool.filter((q) => !used.has(q)) };
 }
 
 // The check a round's freshly generated questions get before they count: the content review when a
@@ -565,8 +612,8 @@ function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
 }
 
 async function generatePerQuestion(
-  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
-): Promise<GenQuestion[]> {
+  plan: GenPlan, target: number, floor: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenResult> {
   const { tier } = plan;
   const check = checkFresh(plan);
   const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
@@ -574,6 +621,7 @@ async function generatePerQuestion(
 
   let produced: GenQuestion[] = [];
   const spares: GenQuestion[] = [];
+  const capped: GenQuestion[] = [];
   const seen = new Set<string>();
   const keyOf = (q: GenQuestion) => q.question_text.trim().toLowerCase();
   const ledgerTail = () => produced.slice(-ledgerCap).map(summarizeForLedger);
@@ -582,6 +630,7 @@ async function generatePerQuestion(
     const k = keyOf(q);
     if (!k || seen.has(k) || produced.some((p) => isNearDuplicate(p, q)) || repeatsAvoided(plan, q)) return;
     if (repeatsEarlier(plan, q)) { spares.push(q); return; }
+    if (overCap(plan, produced, q)) { capped.push(q); return; }
     seen.add(k); produced.push(q); onProgress?.(produced.length, target);
   };
 
@@ -608,22 +657,24 @@ async function generatePerQuestion(
     }
     if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
   }
-  produced = await fillFromRepeats(plan, produced, spares, target, label);
+  const filled = await fillSetAside(plan, produced, capped, spares, target, floor, label);
+  produced = filled.questions;
   onProgress?.(Math.min(produced.length, target), target);
 
   if (produced.length < target) log.warn("quiz", `${label}: generated ${produced.length}/${target} — model may be struggling (short test)`);
   else log.info("quiz", `${label}: ${produced.length}/${target} questions ready`);
-  return produced.slice(0, target);
+  return { questions: produced.slice(0, target), setAside: filled.setAside };
 }
 
 async function generateBatched(
-  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
-): Promise<GenQuestion[]> {
+  plan: GenPlan, target: number, floor: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenResult> {
   const { tier, config } = plan;
   const check = checkFresh(plan);
   const MAX_ROUNDS = 3;
   let produced: GenQuestion[] = [];
   const spares: GenQuestion[] = [];
+  const capped: GenQuestion[] = [];
 
   for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
     const before = produced.length;
@@ -642,6 +693,12 @@ async function generateBatched(
       .filter((q) => !repeatsAvoided(plan, q));
     spares.push(...batch.filter((q) => repeatsEarlier(plan, q)));
     batch = batch.filter((q) => !repeatsEarlier(plan, q));
+    // The same-key cap, on what the dedupe below keeps (produced is already deduped, so it stays in front).
+    const kept: GenQuestion[] = [];
+    for (const q of dedupeByQuestionText([...produced, ...batch]).slice(produced.length)) {
+      if (overCap(plan, [...produced, ...kept], q)) capped.push(q); else kept.push(q);
+    }
+    batch = kept;
     if (check) batch = await check(batch, `${label} r${round}`);
     stopIfAborted(plan.signal);
 
@@ -653,23 +710,25 @@ async function generateBatched(
     }
     if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
   }
-  produced = await fillFromRepeats(plan, produced, spares, target, label);
+  const filled = await fillSetAside(plan, produced, capped, spares, target, floor, label);
+  produced = filled.questions;
   onProgress?.(Math.min(produced.length, target), target);
 
   const final = produced.length > target ? produced.slice(0, target) : produced;
   if (final.length < target) log.warn("quiz", `${label}: generated ${final.length}/${target} — model may be struggling (short test)`);
   else log.info("quiz", `${label}: ${final.length}/${target} questions ready`);
-  return final;
+  return { questions: final, setAside: filled.setAside };
 }
 
+// `floor`: the fewest questions this section may have before questions set aside past SAME_KEY_CAP fill it.
 async function generateToTarget(
-  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
-): Promise<GenQuestion[]> {
-  if (plan.subtopics.length === 0 || target <= 0) return [];
+  plan: GenPlan, target: number, floor: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenResult> {
+  if (plan.subtopics.length === 0 || target <= 0) return { questions: [], setAside: [] };
   stopIfAborted(plan.signal);
   return plan.config.provider === "ollama"
-    ? generatePerQuestion(plan, target, label, onProgress)   // local: quality, one call per question
-    : generateBatched(plan, target, label, onProgress);       // cloud: cost, batched per subtopic
+    ? generatePerQuestion(plan, target, floor, label, onProgress)   // local: quality, one call per question
+    : generateBatched(plan, target, floor, label, onProgress);       // cloud: cost, batched per subtopic
 }
 
 // ─── Independent verification pass (issue #83) ────────────────────────────────
@@ -797,7 +856,9 @@ export async function generateQuizQuestions(
     }
   }
 
-  const freshQs = await generateToTarget(
+  // The quiz's minimum (QUIZ_FLOOR, or the whole quiz when it is shorter), less the re-posed questions.
+  const freshFloor = Math.max(0, Math.min(fresh, Math.min(numQuestions, QUIZ_FLOOR) - reviewQs.length));
+  const { questions: freshQs } = await generateToTarget(
     {
       subtopics: subtopicsForGen(syllabus),
       topic: syllabus.title,
@@ -811,9 +872,11 @@ export async function generateQuizQuestions(
       signal,
       // A missed question re-posed from the pool is not asked again fresh in the same quiz.
       avoid: reviewQs,
+      sameQuiz: reviewQs,
       earlier,
     },
     fresh,
+    freshFloor,
     `quiz L${syllabus.level}`,
     onProgress,
   );
@@ -875,8 +938,13 @@ export async function generatePromotionTestQuestions(
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
+  const recents = levelTestReviewLevels(previousSyllabuses);
+  const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
+
   // ── Current section: the current level's subtopics, round-robin to TEST_CURRENT_TARGET. ──
-  const current = await generateToTarget(
+  // Its minimum is what TEST_FLOOR leaves after a full review section; when the review section comes up
+  // short, the current one is topped up below from what it set aside.
+  const cur = await generateToTarget(
     {
       subtopics: subtopicsForGen(currentSyllabus),
       topic: currentSyllabus.title,
@@ -890,16 +958,16 @@ export async function generatePromotionTestQuestions(
       signal,
     },
     TEST_CURRENT_TARGET,
+    reviewSubs.length > 0 ? TEST_FLOOR - TEST_REVIEW_TARGET : TEST_FLOOR,
     `promotion L${currentSyllabus.level} current`,
     onProgress ? (d, t) => onProgress(d, t, "current") : undefined,
   );
+  let current = cur.questions;
 
   // ── Review section: the last ≤4 prior levels' subtopics flattened, slightly easier. ──
   let review: GenQuestion[] = [];
-  const recents = levelTestReviewLevels(previousSyllabuses);
-  const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
   if (reviewSubs.length > 0) {
-    review = await generateToTarget(
+    ({ questions: review } = await generateToTarget(
       {
         subtopics: reviewSubs,
         topic: currentSyllabus.title,
@@ -914,9 +982,17 @@ export async function generatePromotionTestQuestions(
         avoid: current,
       },
       TEST_REVIEW_TARGET,
+      Math.min(TEST_REVIEW_TARGET, Math.max(TEST_REVIEW_FLOOR, TEST_FLOOR - current.length)),
       `promotion L${currentSyllabus.level} review`,
       onProgress ? (d, t) => onProgress(d, t, "review") : undefined,
-    );
+    ));
+    // A review section that came up short: the current one takes what it set aside, to the test's minimum.
+    const short = Math.min(TEST_FLOOR - review.length, TEST_CURRENT_TARGET) - current.length;
+    if (short > 0 && review.length > 0) {
+      const fill = cur.setAside.filter((q) => !repeatsAny(review, q)).slice(0, short);
+      if (fill.length) log.info("quiz", `promotion L${currentSyllabus.level} current: ${fill.length} question(s) past the ${SAME_KEY_CAP}-per-key cap fill the test to its minimum`);
+      current = [...current, ...fill];
+    }
   }
 
   return { current, review, reviewWanted: reviewSubs.length > 0 };

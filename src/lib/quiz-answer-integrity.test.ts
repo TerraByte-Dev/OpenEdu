@@ -17,7 +17,7 @@ vi.mock("./llm", () => ({
 import { generateQuizQuestions, generatePromotionTestQuestions, validateQuizBatch } from "./quiz";
 import {
   quantityOf, checkAnswerConsistency, hasSelfCorrection, duplicateOptionPair, isNearDuplicate,
-  dedupeByQuestionText, rewriteLetterRefs,
+  dedupeByQuestionText, rewriteLetterRefs, keyForm, sameKeyForm, normalizeOption,
 } from "./quiz-grading";
 import { callLLMStructured } from "./llm";
 import type { LLMConfig, Syllabus } from "../types";
@@ -57,6 +57,14 @@ const STEMS_245 = [
   "Practice begins at 2:30 and lasts a quarter hour. When does it end?",
   "If you start reading at 2:30 and read for 15 minutes, when do you stop?",
   "Snack time is 2:30. Clean-up comes a quarter hour later. When is clean-up?",
+];
+const DIME_STEMS = [
+  "Which coin is worth 10 cents?",
+  "Name the thinnest US coin.",
+  "Two nickels make the same amount as which coin?",
+  "Which coin has Franklin Roosevelt on it?",
+  "Ten pennies trade for one of what?",
+  "A roll of 50 of them holds five dollars. What coin is it?",
 ];
 const STEMS_200 = [
   "Find the time 15 minutes after 1:45 PM.",
@@ -535,8 +543,9 @@ describe("explanations name the letter the learner sees", () => {
     vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
       if (opts.toolName === "emit_verdicts") return { verdicts: [] };
       const parsed = {
-        questions: STEMS_245.map((stem) => mc({
-          question_text: stem.replace(/2:30/g, "10 cents"),
+        // Six different questions keyed "dime": SAME_KEY_CAP sets 4 aside and the quiz's minimum takes them back.
+        questions: DIME_STEMS.map((stem) => mc({
+          question_text: stem,
           options: ["penny", "nickel", "dime", "quarter"],
           correct_answer: "dime",
           explanation: "A dime is worth 10 cents. Therefore the answer is C.",
@@ -660,6 +669,105 @@ describe("near-duplicate questions in one quiz or test", () => {
     const unkind = sa("In the story, Ana shouts at a new student. What does this tell you about Ana?", "she is unkind and rude");
     expect(isNearDuplicate(kind, unkind)).toBe(false);
     expect(dedupeByQuestionText([kind, unkind])).toHaveLength(2);
+    // ... a reflexive one too (review of TerraTutor's take-back, TerraTutor #261, 2026-11-19).
+    expect(isNearDuplicate(sa(kind.question_text, "she herself is kind"), sa(unkind.question_text, "she herself is rude"))).toBe(false);
+  });
+
+  // TerraTutor live test part 8 issue 2: a quiz asked about the cell membrane 7 times in 19, keyed "The cell
+  // membrane" and "Cell membrane" by turns.
+  it("reads a key without a leading article, case or punctuation, for repeats only", () => {
+    expect(keyForm("A) The Cell Membrane")).toBe("cell membrane");
+    expect(keyForm("cell membrane.")).toBe("cell membrane");
+    expect(keyForm("Cell-membrane!")).toBe("cell membrane");
+    expect(keyForm("an igneous rock")).toBe("igneous rock");
+    // A key with a digit keeps its signs: -3 is not 3, $5 is not 5.
+    expect(keyForm("-3")).not.toBe(keyForm("3"));
+    expect(keyForm("$5")).not.toBe(keyForm("5"));
+    // "a" alone is a key ("a" or "an" before "apple?"), not an article.
+    expect(keyForm("a")).toBe("a");
+    // Grading still reads the key as written (normalizeOption keeps the article).
+    expect(normalizeOption("The Cell Membrane")).toBe("the cell membrane");
+    expect(sameKeyForm({ question_text: "", question_type: "true_false", correct_answer: "True" })).toBeNull();
+    expect(sameKeyForm({ question_text: "", question_type: "drag_to_match", correct_answer: "See matching_pairs" })).toBeNull();
+    for (const k of ["7", "seven", "3/4", "three quarters", "2:30 PM", "$1.25", "two dimes"]) {
+      expect(sameKeyForm({ question_text: "", question_type: "short_answer", correct_answer: k })).toBeNull();
+    }
+    expect(sameKeyForm({ question_text: "", question_type: "multiple_choice", correct_answer: "B) Lava" })).toBe("lava");
+  });
+
+  it("matches the same question keyed with and without \"the\"", () => {
+    const mcq = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "multiple_choice", options: [correct_answer, "B) Nucleus"] });
+    expect(isNearDuplicate(
+      mcq("Which part of the cell controls what goes in and out?", "A) The cell membrane"),
+      mcq("Which part of a cell controls what goes in and out?", "A) Cell membrane"),
+    )).toBe(true);
+  });
+
+  // Review of TerraTutor #263 (the same-key fix): a lower stem bar for one key (0.6 of content words) called these pairs
+  // repeats. Each pair asks two things, and the cap, not the near-duplicate check, limits one key.
+  it("keeps the 0.85 bar for one key: a classification asked of two things is two questions", () => {
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
+    const pairs: Array<[string, string, string]> = [
+      ["Is 8 even or odd?", "Is 12 even or odd?", "Even"],
+      ["Is 7 prime or composite?", "Is 13 prime or composite?", "prime"],
+      ["Is a dog living or nonliving?", "Is a rock living or nonliving?", "living"],
+      ["Is 'dog' a noun or a verb?", "Is 'cat' a noun or a verb?", "noun"],
+      ["What is a synonym for happy?", "What is a synonym for glad?", "joyful"],
+      ["Is ice solid, liquid or gas?", "Is steam solid, liquid or gas?", "solid"],
+      ["Is a whale a mammal or a fish?", "Is a dolphin a mammal or a fish?", "mammal"],
+      ["Who was president during the Civil War?", "Who gave the Gettysburg Address during the Civil War?", "Abraham Lincoln"],
+    ];
+    for (const [x, y, key] of pairs) expect(isNearDuplicate(sa(x, key), sa(y, key)), `${x} / ${y}`).toBe(false);
+  });
+
+  it("keeps the apostrophe in a key: its / it's and well / we'll are what a grammar question contrasts", () => {
+    expect(keyForm("it's")).not.toBe(keyForm("its"));
+    expect(keyForm("We'll")).not.toBe(keyForm("well"));
+    expect(keyForm("we're")).not.toBe(keyForm("were"));
+    expect(keyForm("can't")).not.toBe(keyForm("cant"));
+    expect(keyForm("she'll")).not.toBe(keyForm("shell"));
+    expect(keyForm("B) It’s.")).toBe("it's");
+    const mcq = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "multiple_choice", options: ["A) its", "B) it's", "C) is", "D) it"] });
+    expect(isNearDuplicate(
+      mcq("Which word is a contraction for 'it is'?", "B) it's"),
+      mcq("Which word shows that something belongs to 'it'?", "A) its"),
+    )).toBe(false);
+    const fb = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "fill_in_blank", options: [] as string[] });
+    expect(isNearDuplicate(
+      fb("Choose well or we'll: ___ see you at the party tonight.", "We'll"),
+      fb("Choose well or we'll: She sings very ___ at the party.", "well"),
+    )).toBe(false);
+  });
+
+  it("does not count a classification's pick toward the same-key cap", () => {
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
+    expect(sameKeyForm(sa("Is 8 even or odd?", "Even"))).toBeNull();
+    expect(sameKeyForm(sa("Is ice a solid, liquid or gas?", "a solid"))).toBeNull();
+    expect(sameKeyForm(sa("Is 'dog' a noun or a verb?", "noun"))).toBeNull();
+    expect(sameKeyForm({ question_text: "Which kind of animal is a whale?", correct_answer: "A) Mammal", question_type: "multiple_choice", options: ["A) Mammal", "B) Fish"] })).toBeNull();
+    expect(sameKeyForm({ question_text: "Is this a fact or an opinion: 'Red is the best color.'", correct_answer: "B) Opinion", question_type: "multiple_choice", options: ["A) Fact", "B) Opinion"] })).toBeNull();
+    // The live repeats never name their key, and have four options: the cap still counts them.
+    expect(sameKeyForm({ question_text: "What thin layer surrounds every cell?", correct_answer: "A) The cell membrane", question_type: "multiple_choice", options: ["A) The cell membrane", "B) Nucleus", "C) Cell wall", "D) Mitochondria"] })).toBe("cell membrane");
+    expect(sameKeyForm(sa("What flows out of an erupting volcano?", "the lava"))).toBe("lava");
+  });
+
+  it("keeps the 0.85 bar for true/false and number keys, where equal keys are normal", () => {
+    // 8 of 11 words, 5 of 7 content words: both true, two different facts.
+    const tf = (question_text: string) => ({ question_text, correct_answer: "True", question_type: "true_false", options: ["True", "False"] });
+    expect(isNearDuplicate(
+      tf("Magma is melted rock found under the ground. True or false?"),
+      tf("Lava is melted rock that has reached the ground. True or false?"),
+    )).toBe(false);
+    // 10 of 12 words, 6 of 8 content words and numbers: both 7, two different sums.
+    const wp = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "word_problem", options: [] as string[] });
+    expect(isNearDuplicate(
+      wp("Sam has 12 apples and gives away 5 apples. How many apples are left?", "7"),
+      wp("Sam has 10 apples and gives away 3 apples. How many apples are left?", "7"),
+    )).toBe(false);
+    expect(isNearDuplicate(
+      wp("Sam has 12 apples and gives away 5 apples. How many apples are left?", "seven"),
+      wp("Sam has 10 apples and gives away 3 apples. How many apples are left?", "seven"),
+    )).toBe(false);
   });
 
   it("keeps the equal-key rule for word problems, and for a bare fill-in-the-blank stem", () => {
