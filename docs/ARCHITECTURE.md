@@ -1006,8 +1006,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: an
   answer that is neither right for the check's question nor a non-answer is compared by code with the
   key of the last hint's question too (code's for a plain operation, else one more key call), and a
-  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). Anything else
-  is graded against the check's question as below (ported from TerraTutor #255).
+  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). That verdict is
+  tagged `on: "hint"` and never passes the check: every `mastered` mark on that turn is refused by code
+  (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
+  check's question is still open, and code shows it again after the reply under "Now back to the
+  question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The next turn
+  keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
+  against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
+  else is graded against the check's question as below (ported from TerraTutor #255).
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
@@ -1030,7 +1036,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   praise ending such as "again", "right" or "start", and then a learner's name, one capitalised word, may
   come before the comma, and any other words keep the sentence whole: "Yes, no, maybe, which of these is a
   question word?", "Right triangles have one 90-degree angle, so which ...?" and "Good readers, now which
-  word ...?" are kept whole), or praise joined by commas to a setup with a number in digits or words
+  word ...?" are kept whole; a bare name only after a praise ending or after correct, yes, yep, yeah,
+  exactly, well done or that's right, never after a praise word that is also an adjective, so "Great
+  Lakes, which one is the largest?", "Great Britain, now which ...?", "Perfect Squares, which ...?",
+  "Right Angles, how many ...?" and "Good Friday, when is it?" are kept whole, only praise before them
+  coming off: "Yes, Great Lakes, ..."; ported from TerraTutor #258), or praise joined by commas to a setup with a number in digits or words
   ("Yes, good job, Sam has five apples." and "Good job, Sam has five apples." keep "Sam has five
   apples."), choices included (those listed before it are put after it), so the next
   try is checked against it: the next turn keys this reply). ChatTab's post-turn reflection still runs. In
@@ -1089,7 +1099,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   still runs. On a check's answer turn with no verdict at all, it is refused too
   (`MASTERY_REFUSED_UNCHECKED`, ported from TerraTutor #230): `checkAnswer` gave none (the key call said
   "none", or it failed on a tutor message with no "?"), or the check did not run (the learner asked what a
-  word means, or a first-turn hold), and no card answered in the turn was checked. Before, nothing refused
+  word means, or a first-turn hold), and no card answered in the turn was checked. It is refused on any
+  turn whose typed answer was to a hint's own question, whatever a card picked that turn
+  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258). Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.

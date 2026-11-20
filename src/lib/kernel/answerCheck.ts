@@ -31,6 +31,7 @@ import { ASSESS_MESSAGE } from "./suggestions";
 import { compareToKey, numbersIn, optionsIn, type KeyMatch } from "./answerCompare";
 import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
+import { replyFromPersisted } from "./persistedReply";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -47,6 +48,11 @@ export interface AnswerCheck {
   studentAnswer?: string;
   /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no reply call (the post-turn reflection still runs). */
   nonAnswer?: boolean;
+  /** "hint" when the answer was to a hint's own question, not the check's (checkAnswer): it never counts toward
+   *  mastery (TutorEngine refuses the mark), and the check's question stays open (hintAnswerBack). */
+  on?: "hint";
+  /** With `on: "hint"`, the check's own question as its key call copied it. */
+  checkQuestion?: string;
 }
 
 // ── When it runs ────────────────────────────────────────────────────────────────────────────────
@@ -146,13 +152,36 @@ const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnsw
  * me a hint.", "xyz" was given the hint's "Are they the same size?"). The last hint's reply comes with it
  * (`hint`, else null): a hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a
  * learner who answers that one ("16") is right (checkAnswer). `conversation` ends with the newest message.
+ * The reply to that answer ends with the check's question again, after HINT_ANSWER_BACK (hintAnswerBack):
+ * only that part is taken from it, so the next try is checked against the check's question, not
+ * against anything the reply asked before it. A reply that stalled still ends with it, before the saved
+ * stalled marker (persistedReply.ts), which is left out.
  */
 export function checkedMessage(conversation: ReadonlyArray<{ role: string; content: string }>): { message: string; hint: string | null } {
   const last = conversation.length - 2;
   let i = last;
   while (i >= 2 && conversation[i - 1].role === "user" && isHintRequest(conversation[i - 1].content)
     && conversation[i - 2].role === "assistant" && conversation[i - 2].content.trim()) i -= 2;
-  return { message: afterAnsweredCard(conversation[i]?.content ?? ""), hint: i < last ? afterAnsweredCard(conversation[last].content) : null };
+  const message = afterAnsweredCard(conversation[i]?.content ?? "");
+  const back = message.lastIndexOf(HINT_ANSWER_BACK);
+  return {
+    message: back < 0 ? message : replyFromPersisted(message.slice(back + HINT_ANSWER_BACK.length)).text.trim(),
+    hint: i < last ? afterAnsweredCard(conversation[last].content) : null,
+  };
+}
+
+/** The line code puts before the check's question, after the reply to an answer to a hint's own question. */
+export const HINT_ANSWER_BACK = "Now back to the question:";
+
+/**
+ * What code adds after the reply when the learner answered the hint's own question (`on: "hint"`), or null
+ * on any other turn: the check's question again, so it stays open and the next try is checked against it
+ * (checkedMessage). The answer to the hint never passes the check (TutorEngine's mastery gate).
+ */
+export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null): string | null {
+  if (check?.on !== "hint") return null;
+  const again = questionAgain(tutorMessage, check.checkQuestion ?? "");
+  return again ? `${HINT_ANSWER_BACK}\n\n${again}` : null;
 }
 
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
@@ -378,7 +407,9 @@ export async function checkAnswer(
     const hinted = await answerKey(hintReply, config, opts);
     if (hinted && hinted !== "none"
       && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
-      return { ...hinted, verdict: "correct", by: "code" };
+      // Tagged: right, but an answer to the hint's easier question, never to the check's. It never counts
+      // toward mastery, and the check's question stays open (ported from TerraTutor #258).
+      return { ...hinted, verdict: "correct", by: "code", on: "hint", checkQuestion: keyed.question };
     }
   }
   const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
@@ -404,13 +435,23 @@ export async function checkAnswer(
 // right,") and then a learner's name ("Well done Sam,": one capitalised word) may come before the comma;
 // any other words keep the sentence whole: "Right triangles have one 90-degree angle, so which ...", "Good
 // readers, now which word ..." (TerraTutor #255 and its review).
-const PRAISE_ITEM = /^(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+(?:(?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
+// The name comes only after a praise ending ("Nice one Sam,") or after a praise word that is never an
+// adjective before a noun (NAME_HEAD): "Great Lakes, which ...", "Perfect Squares, which ...", "Right
+// Angles, how many ...", "Good Friday, when is it?" are kept whole (ported from TerraTutor #258), and
+// only praise before them comes off: "Yes, Great Lakes, which ..." (review of the port).
+const PRAISE_ITEM = /^(correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+((?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
 const AFTER_PRAISE = /^(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
 // The name, matched case-sensitively: PRAISE_ITEM is case-insensitive.
 const NAME = /^[A-Z][a-z'’-]*$/;
+// The praise words a bare name may follow: none of them stands as an adjective in front of a noun.
+const NAME_HEAD = /^(?:correct|yes|yep|yeah|exactly|well done|that(?:'|’)?s right|that is right)$/i;
+const nameFits = (m: RegExpExecArray) => !m[3] || (NAME.test(m[3]) && (!!m[2] || NAME_HEAD.test(m[1])));
 function withoutPraiseLead(question: string): string {
   let cut = 0;
-  for (let at = 0, m = PRAISE_ITEM.exec(question); m && (!m[1] || NAME.test(m[1])); m = PRAISE_ITEM.exec(question.slice(at))) {
+  for (let at = 0, m = PRAISE_ITEM.exec(question); m; m = PRAISE_ITEM.exec(question.slice(at))) {
+    // The question's own subject after praise ("Yes, Great Lakes, which ..."): the praise before it comes
+    // off, the subject stays (review of the port).
+    if (!nameFits(m)) { cut = Math.max(cut, at); break; }
     at += m[0].length;
     const next = AFTER_PRAISE.exec(question.slice(at));
     if (next) cut = at + next[0].length;
@@ -550,7 +591,12 @@ export function answerCheckNote(check: AnswerCheck): string {
   // Which question the answer was to: with two questions asked, a small model answered question 1's
   // when the child was answering question 2 (TerraTutor B9 rerun 2).
   const question = check.question ? `The question was: ${check.question}\n` : "";
-  return `<tutor_note>\n${question}${body}\nDo not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
+  // An answer to the hint's own question: right, but the check's question is still open, and the app asks it
+  // again after the reply (hintAnswerBack), so the reply neither asks nor answers it.
+  const open = check.on === "hint"
+    ? `That was the hint's question, not the check's. The check's question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
+    : "";
+  return `<tutor_note>\n${question}${body}\n${open}Do not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
 }
 
 export function withAnswerCheckNote(userContent: string, check: AnswerCheck): string {

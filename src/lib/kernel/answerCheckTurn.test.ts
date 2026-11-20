@@ -16,7 +16,7 @@ type Sent = Array<{ role: string; content: string }>;
 type TurnEvent =
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; args: unknown }
-  | { type: "done"; finishReason: "stop" | "tool_calls" };
+  | { type: "done"; finishReason: "stop" | "tool_calls" | "stalled" };
 
 vi.mock("@tauri-apps/plugin-store", () => import("../eval/headless/shims/plugin-store"));
 
@@ -57,9 +57,9 @@ vi.mock("../db", async (importOriginal) => ({
   getSyllabus: vi.fn(async () => SYLLABUS),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_HINT, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
-import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerCheck";
+import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK } from "./answerCheck";
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
@@ -69,6 +69,7 @@ import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
 import { installAppOrigin } from "../eval/headless/origin";
 import { answeredCard } from "./askCard";
+import { persistedReply } from "./persistedReply";
 import { PICKER_QUESTION } from "./assessPicker";
 import { resetDictionaryCache } from "../dictionary";
 import { resetWordListCache } from "../wordlist";
@@ -1221,6 +1222,18 @@ describe("an answer that answers nothing in a mastery check", () => {
     // ... and a learner's name after it: one capitalised word ("Good readers, now ..." above is kept).
     ["Well done Sam, now what is 7 x 8?", "What is 7 x 8?", "56"],
     ["Correct Maya, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Nice one Sam, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    // ... but never a bare capitalised word after a praise word that is also an adjective: that is the
+    // question's own subject (ported from TerraTutor #258).
+    ["Great Lakes, which one is the largest?", "Great Lakes, which one is the largest?", "Lake Superior"],
+    ["Great Britain, now which country is the largest?", "Great Britain, now which country is the largest?", "England"],
+    ["Perfect Squares, which of these is one: 8 or 16?", "Perfect Squares, which of these is one: 8 or 16?", "16"],
+    ["Right Angles, how many does a square have?", "Right Angles, how many does a square have?", "4"],
+    ["Good Friday, when is it?", "Good Friday, when is it?", "the Friday before Easter"],
+    // ... and praise before that subject comes off, the subject stays (review of the port).
+    ["Yes, Great Lakes, which one is the largest?", "Great Lakes, which one is the largest?", "Lake Superior"],
+    ["Right, Great Britain, now which country is the largest?", "Great Britain, now which country is the largest?", "England"],
+    ["Good one, Perfect Squares, which of these is one: 8 or 16?", "Perfect Squares, which of these is one: 8 or 16?", "16"],
     // "Good job," before a setup with a number is praise before the setup, not the whole sentence (same review).
     ["Good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
     ["Good job on that, Sam has 5 apples. How many if he eats 2?", "Sam has 5 apples. How many if he eats 2?", "3"],
@@ -1348,6 +1361,79 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(result.text).toContain("16 is right");
     // Both keys are code's: no key call, and no grader.
     expect(structured).toEqual([]);
+  }, 30_000);
+
+  // TerraTutor #258 (take-back from the port of #255): an answer to the hint's own question is right, but it is
+  // not the check's answer. It never counts toward mastery, and the check's own question stays open: code asks
+  // it again after the reply, and the next try is graded against it.
+  const HINTED = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
+
+  it("an answer to the hint's own question never passes the check; the next answer is graded against the check's question", async () => {
+    script = [markCall("mastered"), reply("Yes, 16 is right: 8 + 8 = 16.")];
+    const hinted = await answer(HINTED, "16");
+    expect(hinted.result.answerCheck).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "correct", on: "hint", checkQuestion: "What is 6 x 8?" });
+    // The reply may say so; the check's question is asked again after it, by code.
+    expect(hinted.result.text).toBe(`Yes, 16 is right: 8 + 8 = 16.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+    // The model is told the check's question is still open, and the mark is refused by code: nothing is saved.
+    expect(lastUser(replies[0])).toContain("The check's question is still open: What is 6 x 8?");
+    expect(hinted.result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(hinted.confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_HINT}`);
+
+    // The next try is graded against "What is 6 x 8?", and only that answer can pass the check.
+    script = [markCall("mastered"), reply("Yes, 48 is right.")];
+    const { result } = await answer([...HINTED, student("16"), tutor(hinted.result.text)], "48");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct", by: "code" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+    // Both keys are code's: no key call, and no grader.
+    expect(structured).toEqual([]);
+  }, 30_000);
+
+  it("after the hint's answer, a reply that asks its own question still leaves the check's question the one graded", async () => {
+    script = [reply("Yes, 16 is right! What is 16 + 8?")];
+    const hinted = await answer(HINTED, "16");
+    expect(hinted.result.text.endsWith(`${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`)).toBe(true);
+    const again = await answer([...HINTED, student("16"), tutor(hinted.result.text)], "xyz");
+    expect(again.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    // "24" answers the reply's own question, not the check's: graded against 6 x 8.
+    gradeOut = { student_answer: "24", verdict: "incorrect" };
+    const { result } = await answer([...HINTED, student("16"), tutor(hinted.result.text)], "24");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "incorrect" });
+  }, 30_000);
+
+  it("after the hint's answer, a card that asks the hint's question again cannot carry a mastered mark", async () => {
+    // TerraTutor #258 review probe P3: the card's pick was checked correct with no `on` tag, and the mark was saved.
+    pick = pickLabel("16");
+    script = [askCall("What is 8 + 8?", ["16", "15"]), markCall("mastered"), reply("Done.")];
+    const { result, confirms } = await answer(HINTED, "16");
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "hint" });
+    expect(result.cardChecks).toEqual([expect.objectContaining({ key: "16", verdict: "correct" })]);
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(replies[2].filter((m) => m.role === "tool").pop()!.content).toBe(`ERROR: ${MASTERY_REFUSED_HINT}`);
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`)).toBe(true);
+  }, 30_000);
+
+  it("a hint's answer whose reply stalls still asks the check's question again, and the next try is graded on it", async () => {
+    // TerraTutor #258 review probe P4: with no line after a stall, the next turn keyed the fragment's own "What is 16 + 8?".
+    script = [[...reply("Yes, 16 is right! What is 16 + 8?").slice(0, -1), { type: "done", finishReason: "stalled" }]];
+    const hinted = await answer(HINTED, "16");
+    expect(hinted.result.stopReason).toBe("stalled");
+    expect(hinted.result.text.endsWith(`${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`)).toBe(true);
+    // Saved as ChatTab saves it, with the stalled marker after the line.
+    const saved = persistedReply(hinted.result.text, hinted.result.stopReason)!;
+    // The saved marker is not part of the question asked again.
+    const again = await answer([...HINTED, student("16"), tutor(saved)], "xyz");
+    expect(again.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    script = [markCall("mastered"), reply("Yes!")];
+    gradeOut = { student_answer: "24", verdict: "incorrect" };
+    const { result } = await answer([...HINTED, student("16"), tutor(saved)], "24");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48" });
+    expect(result.answerCheck?.verdict).not.toBe("correct");
+    expect(marks).toEqual([]);
   }, 30_000);
 
   it("after a hint, an answer to neither question is graded against the check's question", async () => {

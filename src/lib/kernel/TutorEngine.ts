@@ -41,7 +41,7 @@ import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard"
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { assessPickerCard } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -58,6 +58,10 @@ export const MASTERY_REFUSED =
  *  (the tutor's message asked nothing with one right answer, or the child's message was a meaning question). */
 export const MASTERY_REFUSED_UNCHECKED =
   "Not saved: the app did not check an answer on this turn, so this subtopic can't be marked mastered now.";
+/** What the model is told when it tries to mark mastered on a turn whose answer was to a hint's own question
+ *  (AnswerCheck.on): right, but the check's question is still open, so nothing that turn counts toward mastery. */
+export const MASTERY_REFUSED_HINT =
+  "Not saved: the student answered the hint's question, not the check's question, so this subtopic can't be marked mastered now. The check's question is still open.";
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
@@ -512,7 +516,7 @@ ${lastUser.content}` };
       return result;
     }
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -540,6 +544,9 @@ ${lastUser.content}` };
       dictionaryShown: DictionaryShown | null;
       arithmeticFact: ArithmeticFact | null;
       answerCheck: AnswerCheck | null;
+      /** The check's question again, shown after the reply when the answer was to a hint's own question
+       *  (answerCheck.ts hintAnswerBack), else null. */
+      hintBack: string | null;
       /** False when the caller turned the answer check off (TutorTurn.answerCheck), or the newest message is
        *  a safety disclosure: nothing on that turn is graded, a card's answer included. */
       checkAnswers: boolean;
@@ -735,16 +742,20 @@ ${lastUser.content}` };
         // Nor on a safety-disclosure turn, where nothing is graded: what the child said is not an answer.
         // Nor on a check's answer turn that no check gave a verdict (TerraTutor #229): the tutor's message
         // asked nothing with one right answer, or the child asked what a word means, so nothing was found correct.
+        // Nor on a turn whose answer was to a hint's own question (AnswerCheck.on), a card picked in the turn
+        // included: code asks the check's own question again after the reply, so no mark that turn can stand
+        // beside it (ported from TerraTutor #258; a card that asked the hint's question passed there before).
         const checked = [answerCheck, ...cardChecks].filter((c): c is AnswerCheck => !!c);
         const unchecked = prepared.answerTurn && checked.length === 0;
+        const hintTurn = answerCheck?.on === "hint";
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
-          unchecked || checked.some((c) => c.verdict !== "correct"));
+          unchecked || hintTurn || checked.some((c) => c.verdict !== "correct"));
         // On a safety-disclosure turn, and every later turn in its thread, nothing the learner said is kept:
         // the knowledge files, the notebook and a flashcard are refused the same way. Nothing runs and
         // nothing is shown; the model is told.
         const keepsWords = prepared.keepsNothing && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : MASTERY_REFUSED };
+        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? MASTERY_REFUSED_HINT : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
@@ -885,6 +896,15 @@ ${lastUser.content}` };
     // After a checked pick, the line says the verdict instead.
     if (replyOwed && stopReason !== "aborted" && stopReason !== "stalled") {
       show(verdictCheck && verdictCheck !== answerCheck ? VERDICT_FALLBACK[verdictCheck.verdict] : AFTER_ANSWER_REPLY);
+    }
+
+    // An answer to the hint's own question was right, but the check's question is still open: code asks it
+    // again at the end, so the next try is checked against it (answerCheck.ts checkedMessage reads only what
+    // follows HINT_ANSWER_BACK) and nothing the reply asked can stand in for it. On a stalled turn too: it is
+    // code's text, and the question is still owed (else the next turn keys the fragment's own question). Not
+    // on a turn the student stopped.
+    if (prepared.hintBack && stopReason !== "aborted") {
+      show(`${gapBefore()}${prepared.hintBack}`);
     }
 
     // A reply that says it shows a picture and shows none: the saved reply loses the claim, and the
