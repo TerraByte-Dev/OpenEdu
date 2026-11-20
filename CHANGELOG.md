@@ -177,9 +177,10 @@ The section for each release is also what the app shows when you press Check for
   like a whole pizza" after "What is that complete object called?"). Only an answer that is not right for
   the check's question is checked against the hint's; one right for neither now gets the check's verdict.
   A hint question with no one right answer ("What did you notice?") is not marked wrong when the hint
-  ends on it, or adds only a short line such as "You can do it!", "Take your time!" or an emoji: the app
-  says no verdict and asks the check's question again. After other lines ("What did you notice? Keep
-  going!") the answer can still be marked wrong for now. A hint that only asks the check's question again, with
+  ends on it, or adds only a short line such as "You can do it!", "Take your time!", "Keep going!", "Let
+  me know!", "I believe in you!" or an emoji: the app says no verdict and asks the check's question again
+  (usually: it rests on the answer key finding no one right answer). After other lines ("What did you
+  notice? Remember: equal parts.") the answer can still be marked wrong for now. A hint that only asks the check's question again, with
   a line after it ("What is a noun? You can do it!"), no longer turns a right answer to the check into
   the hint's. And when the app asks the check's question again after the hint's answer, the tutor's own
   question at the end of its reply is left out, so usually only one question is waiting on screen (a

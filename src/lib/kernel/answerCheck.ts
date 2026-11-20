@@ -283,7 +283,10 @@ export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null):
 }
 
 // A line after a question that asks nothing new and gives no feedback: "Take your time!", "You can do it.".
-const AFTER_QUESTION = /^[\W_]*(?:take your time|you can do it|you(?:'|’)ve got this|give it a (?:try|go|shot)|try it|have a go|think about it|good luck|no rush)\b[^?]*$/i;
+// "Keep going!", "Let me know!" and "I believe in you!" only as the whole line, with nothing but marks or an
+// emoji after them: "Keep going, count the slices." goes on with help (OpenEdu's take-back of TerraTutor #264,
+// item 2; ported from TerraTutor #266).
+const AFTER_QUESTION = /^[\W_]*(?:(?:take your time|you can do it|you(?:'|’)ve got this|give it a (?:try|go|shot)|try it|have a go|think about it|good luck|no rush)\b[^?]*|(?:keep going|let me know|i believe in you)[^\p{L}\p{N}?]*)$/iu;
 // A sentence's end in streamed text: an end mark or a colon with any closing marks after it, then spaces; or
 // a line break. The spaces are the group.
 const SENTENCE_BREAK = /(?:[.!?:][*_"”')\]]*|(?=\n))(\s+)/;

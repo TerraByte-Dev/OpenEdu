@@ -1090,8 +1090,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   check's question is still open, and code shows it again after the reply under "Now back to the
   question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The reply's
   own trailing question is dropped first, as it streams (`TrailingQuestionHold`: a sentence with a "?" is
-  held, with a lead-in before it and a choice line, emoji or "Take your time!" after it; feedback after it
-  lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
+  held, with a lead-in before it and a choice line, emoji or "Take your time!" after it, and "Keep going!",
+  "Let me know!" or "I believe in you!" as a whole line, not one that goes on with help (TerraTutor #266);
+  feedback after it lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
   model call is dropped there, and the next call's text starts after a break), so code's question is
   usually the only open question on screen, with no second one and not the same one twice (TerraTutor
   click test part 8, issue 4). Usually, not always: a question with feedback after it is let out on

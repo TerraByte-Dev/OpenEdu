@@ -1602,7 +1602,9 @@ describe("an answer that answers nothing in a mastery check", () => {
   // check's verdict and the learner was told "not right yet" again. A line TrailingQuestionHold would hold
   // leaves it the last.
   const KEY_NOTICE = { question: "What did you notice?", working: "", answer: "" };
-  for (const tail of [" You can do it!", " 😊", "\n\nTake your time."]) {
+  // "Keep going!", "Let me know!" and "I believe in you!" too (OpenEdu's take-back of TerraTutor #264,
+  // item 2; ported from TerraTutor #266).
+  for (const tail of [" You can do it!", " 😊", "\n\nTake your time.", " Keep going!", " Let me know! 😊", "\n\nI believe in you!"]) {
     const hint = `${NOTICE}${tail}`;
     it(`after a hint that ends on a question with no one right answer and then ${JSON.stringify(tail)}, an answer not right for the check is "unsure" and the check's question comes back`, async () => {
       keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? KEY_NOTICE : KEY_FRACTION);
@@ -1812,6 +1814,10 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["its own new question", "Yes, 16 is right! What is 16 + 8?", "Yes, 16 is right!"],
     ["the check's question, with a line after it", "Great, 8 + 8 = 16.\n\nNow, what is 6 x 8? Take your time! 😊", "Great, 8 + 8 = 16."],
     ["a lead-in and a question with choices", "Yes, 16!\n\nHere is the next one:\nWhat is 6 x 8?\nA) 48\nB) 42", "Yes, 16!"],
+    // OpenEdu's take-back of TerraTutor #264, item 2 (TerraTutor #266): short encouragement after the question is held with it.
+    ["its own new question and \"Keep going!\"", "Yes, 16 is right! What is 16 + 8? Keep going!", "Yes, 16 is right!"],
+    ["its own new question and \"Let me know!\"", "Yes, 16 is right! What is 16 + 8? Let me know! 😊", "Yes, 16 is right!"],
+    ["its own new question and \"I believe in you!\"", "Yes, 16 is right!\n\nWhat is 16 + 8?\n\nI believe in you!", "Yes, 16 is right!"],
   ])("after the hint's answer, a reply that ends with %s keeps only its feedback before code's question", async (_, modelReply, kept) => {
     script = [reply(modelReply)];
     const { result, shown } = await answer(HINTED, "16");
@@ -1819,6 +1825,12 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(result.text).toBe(`${kept}\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
     // The dropped question never reached the screen, even while the reply streamed.
     expect(shown.filter((s) => s.includes("?")).every((s) => s.endsWith("What is 6 x 8?"))).toBe(true);
+  }, 30_000);
+
+  it("after the hint's answer, help that starts \"Keep going\" lets the reply's question out with it", async () => {
+    script = [reply("Yes, 16 is right! What is 16 + 8? Keep going, add 8 more.")];
+    const { result } = await answer(HINTED, "16");
+    expect(result.text).toBe(`Yes, 16 is right! What is 16 + 8? Keep going, add 8 more.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
   }, 30_000);
 
   it("after the hint's answer, a reply that ends on its own question and a refused mark still loses the question", async () => {
