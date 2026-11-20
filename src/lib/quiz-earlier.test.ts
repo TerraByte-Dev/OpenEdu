@@ -101,6 +101,51 @@ describe("a repeat quiz on a level", () => {
     expect(qs.some((q) => /whole cake/.test(q.question_text))).toBe(false);
   });
 
+  it("sets aside the same question reworded with its key in other words (click test part 6: take / eat)", async () => {
+    const eat = {
+      ...CAKE,
+      question_text: "If a whole cake is divided into 10 equal slices, and you eat 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+      correct_answer: "the number of slices you ate",
+      explanation: "The top number counts the slices eaten. Therefore the answer is the number of slices you ate",
+    };
+    let calls = 0;
+    model(() => (++calls === 1 ? { ...eat } : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 5, { ...local }, [], undefined, null, null, undefined, earlier);
+    expect(qs).toHaveLength(5);
+    expect(qs.some((q) => /whole cake/.test(q.question_text))).toBe(false);
+  });
+
+  it("does not set aside a question on the same fraction that asks about the other number", async () => {
+    const ten = {
+      ...CAKE,
+      question_text: "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 10 represent in the fraction 7/10?",
+      correct_answer: "the number of parts in the whole cake",
+      blank_position: "In 7/10, the 10 is ___.",
+      explanation: "The bottom number counts all the parts. Therefore the answer is the number of parts in the whole cake",
+    };
+    let calls = 0;
+    model(() => (++calls === 1 ? { ...ten } : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 3, { ...local }, [], undefined, null, null, undefined, earlier);
+    expect(qs.some((q) => q.question_text === ten.question_text)).toBe(true);
+  });
+
+  it("does not set aside the denominator question because an earlier quiz asked the numerator one", async () => {
+    const ask = (word: string, key: string) => ({
+      ...CAKE, question_type: "short_answer", blank_position: "", correct_answer: key,
+      question_text: `In a fraction, what does the ${word} tell you?`,
+      explanation: `It counts parts. Therefore the answer is ${key}`,
+    });
+    const numerator = ask("numerator", "how many parts are taken");
+    const denominator = ask("denominator", "how many equal parts the whole is divided into");
+    const before: EarlierQuestion[] = [{
+      question_text: numerator.question_text, correct_answer: numerator.correct_answer, subtopic_id: "1.1", question_type: "short_answer",
+    }];
+    let calls = 0;
+    model(() => (++calls === 1 ? { ...denominator } : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 3, { ...local }, [], undefined, null, null, undefined, before);
+    expect(qs.some((q) => q.question_text === denominator.question_text)).toBe(true);
+  });
+
   it("uses a repeat to fill the quiz when the model writes nothing else", async () => {
     model(() => ({ ...CAKE }));
     const qs = await generateQuizQuestions(syllabus, 3, { ...local }, [], undefined, null, null, undefined, earlier);

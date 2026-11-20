@@ -594,6 +594,116 @@ describe("near-duplicate questions in one quiz or test", () => {
     expect(qs.map((q) => q.question_text)).toEqual([stems[0], stems[2], stems[3]]);
   });
 
+  // Click test 2026-11-19 part 6: fractions L1 asked this twice, once with "take" and once with "eat", and
+  // the model keyed the two in other words.
+  const take = {
+    question_text: "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+    question_type: "short_answer", options: [] as string[], correct_answer: "the number of parts taken",
+  };
+  const eat = {
+    ...take,
+    question_text: "If a whole cake is divided into 10 equal slices, and you eat 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+    correct_answer: "the number of slices you ate",
+  };
+
+  it("matches a reworded repeat whose free-text key is worded differently", () => {
+    expect(isNearDuplicate(take, eat)).toBe(true);
+    expect(dedupeByQuestionText([take, eat]).map((q) => q.correct_answer)).toEqual([take.correct_answer]);
+  });
+
+  it("keeps free-text questions apart when their numbers differ in order, or they ask different things", () => {
+    // Same words and the same numbers as a set, asked about the other number.
+    expect(isNearDuplicate(
+      take,
+      { ...take, question_text: take.question_text.replace("the number 7", "the number 10"), correct_answer: "the number of parts in the whole cake" },
+    )).toBe(false);
+    // A pizza question that asks for the number against one that asks what the number means.
+    expect(isNearDuplicate(
+      { ...take, question_text: "A pizza is cut into 8 equal slices and you eat 5 of them. What number represents the part eaten?", correct_answer: "5" },
+      { ...take, question_text: "A pizza is cut into 8 equal slices and you eat 5 of them. What does 5 represent in 5/8?", correct_answer: "the number of slices eaten" },
+    )).toBe(false);
+    // Top against bottom: the same numbers and nearly the same stem, keys with no word in common.
+    expect(isNearDuplicate(
+      { ...take, question_type: "fill_in_blank", question_text: "In 3/4, the top number is called the ___.", correct_answer: "numerator" },
+      { ...take, question_type: "fill_in_blank", question_text: "In 3/4, the bottom number is called the ___.", correct_answer: "denominator" },
+    )).toBe(false);
+  });
+
+  // Review of this fix: a short stem with the one word it asks about swapped clears the stem overlap, and
+  // the two keys often share a word. Different questions; they stay apart (the last clause differs).
+  it("keeps apart short free-text questions that swap the word they ask about", () => {
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
+    const pairs: Array<[ReturnType<typeof sa>, ReturnType<typeof sa>]> = [
+      [sa("In a fraction, what does the numerator tell you?", "how many parts are taken"),
+        sa("In a fraction, what does the denominator tell you?", "how many equal parts the whole is divided into")],
+      [sa("A pizza is cut into 8 slices and you eat 3. In 3/8, what does the top number tell you?", "how many slices you ate"),
+        sa("A pizza is cut into 8 slices and you eat 3. In 3/8, what does the bottom number tell you?", "how many slices the pizza was cut into")],
+      [sa("Read the story. What is the main idea of the first paragraph?", "the fox is hungry and looks for food"),
+        sa("Read the story. What is the main idea of the second paragraph?", "the fox finds food near the river")],
+      [sa("Think about a plant. What is the job of the roots?", "to take in water from the soil"),
+        sa("Think about a plant. What is the job of the leaves?", "to take in sunlight to make food")],
+      [sa("In the water cycle, what is evaporation?", "liquid water turning into water vapor"),
+        sa("In the water cycle, what is condensation?", "water vapor turning into liquid water")],
+    ];
+    for (const [x, y] of pairs) {
+      expect(isNearDuplicate(x, y)).toBe(false);
+      expect(dedupeByQuestionText([x, y])).toHaveLength(2);
+    }
+    // Only the setup reworded, the asking clause the same: still the live repeat.
+    expect(isNearDuplicate(take, eat)).toBe(true);
+  });
+
+  it("keeps the equal-key rule for word problems, and for a bare fill-in-the-blank stem", () => {
+    const wp = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "word_problem", options: [] as string[] });
+    expect(isNearDuplicate(
+      wp("Sam has 4 red apples and 2 green apples. Which color does Sam have more of?", "red apples"),
+      wp("Sam has 4 red apples and 2 green apples. Which color does Sam have fewer of?", "green apples"),
+    )).toBe(false);
+    // The live pair's shape, typed as word problems (or a type the app doesn't know): equal key only.
+    expect(isNearDuplicate({ ...take, question_type: "word_problem" }, { ...eat, question_type: "word_problem" })).toBe(false);
+    expect(isNearDuplicate({ ...take, question_type: "essay" }, { ...eat, question_type: "essay" })).toBe(false);
+    const fb = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "fill_in_blank", options: [] as string[] });
+    expect(dedupeByQuestionText([fb("Fill in the blank with the right word.", "water vapor"), fb("Fill in the blank.", "liquid water")])).toHaveLength(2);
+  });
+
+  it("keeps the equal-key rule for numbers, quantities and multiple choice", () => {
+    const stem = (s: string) => `A pizza is cut into 8 equal slices and you eat 5 of them. ${s}`;
+    // Same stem numbers, one key a number: not free text.
+    expect(isNearDuplicate(
+      { ...take, question_text: stem("How many slices are eaten?"), correct_answer: "5" },
+      { ...take, question_text: stem("How many slices did you eat?"), correct_answer: "five slices eaten" },
+    )).toBe(false);
+    expect(isNearDuplicate(
+      { ...take, question_text: stem("What fraction is eaten?"), correct_answer: "5/8" },
+      { ...take, question_text: stem("What fraction was eaten?"), correct_answer: "the part eaten" },
+    )).toBe(false);
+    // Multiple choice: two options with a shared word are still two different answers.
+    expect(isNearDuplicate(
+      { question_text: stem("What does 5 represent in 5/8?"), question_type: "multiple_choice", options: ["A) the slices eaten", "B) the slices left"], correct_answer: "A) the slices eaten" },
+      { question_text: stem("What does 5 represent in 5/8?"), question_type: "multiple_choice", options: ["A) the slices eaten", "B) the slices left"], correct_answer: "B) the slices left" },
+    )).toBe(false);
+    // A free-text key against a multiple-choice one.
+    expect(isNearDuplicate(
+      { ...take, question_text: stem("What does 5 represent in 5/8?"), correct_answer: "the slices eaten" },
+      { question_text: stem("What does 5 represent in 5/8?"), question_type: "multiple_choice", options: ["A) the slices eaten", "B) the slices left"], correct_answer: "B) the slices left" },
+    )).toBe(false);
+  });
+
+  it("local path: the live reworded repeat is dropped and the quiz is topped up", async () => {
+    const fractions = { level: 1, title: "Fractions", subtopics: [{ id: "s1", title: "Parts of a fraction", key_concepts: ["numerator"] }] } as unknown as Syllabus;
+    const others = [
+      { question_text: "Name the part of a fraction above the line.", correct_answer: "the numerator" },
+      { question_text: "Name the part of a fraction below the line.", correct_answer: "the denominator" },
+    ];
+    const script = [take, eat, ...others];
+    scriptModel([(n) => ({
+      ...fib({}), question_type: "short_answer", blank_position: "", ...script[n % script.length],
+      explanation: `The top number counts the parts taken. Therefore the answer is ${script[n % script.length].correct_answer}`,
+    })]);
+    const qs = await generateQuizQuestions(fractions, 3, local);
+    expect(qs.map((q) => q.question_text)).toEqual([take.question_text, ...others.map((o) => o.question_text)]);
+  });
+
   it("promotion test, cloud path: the section drops the repeat", async () => {
     vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
       if (opts.toolName === "emit_verdicts") return { verdicts: [] };
