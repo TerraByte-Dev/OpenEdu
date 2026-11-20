@@ -60,7 +60,7 @@ import type { ToolUIEvent } from "./toolDispatch";
 import { describeToolDone } from "../plain-language";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
 import { registerBuiltinTools } from "../tools";
-import type { LLMConfig, Subtopic, Syllabus } from "../../types";
+import type { LLMConfig, ModelTier, Subtopic, Syllabus } from "../../types";
 
 registerBuiltinTools();
 
@@ -109,15 +109,15 @@ const CHECK_ANSWER = [
   { role: "user", content: "12, because 3 groups of 4 is 12." },
 ];
 
-async function assessTurn(syllabus: Syllabus | null = null, conversation = CHECK_ANSWER): Promise<TutorTurnResult> {
-  const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, conversation), "Multiplication", "tiny", true);
+async function assessTurn(syllabus: Syllabus | null = null, conversation = CHECK_ANSWER, modelTier: ModelTier = "tiny"): Promise<TutorTurnResult> {
+  const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, conversation), "Multiplication", modelTier, true);
   return tutorEngine.run(
     {
       messages: [{ role: "system", content: "You are a tutor." }, ...conversation],
       config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev),
     },
     {
-      courseId: "c1", level: 1, syllabus, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+      courseId: "c1", level: 1, syllabus, modelTier, contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async (tool) => { confirms.push(tool); return true; },
     },
   );
@@ -369,6 +369,27 @@ describe("the mark code makes after a correct check answer", () => {
     expect(result.text).toBe("Yes, 3 groups of 4 is 12.");
   });
 
+  // Only where the model's own call is unreliable (e2b: TerraTutor B9 0/20, live part 9 4/4; e4b is "small" by
+  // tier, unmeasured). A "medium" or "large" model keeps its own judgement: assess.md asks for about 90%
+  // (ported from TerraTutor #267).
+  it.each([["tiny", true], ["small", true], ["medium", false], ["large", false]] as const)(
+    "on a %s chat model, marks: %s", async (tier, marks) => {
+      script = [reply("Yes, 3 groups of 4 is 12.")];
+      const result = await assessTurn(OPENED_WITH, picked("12, because 3 groups of 4 is 12."), tier);
+      expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+      expect(result.toolCalls).toEqual(marks ? [appMark] : []);
+      expect(confirms).toEqual(marks ? ["progress.mark_mastered"] : []);
+      expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: marks });
+    },
+  );
+
+  it("on a medium chat model, still saves the model's own mark", async () => {
+    script = [markCall("mastered"), reply("Yes, 3 groups of 4 is 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12, because 3 groups of 4 is 12."), "medium");
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: true }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
   it("makes no second mark when the model marked it already", async () => {
     script = [markCall("mastered"), reply("Yes, 3 groups of 4 is 12.")];
     const result = await assessTurn(OPENED_WITH, picked("12, because 3 groups of 4 is 12."));
@@ -512,6 +533,41 @@ describe("the mark code makes after a correct check answer", () => {
     expect(result.cardChecks).toMatchObject([{ verdict: "correct" }]);
     expect(result.toolCalls.map((c) => c.name)).toEqual(["ask_user.question"]);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  // TerraTutor #267's review: on the turn that opens the check, "help" typed into the check's question card
+  // got no check, and the model's easier card after it, picked right, marked (5 of 7 phrasings). Code marks
+  // on cards only when the first model card answered is the one checked.
+  const HELP_TYPED = ["help", "I don't know", "idk", "Give me a hint", "can you explain?", "I'm stuck", "?"];
+  const easierAfter = (first: string) => {
+    keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "4 + 4 + 4 = 12", answer: "12" } });
+    script = [askCall(Q, ["10", "12"]), askCall("What is 4 + 4 + 4?", ["8", "12"]), reply("Yes, 4 + 4 + 4 is 12.")];
+    return [first, "12"];
+  };
+  it.each(HELP_TYPED)("makes none for a right pick on an easier card after %j typed into the check's card", async (first) => {
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], OPENED_WITH, true, ["Equal Groups", ...easierAfter(first)]);
+    expect(result.cardChecks.slice(-1)[0]).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it.each(HELP_TYPED)("makes none on a one-skill level with no picker, after %j typed into the check's card", async (first) => {
+    const oneLeft = { ...OPENED_WITH, subtopics: SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s)) };
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(oneLeft.subtopics));
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], oneLeft, true, easierAfter(first));
+    expect(result.cardChecks.slice(-1)[0]).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("still marks on a one-skill level with no picker when the check's card is answered right first", async () => {
+    const oneLeft = { ...OPENED_WITH, subtopics: SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s)) };
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(oneLeft.subtopics));
+    script = [askCall(Q, ["10", "12"]), reply("Yes, 12.")];
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], oneLeft, true, ["12"]);
+    expect(result.toolCalls.slice(-1)).toEqual([appMark]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
   });
 
   it("still marks when the model's own mark failed on a wrong id", async () => {

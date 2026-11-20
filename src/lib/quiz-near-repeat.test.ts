@@ -114,6 +114,36 @@ describe("labelled near-repeat pairs (TerraTutor live tests 6-9)", () => {
     expect(qs.map((q) => q.question_text)).toEqual(script.map((q) => q.question_text));
   });
 
+  // OpenEdu #407's review of the #265 port: a stem that adds one qualifier that changes the answer, keyed in
+  // words the other key shares, merged both ways (the tides / the highest tides). 4 of the review's stems and
+  // 6 more, each also as multiple choice (ported from TerraTutor #267).
+  it("keeps apart a stem that adds a qualifier when the keys differ", () => {
+    const qualifier = (pairs.different as Pair[]).filter((p) => /OpenEdu #407 review|#407's take-back/.test(p.note ?? ""));
+    expect(qualifier).toHaveLength(20);
+    expect(qualifier.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+    const rock = (question_text: string, correct_answer: string) => ({ question_text, question_type: "short_answer", options: [], correct_answer });
+    expect(isNearDuplicate(rock("What kind of rock forms when magma cools?", "Igneous rock"),
+      rock("What kind of intrusive rock forms when magma cools?", "Intrusive igneous rock"))).toBe(false);
+    // The same stems with one key are still one question asked twice.
+    expect(isNearDuplicate(rock("What weather does a front bring?", "Rain"), rock("What weather does a cold front bring?", "Rain"))).toBe(true);
+  });
+
+  // TerraTutor #267's review: the "and ..." exception took the words after an "and" both stems share, so a
+  // qualifier added after it ("plants and animals need to live" / "... in the desert") was excused and merged.
+  it("keeps apart a qualifier added after an \"and\" both stems share", () => {
+    const shared = (pairs.different as Pair[]).filter((p) => /after a shared "and"/.test(p.note ?? ""));
+    expect(shared).toHaveLength(6);
+    expect(shared.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+  });
+
+  it("local path: a quiz keeps the tides and the highest tides", async () => {
+    const pair = (pairs.different as Pair[]).find((p) => p.note === "tides / the highest tides (OpenEdu #407 review) (multiple choice)")!;
+    const script = [asRaw(pair.a, "1.1"), asRaw(pair.b, "1.1")];
+    model(script, "1.1");
+    const qs = await generateQuizQuestions(cells, 4, { ...medium }, [], undefined, null, null);
+    expect(qs.slice(0, 2).map((q) => q.question_text)).toEqual(script.map((q) => q.question_text));
+  });
+
   it("level test path: #35 is dropped as #13 asked again, #17 (high silica) stays", async () => {
     const lt = (i: number) => asRaw(fromFixture(`volcanoes L2 level test, live test part 9, #${i}`), "2.1");
     model([lt(13), lt(35), lt(17)], "2.1");

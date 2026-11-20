@@ -242,7 +242,12 @@ written: they came from a once-a-minute timer whose only reader was the learning
   and "doesn't" read as "not") and numbers, and keys that share half the shorter one's content words and
   at least 2 of them, but not all of them in another order or with another symbol, so "high silica" /
   "low silica", "ion" / "atom", "evaporation" / "condensation", "Covalent bond" / "Ionic bond" after a
-  stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; TerraTutor
+  stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; with keys
+  that differ, the longer stem adds no qualifier (`addsQualifier`: every word it adds is
+  `ADDED_FILLER_WORDS`, such as "within" or "defining", or in an "and ..." it ends with whose words the
+  shorter stem has none of), so "the tides" / "the highest tides", "a front" / "a cold front", "Igneous
+  rock" / "Intrusive igneous rock" (merged as borderline before) and "plants and animals need to live" /
+  "... in the desert" stay apart too (OpenEdu #407's review; ported from TerraTutor #267); TerraTutor
   live test part 9 issue 2, bars measured on `src/lib/__fixtures__/near-repeat-pairs.json`; keys compared
   as `keyForm` reads them, without a leading article or punctuation other than the apostrophe (a numeric
   key, below, loses only end punctuation; a longer key keeps a minus before a number and a decimal point,
@@ -1214,8 +1219,19 @@ So the verdict on the child's answer is the app's, not the reply's:
   graded on that one: "help", then "What is 4 + 4 + 4?" answered "12", had marked the check's skill (review
   of this port). So a second skill checked in the same check is left to the model's own call. A turn
   graded only on cards marks only when its newest message opened the check (a hint request a caller ran
-  in assess, answered with a card, does not). It runs on every model, cloud ones included (`assess.md`
-  asks for about 90% understanding; one right first answer now marks even when a capable model held off). Not when the
+  in assess, answered with a card, does not) and the first model card the learner answered that turn (the
+  app's topic picker aside) is one the check graded (`markInput.firstCardChecked`): "help", "idk" or "I
+  don't know" typed into the check's question card is not graded, and the model's easier card after it,
+  picked right, had marked (5 of 7 such phrasings, TerraTutor #267's review); a typed card answer that was
+  graded and is not `correct` blocks the mark too. A "which one next?" card after the right answer still
+  allows it; a check whose first card is the model's own "which one should we check?" card is not
+  code-marked. Only on a chat model that tiers `tiny` or `small` (`ctx.modelTier`, from
+  `llm.ts detectModelProfile`: e2b and e4b by name, any other Ollama model by its size probe, under 6B,
+  qwen3.5:0.8b, llama3.2:3b and qwen3:4b among them, and one whose probe failed, as `small`; no cloud
+  model tiers below `medium`), where the model's own tool call is unreliable; a `medium` or `large`
+  model keeps its own judgement (`assess.md` asks for about 90% understanding, and one right answer would
+  override a model holding off). The evidence is e2b only (TerraTutor B9 0/20, live part 9 4/4); e4b and
+  the others are in by tier, unmeasured (ported from TerraTutor #267). Not when the
   model's own `progress.mark_mastered` call ran that turn, `practiced` too, or the learner said no to it on
   the card (not asked again); a model call that failed (a wrong id) or was refused does not stop it. Nor
   on a turn the learner stopped, that stalled or that ended at a card. The subtopic is the one code knows

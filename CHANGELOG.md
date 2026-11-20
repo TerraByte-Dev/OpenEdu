@@ -24,7 +24,7 @@ The section for each release is also what the app shows when you press Check for
 - Claude Opus 5.5, Sonnet 5.5 and Fable 5.2 can build courses. Anthropic's newest models refused the way
   OpenEdu asked for structured answers; it now uses structured outputs, which every current Claude model
   accepts.
-- **A right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
+- **With a small tutor model, a right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
   The default tutor model on computers under 16 GB never marked a skill after a right answer in a check
   in TerraTutor's live tests, so a check never moved a skill. Now, when OpenEdu's answer check finds the
   answer to the check's own question right and the tutor marks nothing, OpenEdu makes the same mark
@@ -33,11 +33,16 @@ The section for each release is also what the app shows when you press Check for
   from "Which one should we check first?" before the answer (a skill picked on a "which one next?" card
   after it is not the one marked), or the level's one skill left. Only for the learner's first answer in
   the check: never after a hint, a request for help, "I don't know" or a wrong answer (the tutor may then
-  have asked an easier question), so a second skill in the same check is left to the tutor. Never on a
-  partly right, unsure or wrong answer, or after the check has ended; never for a skill already marked
-  learned; and never a second time when the tutor marked the skill itself or after a "No" on the card. It
-  does this with every tutor model, cloud models included, not only the small default. One right answer
-  is enough, as it already was for the tutor's own mark; moving up a level still takes the level test.
+  have asked an easier question), typed in the chat or into the tutor's question card, so a second skill
+  in the same check is left to the tutor. Never on a partly right, unsure or wrong answer, or after the
+  check has ended; never for a skill already marked learned; and never a second time when the tutor
+  marked the skill itself or after a "No" on the card. One right answer is enough, as it already was for
+  the tutor's own mark; moving up a level still takes the level test. Only with a small tutor model, one
+  OpenEdu rates tiny or small, such as gemma4:e2b, gemma4:e4b and qwen3.5:0.8b, and any local model under
+  6B (llama3.2:3b, qwen3:4b) or whose size OpenEdu could not read: a larger local model and every cloud
+  model still decide for themselves, as the check's instructions ask for about 90% understanding. The
+  evidence that the tutor never marks is from gemma4:e2b only (TerraTutor B9 0/20, live test 2026-11-20
+  part 9: 4 of 4 turns); the others are included because they rate tiny or small, unmeasured.
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
@@ -224,7 +229,10 @@ The section for each release is also what the app shows when you press Check for
   live quiz had asked what the cell membrane does in relation to the cytoplasm 3 times, and a level test
   asked about a low-silica magma's flow twice. A question that swaps what it asks about ("high silica" /
   "low silica"), adds the one word that changes the answer ("a ball" / "a rolling ball": potential or
-  kinetic energy) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
+  kinetic energy), adds a word that narrows it when the answers differ ("the tides" / "the highest
+  tides", "a front" / "a cold front", "to make food" / "to make food without sunlight", "plants and
+  animals need to live" / "... in the desert", and "igneous rock" / "intrusive igneous rock", which had
+  counted as a repeat) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
 - **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
   came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
   last question had been the one before's, word for word.
