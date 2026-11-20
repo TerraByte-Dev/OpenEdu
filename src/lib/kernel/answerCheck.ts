@@ -33,7 +33,7 @@ import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
 import { replyFromPersisted } from "./persistedReply";
 import { STOPWORDS as CONTENT_STOPWORDS } from "./contentWords";
-import { foldPlural } from "../quiz-grading";
+import { foldPlural, sameAnswer } from "../quiz-grading";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -57,9 +57,10 @@ export interface AnswerCheck {
   /** With `on`, the question still open, as its key call copied it: the check's own after an answer to a hint's
    *  question, the tutor's newest after an answer to the check's opening question. */
   checkQuestion?: string;
-  /** True when the tutor's newest question was the check's opening one asked again in other words, and the
-   *  verdict came from grading the opening wording second (checkAnswer, rewordsQuestion): given on the newest
-   *  question with nothing asked again, but not a first try, so TutorEngine refuses a mark on it. */
+  /** True when the tutor's newest question was the check's opening one asked again in other words (checkAnswer,
+   *  rewordsQuestion), or another question with the same answer (keysAgree) answered right, and the verdict came
+   *  from grading the opening question second: given on the newest question with nothing asked again, but not a
+   *  first try, so TutorEngine refuses a mark on it. */
   reworded?: true;
 }
 
@@ -345,6 +346,12 @@ const SENTENCE_BREAK = /(?:[.!?:][*_"”')\]]*|(?=\n))(\s+)/;
 // not one.
 // After a held question it is read as before (let out with it), so endsOnQuestion reads a hint as it did.
 const GOES_BACK = /^[\W_]*(?:(?:now|okay|ok|so|alright|all right|anyway|great|good)\b[\s,!.]*)*(?:(?:let(?:'|’)?s|let us|we(?:'|’)ll|we will|i(?:'|’)ll|i will|time to)\s+(?:(?:go|get|come|head|turn)\s+back|return)\s+to|(?:going|getting|coming)\s+back\s+to|back\s+to)\s+(?:my|our|the|your)\s+(?:(?:last|earlier|first|previous|original|other|main|current|open|real|check(?:'|’)s)\s+)?question[.!]*[*_"”')\]]*$/i;
+// A sentence that only announces moving on to another question: "Now, let's try another one.", "Let's try a different
+// one.", "Here is another question.", "Let's do one more!", "Next question." Held like GOES_BACK: code asks the open
+// question after the reply, so the model's own next question is dropped, and the line that leads in to it with it
+// (TerraTutor live test 2026-11-20 part 12, threads B and C: "Now, let's try another one. Now back to the question:"). One that
+// says what comes next ("Let's try another one with pizza.", "Let's try a different picture.") is not one.
+const MOVES_ON = /^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|and)\b[\s,!.]*)*(?:(?:let(?:'|’)?s|let us|we(?:'|’)ll|we will|i(?:'|’)ll|i will)\s+(?:(?:try|do|have|move on to|go on to|go to|look at)\s+)?|(?:here(?:'|’)?s|here is|time for|on to|moving on to|try|do)\s+)?(?:(?:just\s+)?one\s+more|another|a\s+(?:new|different|harder|easier|second)|the\s+next|next)(?:\s+(?:one|question|problem|example|try|go))?[.!]*[*_"”')\]]*$/i;
 
 /**
  * The reply to an answer to a hint's own question, as it streams, without its trailing question
@@ -405,7 +412,7 @@ export class TrailingQuestionHold {
 
   private sentence(text: string, spaces: string): string {
     const s = text.trim();
-    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s) || (!this.asked && GOES_BACK.test(s))
+    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s) || (!this.asked && (GOES_BACK.test(s) || MOVES_ON.test(s)))
       || (this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s)));
     if (held) {
       if (s.includes("?")) this.asked = true;
@@ -551,10 +558,25 @@ export function isMetaKey(answer: string): boolean {
 // "What do you think 7 x 8 is?" and "What do you think is the first part?" ask for a fact, and are keyed.
 const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:like|prefer|agree|enjoy)|would\s+you\s+(?:rather|prefer)|how\s+do(?:es)?\s+(?:you|it\s+make\s+you)\s+feel|you\s+(?:think|feel|believe)\s+(?:is|was|are|were)\s+(?:the\s+)?(?:most|best|least|more|less)\s+(?:important|interesting|fun|useful|exciting|surprising|cool|beautiful)|(?:most|more)\s+(?:interesting|fun|exciting|surprising)\s+to\s+you|which\s+(?:one|idea|part|of\s+these|of\s+them)\s+(?:do\s+you|you)\s+(?:like|prefer|enjoy)|you\s+(?:like|enjoy)\s+(?:the\s+)?(?:most|best))\b/i;
 
-/** True when every question asked in `question` asks for the learner's opinion (OPINION), with no fact to key. */
+// A question that offers the learner a choice of what to do next: "Do you want to try another example, or would you
+// like to check another part of translating diagrams to fraction notation?" (TerraTutor live test 2026-11-20 part 12, step 3:
+// keyed "2/6", a statement before it, so a pick would have been graded wrong). It opens with the offer ("do you want",
+// "would you like", "shall we", "want to", "are you ready"), and after its "or" comes another offer, another thing to
+// do or another one, never a thing to name: "Is a whale a fish or a mammal?", "Is 3/4 bigger or smaller than 1/2?" and
+// "Do you want to add or subtract?" are asked for a fact and keyed.
+const OFFER = String.raw`(?:do\s+you\s+(?:want|wanna)|would\s+you\s+(?:like|want)|shall\s+we|want\s+to|are\s+you\s+ready)`;
+const CHOICE_OFFER = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|then|and)\b[\s,!.]*)*${OFFER}\b[^?]*?\bor\s+(?:${OFFER}|(?:do|would|shall|should|can|could)\s+(?:you|we|i)\b|(?:to\s+)?(?:try|check|do|go|move|keep|practi[cs]e|look|review|stop|start|learn|work|play)\b|(?:an?\s+)?(?:new|different|another)\b)`, "i");
+// An offer asks nothing of its own (TerraTutor #273's review, MUST-FIX 3). A sentence with an embedded question
+// ("Do you want to tell me what the nucleus does, or would you like a hint?", "whether a tomato is a fruit"), a ":"
+// ("Would you like to try this one: what gas do plants take in, ...?") or a verb that asks for an answer ("... or
+// check the picture again to find the numerator?") asks for a fact, and is keyed as before.
+const ASKS_INSIDE = /:|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
+
+/** True when every question asked in `question` asks for the learner's opinion (OPINION) or offers a choice of what to
+ *  do next (CHOICE_OFFER), with no fact to key. */
 export function asksOpinion(question: string): boolean {
   const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
-  return asks.length > 0 && asks.every((s) => OPINION.test(s));
+  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
 }
 
 /**
@@ -663,7 +685,8 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
  * `opening` is the check's own first question when the tutor has moved on from it unanswered (checkedMessage):
  * an answer graded "incorrect" or "partly" for `tutorMessage`'s question, with no hint question in play, is graded
  * against it too; a better verdict there is its verdict, tagged `on: "earlier"`, or given on the newest question
- * and marked `reworded` when that question is the opening one reworded (rewordsQuestion, keys that agree).
+ * and marked `reworded` when that question is the opening one reworded (rewordsQuestion, keys that agree), or has
+ * the same answer and the answer was right (keysAgree).
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -752,13 +775,27 @@ export async function checkAnswer(
   // The newest question is the opening one asked again in other words (rewordsQuestion): one question, so one
   // verdict, the better one, on the newest, and nothing asked again. Tagged `on: "earlier"`, the reply said
   // "That's partly right." and code then asked the same question again (this repo's port of TerraTutor #268,
-  // take-back 2026-11-20-0752). Only when the two keys say the same thing (keysContradict): "36" and "24", or
-  // "Yes" and "No", are two questions however alike their words. Marked `reworded`: the verdict came from grading the
-  // opening question second, so it is not a first try, and TutorEngine refuses the model's own mark on it
-  // (MASTERY_REFUSED_REWORDED), as it does after `on: "earlier"`.
-  if (rewordsQuestion(earlier.question, keyed.question) && !keysContradict(earlier.key, keyed.key)) {
-    return { ...onTheEarlier, question: keyed.question, reworded: true };
-  }
+  // take-back 2026-11-20-0752). Only when the two keys give one answer (keysAgree): "36" and "24", or "Yes" and
+  // "No", are two questions however alike their words; and so are two that name different things, "insects" and
+  // "snakes and birds" for "What does a frog eat?" / "What eats a frog?" (take-back 2026-11-20-1103, item 3), or
+  // "Frogs eat insects like flies and crickets." and "Snakes, birds and herons eat frogs." (its review, MUST-FIX 1).
+  // Two statement keys in other words are two answers here too: when unsure, the two are graded apart, and the
+  // newest question is asked again (ported from TerraTutor #273).
+  // The same verdict, with nothing asked again, when the newest question is another question with the same answer
+  // and the answer was right (TerraTutor live test 2026-11-20 part 12, issue 1: "The denominator would be 4." was
+  // right for "what number would be the denominator?", keyed "4", and code then asked "how many pieces do we have
+  // in total?", keyed "4 pieces", again): the keys must give one answer, the learner's message must state the key's
+  // numbers, and every word the newest key adds to the first one must be in the newest question or the learner's
+  // message ("pieces" is in "how many pieces ...?"; "tens" in "4 tens" for "What is the value of the 4 in 345?" is
+  // in neither, so "4" for "What digit is in the tens place of 345?" does not answer it, review MUST-FIX 2).
+  // Marked `reworded`: the verdict came from grading the opening question second, so it is not a first try, and
+  // TutorEngine refuses the model's own mark on it (MASTERY_REFUSED_REWORDED), as it does after `on: "earlier"`.
+  // Given with the newest question's key, so the model's note pairs the newest question with its own key.
+  const agree = keysAgree(earlier.key, keyed.key);
+  const reworded = agree && rewordsQuestion(earlier.question, keyed.question);
+  const answersBoth = agree && onTheEarlier.verdict === "correct" && statesKeyNumbers(studentMessage, keyed.key)
+    && saysAddedKeyWords(earlier.key, keyed.key, `${keyed.question} ${studentMessage}`);
+  if (reworded || answersBoth) return { ...onTheEarlier, question: keyed.question, key: keyed.key, reworded: true };
   return { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question };
 }
 
@@ -799,8 +836,10 @@ const ASKED_PREPOSITIONS = new Set(["in", "on"]);
 // made?" "What are rocks made of?".
 const ASKED_QUESTION_WORDS = new Set(["how"]);
 // A stopword preposition is asked when it ends the question: "What are leaves for?" is not "What are leaves?",
-// nor "What is the story about?" "What is the story?". Anywhere else it is dropped ("what job does the membrane
-// do for the cell?"). "from" is no stopword, so it is always kept.
+// nor "What is the story about?" "What is the story?". It ends the question when only dropped words follow it
+// (framingOnly): "What are leaves for, do you think?" asks what "What are leaves for?" asks (TerraTutor take-back
+// 2026-11-20-1103, item 2). Anywhere else it is dropped ("what job does the membrane do for the cell?"). "from" is
+// no stopword, so it is always kept.
 const ASKED_LAST_PREPOSITIONS = new Set(["for", "of", "about", "with", "to"]);
 // "do" is asked ("What does the nucleus do?" is not "What is the nucleus?") where it is the verb: last in the
 // question or before one of DO_ASKED_BEFORE ("what job does the membrane do for the cell?"). Before anything
@@ -813,13 +852,16 @@ const DO_ASKED_BEFORE = new Set(["for", "to", "in", "on", "with", "at", "into", 
 // What a question asks, word by word in order: every word token (numbers and single letters kept, so "12 times 3"
 // and "12 times 2", "3/4" and "1/2", "the letter A" and "the letter B" differ), folded to its singular, less the
 // stopwords and ASK_FRAMING, but with ASKED_VERBS (marked "<" in the subject slot of SUBJECT_QUESTION_WORDS),
-// ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, a last preposition (ASKED_LAST_PREPOSITIONS) and an asked "do" kept,
-// and DO_NOUNS read as "do". A single capital
+// ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, a last preposition (ASKED_LAST_PREPOSITIONS, framing after it aside) and
+// an asked "do" kept, and DO_NOUNS read as "do". A single capital
 // letter is kept even where it is a stopword ("Is the letter I a vowel?"); a lowercase "a" or "i" is the article
 // or the pronoun.
 function askedWords(q: string): string[] {
   const out: string[] = [];
   const tokens = q.replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu) ?? [];
+  // Where the words that only frame the question start, at its end (", do you think?"), or tokens.length.
+  let tail = tokens.length;
+  while (tail > 0 && framingOnly(tokens[tail - 1])) tail--;
   let subjectSlot = false;
   for (const [i, t] of tokens.entries()) {
     const w = t.toLowerCase();
@@ -828,7 +870,7 @@ function askedWords(q: string): string[] {
     if (t.length === 1 && /\p{Lu}/u.test(t)) out.push(w);
     else if (verb) out.push(subjectSlot ? `${verb}<` : verb);
     else if (ASKED_PREPOSITIONS.has(w) || ASKED_QUESTION_WORDS.has(w)) out.push(w);
-    else if (ASKED_LAST_PREPOSITIONS.has(w) && i === tokens.length - 1) out.push(w);
+    else if (ASKED_LAST_PREPOSITIONS.has(w) && i + 1 >= tail) out.push(w);
     else if (DO_FORMS.has(w)) { if (i === tokens.length - 1 || DO_ASKED_BEFORE.has(tokens[i + 1].toLowerCase())) out.push("do"); }
     else if (DO_NOUNS.has(foldPlural(w))) out.push("do");
     else if (!CONTENT_STOPWORDS.has(w) && !ASK_FRAMING.has(foldPlural(w))) out.push(foldPlural(w));
@@ -836,6 +878,14 @@ function askedWords(q: string): string[] {
     else if (out.length > kept) subjectSlot = false;
   }
   return out;
+}
+
+/** True when askedWords drops the token wherever it stands: a stopword or ASK_FRAMING word that is not asked
+ *  (ASKED_VERBS, ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, ASKED_LAST_PREPOSITIONS) and not a single capital. */
+function framingOnly(t: string): boolean {
+  const w = t.toLowerCase();
+  if ((t.length === 1 && /\p{Lu}/u.test(t)) || ASKED_VERBS.has(w) || ASKED_PREPOSITIONS.has(w) || ASKED_QUESTION_WORDS.has(w) || ASKED_LAST_PREPOSITIONS.has(w)) return false;
+  return CONTENT_STOPWORDS.has(w) || ASK_FRAMING.has(foldPlural(w));
 }
 
 /**
@@ -847,7 +897,7 @@ function askedWords(q: string): string[] {
  * "on" after "in", "What are leaves for?" after "What are leaves?"), a "how" ("How do bees make honey?" after
  * "Do bees make honey?"), another number ("12 times 2" after "12 times 3") or another order ("the earth bigger than
  * the sun") is another question, and two questions are then graded apart as before (`on: "earlier"`).
- * checkAnswer also needs the two keys to agree (keysContradict) before it merges.
+ * checkAnswer also needs the two keys to give one answer (keysAgree) before it merges.
  */
 export function rewordsQuestion(a: string, b: string): boolean {
   const negations = (q: string) => (q.toLowerCase().match(NEGATION) ?? []).sort().join(" ");
@@ -868,21 +918,53 @@ function yesNo(key: string): "yes" | "no" | null {
   return m ? (/^(?:yes|true)$/i.test(m[1]) ? "yes" : "no") : null;
 }
 
-/** True when two keys say different things outright: both have numbers and they differ ("36", "24"), or both are
- *  yes/no (or true/false) and differ. Two questions keyed that way are two questions, however alike their words. */
-function keysContradict(a: string, b: string): boolean {
-  const na = numbersIn(a).map((n) => n.value);
-  const nb = numbersIn(b).map((n) => n.value);
-  if (na.length && nb.length && (na.length !== nb.length || na.some((v, i) => Math.abs(v - nb[i]) > 1e-9))) return true;
-  const ya = yesNo(a);
-  const yb = yesNo(b);
-  return !!ya && !!yb && ya !== yb;
-}
+const normKey = (s: string) => s.toLowerCase().replace(/[*_`"“”'’.,!?;:()]/g, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|a|an) /, "");
 
 /** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."). */
 function sameKey(a: string, b: string): boolean {
-  const norm = (s: string) => s.toLowerCase().replace(/[*_`"“”'’.,!?;:()]/g, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|a|an) /, "");
-  return !!norm(a) && norm(a) === norm(b);
+  return !!normKey(a) && normKey(a) === normKey(b);
+}
+
+/**
+ * True when two keys give one answer: the same once case, punctuation and an article are set aside and plurals folded
+ * as quiz-grading.ts sameAnswer folds them ("3 blocks" / "3 block"), or the same numbers in the same order (a
+ * fraction's two numbers too: "3/8", "$\frac{3}{8}$") with nothing else that can differ: the same negations, no
+ * yes/no on one side that the other contradicts, and every other word of one key in the other ("4" / "4 pieces", "3"
+ * / "3 blocks"; not "4 pieces" / "4 blocks", "3/4" / "4/3", "4 cm" / "4 m", "4" / "not 4"). TerraTutor live test 2026-11-20 part
+ * 12, issue 1: the move-on question's key "4 pieces" was not the first question's "4", and the move-on question the
+ * learner had just answered was asked again. Exact on purpose: keys in other words are two answers here.
+ */
+export function keysAgree(a: string, b: string): boolean {
+  if (sameKey(a, b) || (!!normKey(a) && sameAnswer(normKey(a), normKey(b)))) return true;
+  const na = numbersIn(a).map((n) => n.value);
+  const nb = numbersIn(b).map((n) => n.value);
+  if (!na.length || na.length !== nb.length || na.some((v, i) => Math.abs(v - nb[i]) > 1e-9)) return false;
+  const negations = (k: string) => (k.toLowerCase().match(NEGATION) ?? []).sort().join(" ");
+  if (negations(a) !== negations(b) || yesNo(a) !== yesNo(b)) return false;
+  const [ra, rb] = [keyWords(a), keyWords(b)];
+  const [fewer, more] = ra.size <= rb.size ? [ra, rb] : [rb, ra];
+  return [...fewer].every((w) => more.has(w));
+}
+
+/** A key's words beside its numbers, single letters kept ("4 m"), stopwords and "frac" (LaTeX) left out, folded to the singular (foldPlural). */
+function keyWords(k: string): Set<string> {
+  let text = k;
+  for (const n of numbersIn(k).reverse()) text = `${text.slice(0, n.from)} ${text.slice(n.to)}`;
+  return new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).filter((w) => !CONTENT_STOPWORDS.has(w) && w !== "frac").map(foldPlural));
+}
+
+/** True when every word `newest` adds to `first` (keyWords) is in `text`, plurals folded: a word only the newest key
+ *  has ("tens", "fewer", "times") can change what its number means, and is said or asked, or the keys are two answers. */
+function saysAddedKeyWords(first: string, newest: string, text: string): boolean {
+  const had = keyWords(first);
+  const said = new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).map(foldPlural));
+  return [...keyWords(newest)].every((w) => had.has(w) || said.has(w));
+}
+
+/** True when the student's message states every number in `key` (or the key has none). */
+function statesKeyNumbers(student: string, key: string): boolean {
+  const theirs = numbersIn(student).map((n) => n.value);
+  return numbersIn(key).every((n) => theirs.some((v) => Math.abs(v - n.value) <= 1e-9));
 }
 
 /** True when the hint's keyed question is the check's own, asked again: each is in the other, both ways. */

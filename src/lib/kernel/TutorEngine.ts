@@ -68,10 +68,10 @@ export const MASTERY_REFUSED_HINT =
 export const MASTERY_REFUSED_EARLIER =
   "Not saved: the student answered the check's first question after the tutor had moved on, not on a first try, so this subtopic can't be marked mastered now. Your last question is still open.";
 /** What the model is told when it tries to mark mastered on a turn whose verdict came from the check's first
- *  question, which the tutor asked again in other words (AnswerCheck.reworded): one question, nothing asked
- *  again, but not a first try. */
+ *  question, which the tutor asked again in other words or whose answer the tutor's newest question shares
+ *  (AnswerCheck.reworded): one question, nothing asked again, but not a first try. */
 export const MASTERY_REFUSED_REWORDED =
-  "Not saved: the student's answer was graded on the check's first question, which you had asked again in other words, so it was not a first try and this subtopic can't be marked mastered now.";
+  "Not saved: the student's answer was graded on the check's first question, which you had asked again in other words or whose answer your last question shares, so it was not a first try and this subtopic can't be marked mastered now.";
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
