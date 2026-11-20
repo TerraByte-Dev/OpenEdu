@@ -875,6 +875,30 @@ const REWORDED_KEY_SHARE = 0.5;
 /** And the content words the two keys share, at least: sharing only the head noun of a two-word key
  *  ("Covalent bond" / "Ionic bond", "The inner core" / "The outer core") is a mirror question. */
 const REWORDED_KEY_MIN_SHARED = 2;
+/** Words a reworded stem adds without asking anything new, read from the labelled repeats ("within a
+ *  cell", "a defining characteristic", "a key tenet of", "primarily responsible for", "the main
+ *  structural difference"). Only for stems whose keys differ (addsQualifier). */
+const ADDED_FILLER_WORDS = new Set(["within", "characteristic", "defining", "tenet", "responsible", "structural"]);
+
+/**
+ * True when the longer stem adds an asked word to the shorter one (isRewordedRepeat, `long` holds all of
+ * `short`) that is not ADDED_FILLER_WORDS and not in an "and ..." it ends with whose words are all new
+ * (an "and" the shorter stem already has excuses nothing). A qualifier that narrows the question changes
+ * its answer: "What causes the tides on Earth?" / "... the highest tides ...", "... to make food?" / "...
+ * without sunlight?", "... a front ..." / "... a cold front ..." (OpenEdu #407's review of the #265 port:
+ * all merged). An "and ..." at the end asks for more of the same answer ("... its flow behavior?" / "...
+ * flow behavior and resulting eruption style?", TerraTutor live test part 9, level test #13 / #35).
+ * Ported from TerraTutor #267.
+ */
+function addsQualifier(short: ReadonlySet<string>, long: ReadonlySet<string>, longText: string): boolean {
+  const lower = String(longText ?? "").toLowerCase();
+  const and = lower.lastIndexOf(" and ");
+  // Only an "and ..." the shorter stem has none of the words of: after an "and" both stems share ("plants
+  // and animals need to live" / "... to live in the desert"), the words are a qualifier like any other.
+  const tailWords = and < 0 ? [] : contentWords(lower.slice(and + 5));
+  const tail = new Set(tailWords.some((w) => short.has(w)) ? [] : tailWords);
+  return [...long].some((w) => !short.has(w) && !ADDED_FILLER_WORDS.has(w) && !tail.has(w));
+}
 
 // A question asked again in other words, with its key in other words too (TerraTutor live test part 9 issue 2: a
 // quiz asked "The cell membrane's primary role in relation to the cytoplasm is to:" and "What is the
@@ -896,10 +920,16 @@ const REWORDED_KEY_MIN_SHARED = 2;
 //   into water vapor" / "water vapor turning into liquid water", "Na+" / "Na") are different answers, and
 //   so are two-word keys that share only their head noun, for a stem that adds the one qualifier that
 //   changes the answer ("... between two atoms?" Covalent bond / "... two atoms that transfer electrons?"
-//   Ionic bond; "made of iron" / "made of liquid iron"). Still merged, as borderline: "Igneous rock" /
-//   "Intrusive igneous rock" after a stem that adds "intrusive".
+//   Ionic bond; "made of iron" / "made of liquid iron");
+// - with keys that differ, a longer stem that adds a qualifier (addsQualifier): "the highest tides" /
+//   "the tides", "a cold front" / "a front", "Intrusive igneous rock" / "Igneous rock" after a stem that
+//   adds "intrusive" are two questions.
 // Bars measured on the labelled pairs in __fixtures__/near-repeat-pairs.json (quiz-near-repeat.test.ts): 28 of
-// the 34 repeats in the saved live quizzes and tests caught, 0 of the different pairs merged.
+// the 34 repeats in the saved live quizzes and tests caught, 0 of the 96 different pairs merged, the 20
+// qualifier pairs (OpenEdu #407) and the 6 with a qualifier after a shared "and" (TerraTutor #267's review)
+// included. Before addsQualifier: 28 of 34 and 0 of 70, and all 20 qualifier pairs merged; with the "and"
+// tail excused even after a shared "and", all 6 of those merged. ADDED_FILLER_WORDS and the "and" tail
+// were read off those repeats, so 28 is in-sample.
 function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean): boolean {
   if (a.question_type === "fill_in_blank" || b.question_type === "fill_in_blank") return false;
   const ka = sameKeyForm(a);
@@ -912,11 +942,12 @@ function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean
   };
   const sa = asked(a.question_text);
   const sb = asked(b.question_text);
-  const [short, long] = sa.words.size <= sb.words.size ? [sa.words, sb.words] : [sb.words, sa.words];
+  const [short, long, longText] = sa.words.size <= sb.words.size ? [sa.words, sb.words, b.question_text] : [sb.words, sa.words, a.question_text];
   if (short.size === 0 || [...short].some((w) => !long.has(w))) return false;
   if (short.size / new Set([...short, ...long]).size < REWORDED_STEM_SHARE) return false;
   if (sa.not !== sb.not || stemNumbers(stemWords(a.question_text)) !== stemNumbers(stemWords(b.question_text))) return false;
   if (sameKey) return true;
+  if (addsQualifier(short, long, longText)) return false;
   const wa = new Set(contentWords(ka).filter((w) => !KEY_PRONOUNS.has(w)));
   const wb = new Set(contentWords(kb).filter((w) => !KEY_PRONOUNS.has(w)));
   if (wa.size === 0 || wb.size === 0) return false;

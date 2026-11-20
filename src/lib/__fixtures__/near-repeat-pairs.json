@@ -1,5 +1,5 @@
 {
- "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice.",
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart.",
  "repeats": [
   {
    "a": {
@@ -2311,6 +2311,526 @@
      "D) I am not sure"
     ],
     "correct_answer": "A) Sticky, high viscosity lava"
+   }
+  },
+  {
+   "note": "tides / the highest tides (OpenEdu #407 review)",
+   "a": {
+    "question_text": "What causes the tides on Earth?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The pull of the Moon's gravity on the oceans"
+   },
+   "b": {
+    "question_text": "What causes the highest tides on Earth?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The pull of the Moon's and the Sun's gravity lined up together"
+   }
+  },
+  {
+   "note": "tides / the highest tides (OpenEdu #407 review) (multiple choice)",
+   "a": {
+    "question_text": "What causes the tides on Earth?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The pull of the Moon's gravity on the oceans",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The pull of the Moon's gravity on the oceans"
+   },
+   "b": {
+    "question_text": "What causes the highest tides on Earth?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The pull of the Moon's and the Sun's gravity lined up together",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The pull of the Moon's and the Sun's gravity lined up together"
+   }
+  },
+  {
+   "note": "make food / make food without sunlight (OpenEdu #407 review)",
+   "a": {
+    "question_text": "What does a plant use to make food?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Sunlight, water and carbon dioxide"
+   },
+   "b": {
+    "question_text": "What does a plant use to make food without sunlight?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Stored starch it made earlier from water and carbon dioxide"
+   }
+  },
+  {
+   "note": "make food / make food without sunlight (OpenEdu #407 review) (multiple choice)",
+   "a": {
+    "question_text": "What does a plant use to make food?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Sunlight, water and carbon dioxide",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Sunlight, water and carbon dioxide"
+   },
+   "b": {
+    "question_text": "What does a plant use to make food without sunlight?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Stored starch it made earlier from water and carbon dioxide",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Stored starch it made earlier from water and carbon dioxide"
+   }
+  },
+  {
+   "note": "enters the cell / enters a plant cell first (OpenEdu #407 review)",
+   "a": {
+    "question_text": "Which part controls what enters the cell?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The cell membrane"
+   },
+   "b": {
+    "question_text": "Which part controls what enters a plant cell first?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The cell wall, before the cell membrane"
+   }
+  },
+  {
+   "note": "enters the cell / enters a plant cell first (OpenEdu #407 review) (multiple choice)",
+   "a": {
+    "question_text": "Which part controls what enters the cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The cell membrane",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The cell membrane"
+   },
+   "b": {
+    "question_text": "Which part controls what enters a plant cell first?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The cell wall, before the cell membrane",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The cell wall, before the cell membrane"
+   }
+  },
+  {
+   "note": "a front / a cold front (OpenEdu #407 review)",
+   "a": {
+    "question_text": "What weather does a front bring?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Clouds and rain as the air masses meet"
+   },
+   "b": {
+    "question_text": "What weather does a cold front bring?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Heavy rain and clouds, then cooler air"
+   }
+  },
+  {
+   "note": "a front / a cold front (OpenEdu #407 review) (multiple choice)",
+   "a": {
+    "question_text": "What weather does a front bring?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Clouds and rain as the air masses meet",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Clouds and rain as the air masses meet"
+   },
+   "b": {
+    "question_text": "What weather does a cold front bring?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Heavy rain and clouds, then cooler air",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Heavy rain and clouds, then cooler air"
+   }
+  },
+  {
+   "note": "collect from flowers / to make honey (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "What do bees collect from flowers?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Nectar and pollen"
+   },
+   "b": {
+    "question_text": "What do bees collect from flowers to make honey?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Only the nectar, not the pollen"
+   }
+  },
+  {
+   "note": "collect from flowers / to make honey (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What do bees collect from flowers?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Nectar and pollen",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Nectar and pollen"
+   },
+   "b": {
+    "question_text": "What do bees collect from flowers to make honey?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Only the nectar, not the pollen",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Only the nectar, not the pollen"
+   }
+  },
+  {
+   "note": "water heated / in a closed pot (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "What happens to water when it is heated?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "It turns into water vapor and rises"
+   },
+   "b": {
+    "question_text": "What happens to water when it is heated in a closed pot?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "It turns into water vapor and pushes on the lid"
+   }
+  },
+  {
+   "note": "water heated / in a closed pot (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What happens to water when it is heated?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) It turns into water vapor and rises",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) It turns into water vapor and rises"
+   },
+   "b": {
+    "question_text": "What happens to water when it is heated in a closed pot?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) It turns into water vapor and pushes on the lid",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) It turns into water vapor and pushes on the lid"
+   }
+  },
+  {
+   "note": "first elections / in New Jersey (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "Who could vote in the first American elections?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Mostly white men who owned land"
+   },
+   "b": {
+    "question_text": "Who could vote in the first American elections in New Jersey?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "White men and some women who owned property"
+   }
+  },
+  {
+   "note": "first elections / in New Jersey (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "Who could vote in the first American elections?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Mostly white men who owned land",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Mostly white men who owned land"
+   },
+   "b": {
+    "question_text": "Who could vote in the first American elections in New Jersey?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) White men and some women who owned property",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) White men and some women who owned property"
+   }
+  },
+  {
+   "note": "the heart / the right side of the heart (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "What does the heart pump?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Blood to the body and to the lungs"
+   },
+   "b": {
+    "question_text": "What does the right side of the heart pump?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Blood to the lungs only"
+   }
+  },
+  {
+   "note": "the heart / the right side of the heart (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What does the heart pump?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Blood to the body and to the lungs",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Blood to the body and to the lungs"
+   },
+   "b": {
+    "question_text": "What does the right side of the heart pump?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Blood to the lungs only",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Blood to the lungs only"
+   }
+  },
+  {
+   "note": "frogs / frogs as tadpoles (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "What do frogs eat?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Insects, worms and other small animals"
+   },
+   "b": {
+    "question_text": "What do frogs eat as tadpoles?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Algae and other small plants"
+   }
+  },
+  {
+   "note": "frogs / frogs as tadpoles (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What do frogs eat?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Insects, worms and other small animals",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Insects, worms and other small animals"
+   },
+   "b": {
+    "question_text": "What do frogs eat as tadpoles?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Algae and other small plants",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Algae and other small plants"
+   }
+  },
+  {
+   "note": "the Pilgrims / on the Mayflower (qualifier, written for #407's take-back)",
+   "a": {
+    "question_text": "What did the Pilgrims eat?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Corn, fish and deer meat"
+   },
+   "b": {
+    "question_text": "What did the Pilgrims eat on the Mayflower?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Dried fish, hard biscuits and salted meat"
+   }
+  },
+  {
+   "note": "the Pilgrims / on the Mayflower (qualifier, written for #407's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What did the Pilgrims eat?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Corn, fish and deer meat",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Corn, fish and deer meat"
+   },
+   "b": {
+    "question_text": "What did the Pilgrims eat on the Mayflower?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Dried fish, hard biscuits and salted meat",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Dried fish, hard biscuits and salted meat"
+   }
+  },
+  {
+   "note": "plants and animals / in the desert (qualifier after a shared \"and\", #407 take-back review)",
+   "a": {
+    "question_text": "What do plants and animals need to live?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Water, food and air"
+   },
+   "b": {
+    "question_text": "What do plants and animals need to live in the desert?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Water, food and shelter from the heat"
+   }
+  },
+  {
+   "note": "plants and animals / in the desert (qualifier after a shared \"and\", #407 take-back review) (multiple choice)",
+   "a": {
+    "question_text": "What do plants and animals need to live?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Water, food and air",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Water, food and air"
+   },
+   "b": {
+    "question_text": "What do plants and animals need to live in the desert?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Water, food and shelter from the heat",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Water, food and shelter from the heat"
+   }
+  },
+  {
+   "note": "weather and climate / in polar regions (qualifier after a shared \"and\", #407 take-back review)",
+   "a": {
+    "question_text": "What is the difference between weather and climate?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Weather is the daily conditions, climate is the long-term pattern"
+   },
+   "b": {
+    "question_text": "What is the difference between weather and climate in polar regions?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Polar weather changes daily, while the polar climate stays cold over the long term"
+   }
+  },
+  {
+   "note": "weather and climate / in polar regions (qualifier after a shared \"and\", #407 take-back review) (multiple choice)",
+   "a": {
+    "question_text": "What is the difference between weather and climate?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Weather is the daily conditions, climate is the long-term pattern",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Weather is the daily conditions, climate is the long-term pattern"
+   },
+   "b": {
+    "question_text": "What is the difference between weather and climate in polar regions?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Polar weather changes daily, while the polar climate stays cold over the long term",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Polar weather changes daily, while the polar climate stays cold over the long term"
+   }
+  },
+  {
+   "note": "bats and owls / at night (qualifier after a shared \"and\", #407 take-back review)",
+   "a": {
+    "question_text": "How do bats and owls find food?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Bats use echolocation and owls use sharp hearing"
+   },
+   "b": {
+    "question_text": "How do bats and owls find food at night?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Bats use echolocation and owls use sharp eyes and hearing in the dark"
+   }
+  },
+  {
+   "note": "bats and owls / at night (qualifier after a shared \"and\", #407 take-back review) (multiple choice)",
+   "a": {
+    "question_text": "How do bats and owls find food?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Bats use echolocation and owls use sharp hearing",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Bats use echolocation and owls use sharp hearing"
+   },
+   "b": {
+    "question_text": "How do bats and owls find food at night?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Bats use echolocation and owls use sharp eyes and hearing in the dark",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Bats use echolocation and owls use sharp eyes and hearing in the dark"
    }
   }
  ]
