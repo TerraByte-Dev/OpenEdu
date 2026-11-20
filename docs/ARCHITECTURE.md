@@ -895,8 +895,9 @@ Questions, offers, instructions to the student and conditions are not claims. Th
 shown the claim; the saved reply, which replaces it on screen when the turn ends, does not have it.
 
 Mastery is not one of them: it is decided in code from quiz and promotion-test results
-(`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a
-model's praise alone never marks anything.
+(`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path (the
+model's call, or code's after a check answer found correct, below), and a model's praise alone never
+marks anything.
 
 ### The answer check in assess mode (`kernel/answerCheck.ts`, `answerCompare.ts`, `replyClaims.ts`)
 
@@ -1198,6 +1199,34 @@ So the verdict on the child's answer is the app's, not the reply's:
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
+- **The mark after a correct check answer is code's when the model makes none** (`TutorEngine.ts appMark`;
+  ported from TerraTutor #266). gemma4:e2b, the default below 16 GB, never called `progress.mark_mastered`
+  after a check answer graded correct (TerraTutor live tests 2026-11-19 parts 7 and 8, 2026-11-20 part 9:
+  4 of 4 turns; OpenEdu runs the same `assess.md` on the same default), so a check never moved mastery.
+  After the reply, code dispatches the same call the model would (`status: "mastered"`, `byApp: true` in
+  `toolCalls`) through the tool's own dispatch, so it is shown the same way: the "Is that okay?" card where
+  the rule is Ask, the chip ("Marked “Equal Groups” as learned"), and the saved mark with its
+  `subtopic_events` row (source `tutor`). Only under the gate the model's mark passes: the tool is offered
+  (assess mode), the newest message is not a safety disclosure, every answer checked this turn is
+  `correct` and the typed one was graded on the check's own question (not `on: "hint"`). Stricter than
+  that gate on hints: never for a typed answer given right after a hint (`checkedMessage`'s `hint`), even
+  when the hint's key is the check's, and a turn graded only on cards marks only when its newest message
+  opened the check (a hint request a caller ran in assess, answered with a card, does not). Not when the
+  model's own `progress.mark_mastered` call ran that turn, `practiced` too, or the learner said no to it on
+  the card (not asked again); a model call that failed (a wrong id) or was refused does not stop it. Nor
+  on a turn the learner stopped, that stalled or that ended at a card. The subtopic is the one code knows
+  the check is on (`assessPicker.ts checkedSubtopic`): the newest pick of a subtopic title on a card made
+  before the graded answer (the topic picker), in the tutor's messages since the request that opened the
+  check and, for a card's answer, in this reply before that card; a pick after it (a "Which one should we
+  check next?" card) is about the next question and never counts. Else the level's one subtopic not
+  mastered. With two or more not mastered and no pick, or no open check, there is no mark (code does not
+  guess). Whether a subtopic is already mastered is read from the saved syllabus (`getSyllabus`), not
+  `ctx.syllabus`, the course view's snapshot. The reply is written before the mark and is not told of it,
+  so its own claims of mastery are still taken out; the chip says it.
+  The bar is the model's mark's bar, and it is generous on purpose: one answer graded correct marks, also
+  when the grader model alone decided it (`by: "model"`, most free answers on e2b) and on a lucky pick from
+  a two-choice card; with one subtopic left and no pick, a right answer to a question off that subtopic
+  marks it. A level still moves only through the promotion test.
 
 The turn result carries `answerCheck` (question, key, verdict, how it was reached) and `removedClaims`.
 `TutorTurn.answerCheck: "off"` turns the check off for an eval's paired baseline. Cost on a checked

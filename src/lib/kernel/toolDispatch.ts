@@ -23,6 +23,9 @@ export type ToolUIEvent =
   | { kind: "result"; id: string; name: string; value: unknown }
   | { kind: "error"; id: string; name: string; error: string };
 
+/** The error a call gets when the learner says no on its "Is that okay?" card. */
+export const declinedError = (name: string) => `The student declined to let ${name} run.`;
+
 export interface ToolDispatchResult {
   name: string;
   ok: boolean;
@@ -112,7 +115,7 @@ export async function dispatchToolCall(
     // the model ("Plain text only — no LaTeX") and must never reach the learner.
     const approved = await ctx.confirmTool(call.name, describeToolCall(call.name, parsed.data, ctx.syllabus?.subtopics));
     if (!approved) {
-      const error = `The student declined to let ${call.name} run.`;
+      const error = declinedError(call.name);
       onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
       return { name: call.name, ok: false, error };
     }
