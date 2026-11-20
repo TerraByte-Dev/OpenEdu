@@ -2307,6 +2307,36 @@ describe("an answer to the check's first question after the tutor moved on", () 
       expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
       expect(marks).toEqual([]);
     }, 30_000);
+
+    // OpenEdu #410's take-back (inbox 2026-11-20-1003, rewords-question-stopwords-merge; ported from TerraTutor #272): askedWords dropped "have",
+    // "in", "on" and the verb "do" as stopwords, so each pair read as one question. The learner was told "right" on
+    // the newest question, answered only for the first one, and the newest was never asked again. Text keys never
+    // contradict (keysContradict), so only the asked words keep them apart.
+    it.each([
+      ["what it is / what it has", "What is a mammal?", "A warm-blooded animal that feeds its young milk", "What does a mammal have?", "Hair or fur", "an animal that feeds its babies milk"],
+      // ("What is in a cell?" / "What is on a cell?" share 4 of 5 words both ways, so asksSameQuestion takes them as
+      // one question before any grading on the first: the newest's verdict stands, nothing merged.)
+      ["in / on", "What is in a cell membrane?", "Fats and proteins", "So, what do you think is on a cell membrane?", "Sugar chains", "fat and protein"],
+      ["what it does / what it is", "What does the nucleus do?", "It controls the cell", "What is the nucleus?", "The part of the cell that holds the DNA", "it is the boss of the cell"],
+      // Review of the take-back, MUST-FIX 1: "how" and a preposition that ends the question are asked too.
+      ["what they are / what they are for", "What are leaves?", "The flat green parts of a plant", "What are leaves for?", "Making food for the plant", "green flat things that grow on plants"],
+      ["how they are made / what they are made of", "How are rocks made?", "By heat and pressure over a long time", "What are rocks made of?", "Minerals", "heat and pressure"],
+    ])("%s: graded apart, the first question's verdict tagged, the newest asked again", async (_, first, firstKey, again, againKey, said) => {
+      keyOut = keyFor([[again, againKey], [first, firstKey]]);
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [markCall("mastered"), reply("Yes, that's right.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`That's okay. ${again}`)], said);
+      expect(rewordsQuestion(first, again)).toBe(false);
+      expect(result.answerCheck).toMatchObject({ question: first, key: firstKey, verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(gradedQuestions()).toEqual([again, first]);
+      expect(lastUser(replies[0])).toContain("Your last question is still open");
+      expect(result.text).toContain(HINT_ANSWER_BACK);
+      expect(result.text.endsWith(again)).toBe(true);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
   });
 
   it.each([
@@ -2333,6 +2363,33 @@ describe("an answer to the check's first question after the tutor moved on", () 
     // Still one question: the same words and numbers in the same order, framing aside.
     ["What is 12 times 3?", "So, what do you think 12 times 3 is?", true],
     ["Is the sun bigger than the earth?", "So, do you think the sun is bigger than the earth?", true],
+    // OpenEdu #410's take-back: a verb or a preposition that changes what is asked is part of the question ("have",
+    // "in" / "on", the verb "do"); "do" asking nothing ("What do you think ...", "does a spider have") is not.
+    ["What is a mammal?", "What does a mammal have?", false],
+    ["What is in a cell?", "What is on a cell?", false],
+    ["What does the nucleus do?", "What is the nucleus?", false],
+    ["What does a plant make?", "What is a plant?", false],
+    ["What does a plant get from the soil?", "What does a plant give the soil?", false],
+    ["What do you think the nucleus does?", "What does the nucleus do?", true],
+    ["Can you tell me how many legs a spider has?", "So, how many legs does a spider have?", true],
+    ["What is a mammal?", "So, what do you think a mammal is?", true],
+    ["What does a plant make?", "Can you tell me what a plant makes?", true],
+    // Review of the take-back, MUST-FIX 1: "how" is asked, and so is a preposition that ends the question; one
+    // anywhere else is not ("what job does the membrane do for the cell?" above).
+    ["What are leaves?", "What are leaves for?", false],
+    ["How are rocks made?", "What are rocks made of?", false],
+    ["Do bees make honey?", "How do bees make honey?", false],
+    ["Do plants need water?", "What do plants need water for?", false],
+    ["What is the story about?", "What is the story?", false],
+    ["Does the heart pump blood?", "How does the heart pump blood?", false],
+    ["How do bees make honey?", "Can you tell me how bees make honey?", true],
+    ["What are leaves for?", "So, what do you think leaves are for?", true],
+    // MUST-FIX 2: "job", "role" and "function" ask what something does, so they read as "do".
+    ["What does the heart do?", "What is the job of the heart?", true],
+    ["What does the heart do?", "What is the function of the heart?", true],
+    ["What is the nucleus?", "What is the job of the nucleus?", false],
+    // Nit: "do" before "so" or "if" is the asked verb.
+    ["What does a plant do so it stays alive?", "Does a plant stay alive?", false],
   ])("rewordsQuestion(%j, %j) is %s", (a, b, same) => {
     expect(rewordsQuestion(a, b)).toBe(same);
     expect(rewordsQuestion(b, a)).toBe(same);

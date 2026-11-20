@@ -767,24 +767,61 @@ export async function checkAnswer(
 const VERDICT_RANK: Record<Verdict, number> = { unsure: -1, incorrect: 0, partly: 1, correct: 2 };
 
 // Words that frame a question in the chat rather than say what it asks: "Can you tell me what the cell membrane
-// does?" and "So, what job does the membrane do for the cell?" ask one thing.
-const ASK_FRAMING = new Set(["think", "know", "remember", "explain", "describe", "job", "role", "function",
+// does?" and "So, what do you think the membrane does?" ask one thing.
+const ASK_FRAMING = new Set(["think", "know", "remember", "explain", "describe",
   "main", "really", "again", "own", "words", "try", "use"]);
+// Nouns that ask what something does: askedWords reads each as "do", so "What is the job of the heart?" and
+// "What does the heart do?" ask one thing, as do "So, what job does the membrane do for the cell?" and "Can you
+// tell me what the cell membrane does?" (ported from TerraTutor #272). "What is the job of the nucleus?" is not
+// "What is the nucleus?".
+const DO_NOUNS = new Set(["job", "role", "function"]);
 // A negation the stopwords leave out: "Which one is NOT ..." asks another question.
 const NEGATION = /\b(?:not|never|no|none|except)\b|n['’]t\b/gi;
 // Words that make the order of the others part of the question: "Is the sun bigger than the earth?" and "Is the
 // earth bigger than the sun?" share every word. "from" counts only with a "to" after it.
 const ORDER_WORD = /\b(?:than|before|after|or|between)\b|\bfrom\b.*\bto\b/i;
 
+// Stopwords that say what is asked, so askedWords keeps them (OpenEdu #410's take-back, inbox 2026-11-20-1003;
+// ported from TerraTutor #272): "What is a mammal?" / "What does a mammal have?" and "What is in a cell
+// membrane?" / "... on a cell membrane?" are two questions. Each verb is kept as one form ("has" / "have" is one
+// word: "how many legs a spider has" / "how many legs does a spider have").
+const ASKED_VERBS = new Map([["have", "have"], ["has", "have"], ["had", "have"], ["get", "get"], ["gets", "get"],
+  ["got", "get"], ["give", "give"], ["gives", "give"], ["gave", "give"], ["make", "make"], ["makes", "make"],
+  ["made", "make"], ["show", "show"], ["shows", "show"], ["showed", "show"], ["list", "list"], ["lists", "list"]]);
+const ASKED_PREPOSITIONS = new Set(["in", "on"]);
+// "how" asks for a way, not a thing: "How do bees make honey?" is not "Do bees make honey?", nor "How are rocks
+// made?" "What are rocks made of?".
+const ASKED_QUESTION_WORDS = new Set(["how"]);
+// A stopword preposition is asked when it ends the question: "What are leaves for?" is not "What are leaves?",
+// nor "What is the story about?" "What is the story?". Anywhere else it is dropped ("what job does the membrane
+// do for the cell?"). "from" is no stopword, so it is always kept.
+const ASKED_LAST_PREPOSITIONS = new Set(["for", "of", "about", "with", "to"]);
+// "do" is asked ("What does the nucleus do?" is not "What is the nucleus?") where it is the verb: last in the
+// question or before one of DO_ASKED_BEFORE ("what job does the membrane do for the cell?"). Before anything
+// else it only forms the question ("What do you think ...", "how many legs does a spider have") and is dropped.
+// A "do" read the wrong way only keeps two questions apart.
+const DO_FORMS = new Set(["do", "does", "did"]);
+const DO_ASKED_BEFORE = new Set(["for", "to", "in", "on", "with", "at", "into", "inside", "during", "when", "while",
+  "after", "before", "next", "first", "then", "there", "here", "now", "so", "if"]);
+
 // What a question asks, word by word in order: every word token (numbers and single letters kept, so "12 times 3"
 // and "12 times 2", "3/4" and "1/2", "the letter A" and "the letter B" differ), folded to its singular, less the
-// stopwords and ASK_FRAMING. A single capital letter is kept even where it is a stopword ("Is the letter I a
-// vowel?"); a lowercase "a" or "i" is the article or the pronoun.
+// stopwords and ASK_FRAMING, but with ASKED_VERBS, ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, a last preposition
+// (ASKED_LAST_PREPOSITIONS) and an asked "do" kept, and DO_NOUNS read as "do". A single capital
+// letter is kept even where it is a stopword ("Is the letter I a vowel?"); a lowercase "a" or "i" is the article
+// or the pronoun.
 function askedWords(q: string): string[] {
   const out: string[] = [];
-  for (const t of q.replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu) ?? []) {
+  const tokens = q.replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu) ?? [];
+  for (const [i, t] of tokens.entries()) {
     const w = t.toLowerCase();
+    const verb = ASKED_VERBS.get(w);
     if (t.length === 1 && /\p{Lu}/u.test(t)) out.push(w);
+    else if (verb) out.push(verb);
+    else if (ASKED_PREPOSITIONS.has(w) || ASKED_QUESTION_WORDS.has(w)) out.push(w);
+    else if (ASKED_LAST_PREPOSITIONS.has(w) && i === tokens.length - 1) out.push(w);
+    else if (DO_FORMS.has(w)) { if (i === tokens.length - 1 || DO_ASKED_BEFORE.has(tokens[i + 1].toLowerCase())) out.push("do"); }
+    else if (DO_NOUNS.has(foldPlural(w))) out.push("do");
     else if (!CONTENT_STOPWORDS.has(w) && !ASK_FRAMING.has(foldPlural(w))) out.push(foldPlural(w));
   }
   return out;
@@ -795,8 +832,10 @@ function askedWords(q: string): string[] {
  * single letters included), at least one of them, the same numbers in the same order, the same negations, and,
  * when either has an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in
  * the same order. Strict on purpose: a question that adds a word ("... keep out of the cell?" after "What does
- * the cell membrane do?"), another number ("12 times 2" after "12 times 3") or another order ("the earth bigger
- * than the sun") is another question, and two questions are then graded apart as before (`on: "earlier"`).
+ * the cell membrane do?"), another verb or preposition ("What does a mammal have?" after "What is a mammal?",
+ * "on" after "in", "What are leaves for?" after "What are leaves?"), a "how" ("How do bees make honey?" after
+ * "Do bees make honey?"), another number ("12 times 2" after "12 times 3") or another order ("the earth bigger than
+ * the sun") is another question, and two questions are then graded apart as before (`on: "earlier"`).
  * checkAnswer also needs the two keys to agree (keysContradict) before it merges.
  */
 export function rewordsQuestion(a: string, b: string): boolean {
