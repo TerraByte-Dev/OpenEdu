@@ -1235,12 +1235,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   4"), "50%" / "50" or "$4" / "4 cents"; ported from TerraTutor #273, which replaced `keysContradict`; the
   symbols are this repo's review of that port, MUST-FIX 1; formatting is not a symbol: "$4$" / "4 pieces"
   (plain math dollars; "$4 and $5" and "$4.50" stay money), "**4**" / "4", "x = 4" / "4" (not "x = 4" / "y =
-  4"), "7 – 2" / "7 - 2", "2 ** 3" / "2^3", and only these words read as their symbols: "50 percent" / "50%",
-  "90 degrees" / "90°", "4.50 dollars" / "$4.50", "is greater than" / ">", "is less than" / "<" ("is greater
-  than or equal to" stays words, another answer than ">" and "≥"); a feet, inch or factorial mark after a
-  number is part of the answer: not `5'` / `5"`, "5!" / "5", in `keysAgree` and in the same-key check alike;
-  TerraTutor take-back 2026-11-20-1623, items 2-4, ported from TerraTutor #276), the two are one question: one verdict, the better one, given on the newest question
-  with its own key, with nothing asked again (this repo's take-back 2026-11-20-0752 of the #268 port:
+  4", nor "$x = 4$" / "$y = 4$" or "**x** = 4" / "**y** = 4": `unknownIn` reads the letter with math dollars
+  and formatting gone; this repo's review of the take-back port, MUST-FIX 1), "7 – 2" / "7 - 2", "2 ** 3" /
+  "2^3", and only these words read as their symbols: "50 percent" / "50%", "90 degrees" / "90°", "4.50 dollars" /
+  "$4.50", "is greater than" / ">", "is less than" / "<" ("is greater than or equal to" stays words, another
+  answer than ">" and "≥"); a feet, inch or factorial mark after a number is part of the answer: not `5'` / `5"`,
+  "5!" / "5", in `keysAgree` and in the same-key check alike; TerraTutor take-back 2026-11-20-1623, items 2-4,
+  ported from TerraTutor #276), the two are one question: one verdict, the better one, given on the newest
+  question with its own key, with nothing asked again (this repo's take-back 2026-11-20-0752 of the #268 port:
   "That's partly right." and then the same question again). Keys that do not give one answer are two
   answers, however alike the questions' words: "What does a frog eat?" / "What eats a frog?", keyed
   "insects" / "snakes and birds", or "Frogs eat insects like flies and crickets." / "Snakes, birds and

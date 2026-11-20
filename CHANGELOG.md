@@ -238,8 +238,9 @@ The section for each release is also what the app shows when you press Check for
   square's perimeter and area, "3 × 4" and "3 + 4", `5'` and `5"` for 5 feet and 5 inches, "5!" and "5") are
   two answers, and the newest question is still asked, while the same answer written another way ("$4$",
   "**4**" or "x = 4" for "4", "50 percent" for "50%", "4 is greater than 3" for "4 > 3") is one ("x is greater
-  than or equal to 3" is not "x > 3", and "x = 4" is not "y = 4"); two questions with the same words but different answers ("What does a frog eat?" / "What eats a
-  frog?") are checked apart, and "What are leaves for, do you think?" is no longer read as "What are
+  than or equal to 3" is not "x > 3", and "x = 4" is not "y = 4", in math dollars or bold too: "$x = 4$" is
+  not "$y = 4$"); two questions with the same words but different answers ("What does a frog eat?" / "What
+  eats a frog?") are checked apart, and "What are leaves for, do you think?" is no longer read as "What are
   leaves?". A question asked again in other words whose answers are written as two different sentences
   is now checked apart too, and asked again (ported from TerraTutor #273).
 - **No verdict against an answer key that isn't one.** In a check, a key like "Please provide a topic" or
