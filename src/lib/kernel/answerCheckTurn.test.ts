@@ -2321,6 +2321,9 @@ describe("an answer to the check's first question after the tutor moved on", () 
       // Review of the take-back, MUST-FIX 1: "how" and a preposition that ends the question are asked too.
       ["what they are / what they are for", "What are leaves?", "The flat green parts of a plant", "What are leaves for?", "Making food for the plant", "green flat things that grow on plants"],
       ["how they are made / what they are made of", "How are rocks made?", "By heat and pressure over a long time", "What are rocks made of?", "Minerals", "heat and pressure"],
+      // Review of the port, MUST-FIX 1: "makes" straight after "what" is said of the thing asked for, so "What makes a
+      // volcano?" (what causes one) is not "What does a volcano make?" (what it gives out).
+      ["what it makes / what makes it", "What does a volcano make?", "Lava, ash and gas", "What makes a volcano?", "Magma pushing up through a crack in the crust", "lava and ash"],
     ])("%s: graded apart, the first question's verdict tagged, the newest asked again", async (_, first, firstKey, again, againKey, said) => {
       keyOut = keyFor([[again, againKey], [first, firstKey]]);
       gradeOut = gradeBy({ [first]: "correct" });
@@ -2370,6 +2373,14 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["What does the nucleus do?", "What is the nucleus?", false],
     ["What does a plant make?", "What is a plant?", false],
     ["What does a plant get from the soil?", "What does a plant give the soil?", false],
+    // Review of the port, MUST-FIX 1: a verb straight after "what", "who" or "which" has the thing asked for as its
+    // subject, so the order of verb and thing is part of the question; the tense is not.
+    ["What does a cloud make?", "What makes a cloud?", false],
+    ["What does thunder make?", "What makes thunder?", false],
+    ["What do bees make?", "What makes bees?", false],
+    ["What does a volcano make?", "So, what do you think makes a volcano?", false],
+    ["What made the Grand Canyon?", "What makes the Grand Canyon?", true],
+    ["Who made the first map?", "So, who do you think made the first map?", true],
     ["What do you think the nucleus does?", "What does the nucleus do?", true],
     ["Can you tell me how many legs a spider has?", "So, how many legs does a spider have?", true],
     ["What is a mammal?", "So, what do you think a mammal is?", true],

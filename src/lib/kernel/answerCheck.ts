@@ -788,6 +788,12 @@ const ORDER_WORD = /\b(?:than|before|after|or|between)\b|\bfrom\b.*\bto\b/i;
 const ASKED_VERBS = new Map([["have", "have"], ["has", "have"], ["had", "have"], ["get", "get"], ["gets", "get"],
   ["got", "get"], ["give", "give"], ["gives", "give"], ["gave", "give"], ["make", "make"], ["makes", "make"],
   ["made", "make"], ["show", "show"], ["shows", "show"], ["showed", "show"], ["list", "list"], ["lists", "list"]]);
+// An asked verb after one of these, with only dropped words between ("What makes", "Who do you think made"), is
+// said of the thing asked for, not of the thing named: "What makes a volcano?" asks what causes one, "What does a
+// volcano make?" what it gives out. askedWords keeps such a verb as its own word ("make<"), so the two stay apart
+// while "What made the Grand Canyon?" / "What makes the Grand Canyon?" are one (review of this repo's #410
+// take-back port, MUST-FIX 1).
+const SUBJECT_QUESTION_WORDS = new Set(["what", "who", "which"]);
 const ASKED_PREPOSITIONS = new Set(["in", "on"]);
 // "how" asks for a way, not a thing: "How do bees make honey?" is not "Do bees make honey?", nor "How are rocks
 // made?" "What are rocks made of?".
@@ -806,23 +812,28 @@ const DO_ASKED_BEFORE = new Set(["for", "to", "in", "on", "with", "at", "into", 
 
 // What a question asks, word by word in order: every word token (numbers and single letters kept, so "12 times 3"
 // and "12 times 2", "3/4" and "1/2", "the letter A" and "the letter B" differ), folded to its singular, less the
-// stopwords and ASK_FRAMING, but with ASKED_VERBS, ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, a last preposition
-// (ASKED_LAST_PREPOSITIONS) and an asked "do" kept, and DO_NOUNS read as "do". A single capital
+// stopwords and ASK_FRAMING, but with ASKED_VERBS (marked "<" in the subject slot of SUBJECT_QUESTION_WORDS),
+// ASKED_PREPOSITIONS, ASKED_QUESTION_WORDS, a last preposition (ASKED_LAST_PREPOSITIONS) and an asked "do" kept,
+// and DO_NOUNS read as "do". A single capital
 // letter is kept even where it is a stopword ("Is the letter I a vowel?"); a lowercase "a" or "i" is the article
 // or the pronoun.
 function askedWords(q: string): string[] {
   const out: string[] = [];
   const tokens = q.replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu) ?? [];
+  let subjectSlot = false;
   for (const [i, t] of tokens.entries()) {
     const w = t.toLowerCase();
     const verb = ASKED_VERBS.get(w);
+    const kept = out.length;
     if (t.length === 1 && /\p{Lu}/u.test(t)) out.push(w);
-    else if (verb) out.push(verb);
+    else if (verb) out.push(subjectSlot ? `${verb}<` : verb);
     else if (ASKED_PREPOSITIONS.has(w) || ASKED_QUESTION_WORDS.has(w)) out.push(w);
     else if (ASKED_LAST_PREPOSITIONS.has(w) && i === tokens.length - 1) out.push(w);
     else if (DO_FORMS.has(w)) { if (i === tokens.length - 1 || DO_ASKED_BEFORE.has(tokens[i + 1].toLowerCase())) out.push("do"); }
     else if (DO_NOUNS.has(foldPlural(w))) out.push("do");
     else if (!CONTENT_STOPWORDS.has(w) && !ASK_FRAMING.has(foldPlural(w))) out.push(foldPlural(w));
+    if (SUBJECT_QUESTION_WORDS.has(w)) subjectSlot = true;
+    else if (out.length > kept) subjectSlot = false;
   }
   return out;
 }
