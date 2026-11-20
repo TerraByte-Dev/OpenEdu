@@ -24,7 +24,7 @@ The section for each release is also what the app shows when you press Check for
 - Claude Opus 5.5, Sonnet 5.5 and Fable 5.2 can build courses. Anthropic's newest models refused the way
   OpenEdu asked for structured answers; it now uses structured outputs, which every current Claude model
   accepts.
-- **A right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
+- **With a small tutor model, a right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
   The default tutor model on computers under 16 GB never marked a skill after a right answer in a check
   in TerraTutor's live tests, so a check never moved a skill. Now, when OpenEdu's answer check finds the
   answer to the check's own question right and the tutor marks nothing, OpenEdu makes the same mark
