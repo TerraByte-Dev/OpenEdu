@@ -287,12 +287,16 @@ written: they came from a once-a-minute timer whose only reader was the learning
   are one too (`sameKeyHead`, through `sameCapKey`; ported from TerraTutor #271): each key cut before a
   cause word (`KEY_TAIL_CAUSES`, such as "resulting", "due", "caused", "leading"), or after a comma, ";",
   ":" or dash followed by a relative word (`KEY_TAIL_RELATIVES`: "where", "which", "that", "when",
-  "while"), and the heads' content words the same, at least 2 of them, with the same negations and numbers
-  ("The Joule-Thomson effect" / "The Joule-Thomson effect, where a gas expands ...", TerraTutor live test
-  part 11); when both keys have a tail and one was cut on a cause word, the tails must also share half the
-  shorter one's content words, since such a tail is often the answer ("Soil erosion caused by wind" / "...
-  by water" stay two, "Decompression melting due to the reduction in pressure" / "... resulting from the
-  reduction ..." are one). A bracket or any other comma cuts nothing ("Cellular respiration (aerobic)" /
+  "while"), and the heads' content words the same, at least 2 of them, with the same negations and numbers,
+  and, when both whole keys have numbers (tails too; "one" not counted), the same ones ("The Joule-Thomson
+  effect" / "The Joule-Thomson effect, where a gas expands ...", TerraTutor live test part 11; "Cell
+  division, which makes 2 cells" / "... 4 cells" stay two, "Cell division" / "Cell division, which makes
+  two new cells" are one); when both keys have a tail and one was cut on a cause word, the tails must also
+  share half the shorter one's content words, a link word such as "by", "from" or a particle ("off",
+  "out", "up", "down", "away") not counted, since such a tail is often the answer ("Soil erosion caused by
+  wind" / "... by water" and "Green plants giving off oxygen" / "... off carbon dioxide" stay two,
+  "Decompression melting due to the reduction in pressure" / "... resulting from the reduction ..." are
+  one; this repo's #410 take-back, ported from TerraTutor #272, for the last two pairs). A bracket or any other comma cuts nothing ("Cellular respiration (aerobic)" /
   "(anaerobic)", "Plate boundaries, converging" / "diverging", "Igneous rock, metamorphic rock"), nor does
   "that" without a comma, which narrows the name; a key that only contains or starts with a shorter one is
   not folded ("Cell membrane" / "Cell wall before the cell membrane"). A routine key is not counted:
@@ -1183,15 +1187,24 @@ So the verdict on the child's answer is the app's, not the reply's:
   and code asks that question again after the reply under "Now back to the question:", as after a hint's
   answer, so the next try is graded against it. No better verdict there keeps the newest question's
   verdict. When the newest question is the first one asked again in other words (`rewordsQuestion`: the
-  same words, numbers and single letters included, less stopwords and framing words such as "think",
-  "remember", "job" and "role"; the same numbers in the same order; the same negations; and, when either has
-  an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in the same
+  same words, numbers and single letters included, less stopwords and framing words such as "think" and
+  "remember", but with the stopwords that say what is asked kept: "have", "get", "give", "make", "show",
+  "list" (each as one form, "has" / "have"), "in", "on", "how", a "for", "of", "about", "with" or "to" that
+  ends the question ("What are leaves for?"), and "do" where it is the verb, last or before a word such as
+  "for", "to" or "so" ("What does the nucleus do?", not the "do" of "What do you think ..."); "job", "role"
+  and "function" read as "do" ("What is the job of the heart?" / "What does the heart do?"); the same
+  numbers in the same order; the same negations; and, when either has an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in the same
   order; "Can you tell me what the cell membrane does?" / "So, what job does the membrane do for the
   cell?"), and the two keys do not contradict (`keysContradict`: different numbers, or a different yes/no),
   the two are one question: one verdict, the better one, given on the newest question, with nothing asked
   again (this repo's take-back 2026-11-20-0752 of the #268 port: "That's partly right." and then the same
   question again). Anything else is two questions, graded apart as above (`on: "earlier"`): a question that
-  adds a word ("... keep out of the cell?"), another number ("12 times 2" after "12 times 3"), another letter
+  adds a word ("... keep out of the cell?"), another verb or preposition ("What does a mammal have?" after
+  "What is a mammal?", "What does the nucleus do?" / "What is the nucleus?", "on" after "in", "What are
+  leaves for?" after "What are leaves?", "How do bees make honey?" after "Do bees make honey?"; this repo's
+  #410 take-back, ported from TerraTutor #272: those were stopwords, and the learner was told "right" on a
+  question answered only for the first one, never asked again), another number ("12 times 2" after "12
+  times 3"), another letter
   ("the letter B" after "the letter A") or another order ("Is the earth bigger than the sun?" after "Is the
   sun bigger than the earth?"). TerraTutor #270's review, 2026-11-20: a set of words of two letters or more,
   in any order, merged those pairs once the tutor added framing words, and "36" was "correct" for "12 times

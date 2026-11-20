@@ -225,10 +225,12 @@ The section for each release is also what the app shows when you press Check for
   the cell theory?" is no longer told to give "the other two". When the tutor asks the first question
   again in other words, the learner gets one verdict on it, not "That's partly right." and the same
   question again (only when the two really ask the same thing: "12 times 2" after "12 times 3", "the
-  letter B" after "the letter A" or "Is the earth bigger than the sun?" after "Is the sun bigger than the
-  earth?" are two questions, and a verdict given this way never marks the skill learned); and the tutor's
-  own "Let's go back to my last question." no longer comes right before the app's "Now back to the
-  question:".
+  letter B" after "the letter A", "What does a mammal have?" after "What is a mammal?", "What does the
+  nucleus do?" after "What is the nucleus?", "What are leaves for?" after "What are leaves?", "How do bees
+  make honey?" after "Do bees make honey?" or "Is the earth bigger than the sun?" after "Is the sun bigger
+  than the earth?" are two questions, while "What is the job of the heart?" after "What does the heart
+  do?" is one; and a verdict given this way never marks the skill learned); and the tutor's own "Let's go
+  back to my last question." no longer comes right before the app's "Now back to the question:".
 - **No verdict against an answer key that isn't one.** In a check, a key like "Please provide a topic" or
   "Answers will vary.", and a question that asks what the learner thinks is most important or likes best,
   no longer get a "right" or "not right yet".
@@ -274,7 +276,9 @@ The section for each release is also what the app shows when you press Check for
   cells.", and "The Joule-Thomson effect" and "The Joule-Thomson effect, where a gas expands rapidly
   upon throttling.": an answer followed by ", where", ", which" or a word such as "resulting" or "due
   to" is the answer before it, unless that tail is the answer itself, as in "Soil erosion caused by
-  wind" / "... by water"), and asks the model for others instead; a TerraTutor live quiz had asked about
+  wind" / "... by water" or "Green plants giving off oxygen" / "... off carbon dioxide", or both have
+  numbers and they differ, as in "Cell division, which makes 2 cells" / "... 4 cells"), and asks the
+  model for others instead; a TerraTutor live quiz had asked about
   the cell membrane 7 times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
   enough others for the quiz's or test's minimum (10 questions for a quiz, 30 for a level test) are the
   set-aside ones used, and then before any question an earlier quiz on the level already asked.
