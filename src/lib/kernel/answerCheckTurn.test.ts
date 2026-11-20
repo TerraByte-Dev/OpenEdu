@@ -2075,7 +2075,7 @@ describe("an answer to the check's first question after the tutor moved on", () 
     expect(marks).toEqual([]);
   }, 30_000);
 
-  // Review of this fix, probe P1: only the learner's message straight after the first question was read, so
+  // TerraTutor #268's review, probe P1: only the learner's message straight after the first question was read, so
   // after an `on: "earlier"` turn every later wrong answer graded the first question again, "right" each time.
   it("a first question answered after the tutor moved on is not graded again", async () => {
     gradeOut = gradeRightFor(Q_MEMBRANE);
