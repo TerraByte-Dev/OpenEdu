@@ -89,6 +89,18 @@ describe("chatTurnMode", () => {
     expect(chatTurnMode(null, [...four, a("Q5?"), u("e")])).toBe("explain");
   });
 
+  it("keeps a check open through hints, a hint's answer and a non-answer (TerraTutor click test 2026-11-19 part 7, issue 1)", () => {
+    const conversation = [
+      u(ASK), a("What is 6 x 8?"),
+      u("Give me a hint."), a("Count by 8s. What is 8 + 8?"),
+      u("16"), a("Yes, 8 + 8 = 16.\n\nNow back to the question:\n\nWhat is 6 x 8?"),
+      u("xyz"), a("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?"),
+      u("hint"), a("5 x 8 is 40. What is 40 + 8?"),
+      u("48"),
+    ];
+    expect(chatTurnMode(null, conversation)).toBe("assess");
+  });
+
   it("leaves a typed request for a quiz or a check, and its answers, in the default mode", () => {
     // Assess drops the domain skill's drawing tools, and assess.md ends the check when every subtopic
     // is mastered, so a typed "quiz me" in assess lost its pictures and, on a mastered course, its quiz.
