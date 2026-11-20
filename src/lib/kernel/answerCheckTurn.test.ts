@@ -2530,6 +2530,8 @@ describe("an answer to the check's first question after the tutor moved on", () 
       ["feet, then inches", FEET, "5'", INCHES, "5\"", MARK_AFTER],
       ["inches, then feet (prime marks)", INCHES, "5″", FEET, "5′", MARK_AFTER],
       ["a factorial, then a count", "How do you write 5 × 4 × 3 × 2 × 1 as a factorial?", "5!", "There are 5 apples in a bowl. How many apples are there?", "5", MARK_AFTER],
+      // Review of the port, MUST-FIX 1: keys in math dollars for two unknowns are two answers.
+      ["x, then y, keys in math dollars", "What is x if 2x = 8?", "$x = 4$", "What is y if y + 1 = 5?", "$y = 4$", "x = 4"],
     ])("%s, the same number in both keys: graded apart and asked again", async (_, first, firstKey, again, againKey, said) => {
       keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes(again)
         ? { question: again, working: "", answer: againKey }
@@ -2697,6 +2699,15 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["2 ** 3", "2^3", true],
     ["x = 4", "y = 4", false],
     ["x = 4", "X = 4", true],
+    // Review of the port, MUST-FIX 1: the unknown is read with math dollars and bold gone, as plainKey reads the key.
+    ["$x = 4$", "$y = 4$", false],
+    ["$x=4$", "$y=4$", false],
+    ["**x = 4**", "**y = 4**", false],
+    ["**x** = 4", "**y** = 4", false],
+    ["$x = \\frac{1}{2}$", "$y = \\frac{1}{2}$", false],
+    ["$x = 4$", "y = 4", false],
+    ["$x = 4$", "4", true],
+    ["$x = 4$", "x = 4", true],
   ];
   for (const [a, b, same] of [["3 × 4", "$3 \\times 4$", true], ["$4", "4 cents", false], ...takeBack1623] as const) {
     it(`keysAgree(${JSON.stringify(a)}, ${JSON.stringify(b)}) is ${same}`, () => {

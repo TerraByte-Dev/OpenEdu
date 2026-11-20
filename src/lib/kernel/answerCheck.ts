@@ -985,9 +985,11 @@ function plainKey(k: string): string {
     .replace(/\s*\bis less than\b(?!\s+or\s+equal)\s*/gi, " < ");
 }
 
-/** The letter a key assigns to ("x" in "x = 4"), or "". Keys for two unknowns ("x = 4" / "y = 4") are two answers. */
+/** The letter a key assigns to ("x" in "x = 4", "$x = 4$", "**x** = 4"), or "". Keys for two unknowns ("x = 4" /
+ *  "y = 4", "$x = 4$" / "$y = 4$") are two answers. Read with math dollars and formatting gone, since plainKey drops
+ *  both and then the "x = " too. */
 function unknownIn(k: string): string {
-  return /^\s*([a-z])\s*=/i.exec(k)?.[1].toLowerCase() ?? "";
+  return /^\s*([a-z])\s*=/i.exec(k.replace(/[$*_]/g, ""))?.[1].toLowerCase() ?? "";
 }
 
 /** A key's feet, inch and factorial marks straight after a number ("5'", "5″", "5!", "5'6\""), in order. Each is
