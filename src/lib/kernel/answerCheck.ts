@@ -48,10 +48,12 @@ export interface AnswerCheck {
   studentAnswer?: string;
   /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no reply call (the post-turn reflection still runs). */
   nonAnswer?: boolean;
-  /** "hint" when the answer was to a hint's own question, not the check's (checkAnswer): it never counts toward
-   *  mastery (TutorEngine refuses the mark), and the check's question stays open (hintAnswerBack). */
-  on?: "hint";
-  /** With `on: "hint"`, the check's own question as its key call copied it. */
+  /** "hint" when the answer was to a hint's own question, not the check's; "earlier" when it was to the check's
+   *  opening question after the tutor had moved on to another (checkAnswer). Neither ever counts toward mastery
+   *  (TutorEngine refuses the mark), and the question still open is asked again (hintAnswerBack). */
+  on?: "hint" | "earlier";
+  /** With `on`, the question still open, as its key call copied it: the check's own after an answer to a hint's
+   *  question, the tutor's newest after an answer to the check's opening question. */
   checkQuestion?: string;
 }
 
@@ -137,6 +139,12 @@ const NON_ANSWER_RETRY = `${NON_ANSWER_LEAD} Want to try again?`;
  * A new thread is a new conversation. The newest message itself is not read: `conversation` ends with it.
  */
 export function openCheck(conversation: ReadonlyArray<Message>): string | null {
+  const at = openCheckAt(conversation);
+  return at < 0 ? null : conversation[at].content;
+}
+
+/** The index of the message openCheck returns, or -1 when no check is open. */
+function openCheckAt(conversation: ReadonlyArray<Message>): number {
   const before = conversation.slice(0, -1);
   const memo = new Map<number, number>();
   let learner = 0;
@@ -144,12 +152,12 @@ export function openCheck(conversation: ReadonlyArray<Message>): string | null {
   for (let j = before.length - 1; j >= 0; j--) {
     const m = before[j];
     if (m.role !== "user") continue;
-    if (asksForMasteryCheck(m.content)) return m.content;
-    if (++learner >= CHECK_MAX_MESSAGES) return null;
+    if (asksForMasteryCheck(m.content)) return j;
+    if (++learner >= CHECK_MAX_MESSAGES) return -1;
     const free = isHintRequest(m.content) || (j + 1 < before.length && codeRepeat(before, j + 1, memo));
-    if (!free && ++used >= ASSESS_LOOKBACK) return null;
+    if (!free && ++used >= ASSESS_LOOKBACK) return -1;
   }
-  return null;
+  return -1;
 }
 
 /**
@@ -208,15 +216,47 @@ const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnsw
  * doesn't answer the question yet. Let's try a different one: ...") asks its own question, and is keyed.
  * Only when the message the repeat follows is the tutor's; else the repeat is keyed, from after
  * HINT_ANSWER_BACK (without a stalled reply's saved marker, persistedReply.ts).
+ * `opening` is the check's own first question when the tutor has since moved on from it unanswered
+ * (openingQuestion), else null: an answer not right for the message keyed may be its (checkAnswer).
  * `conversation` ends with the newest message.
  */
-export function checkedMessage(conversation: ReadonlyArray<Message>): { message: string; hint: string | null } {
+export function checkedMessage(conversation: ReadonlyArray<Message>): { message: string; hint: string | null; opening: string | null } {
   const last = conversation.length - 2;
   const hinted = last >= 2 && conversation[last - 1].role === "user" && isHintRequest(conversation[last - 1].content) && tutorAt(conversation, last - 2);
+  const memo = new Map<number, number>();
+  const at = checkedAt(conversation, last, memo);
   return {
-    message: keyedText(conversation, checkedAt(conversation, last, new Map())),
+    message: keyedText(conversation, at),
     hint: hinted ? afterAnsweredCard(conversation[last].content) : null,
+    opening: openingQuestion(conversation, at, memo),
   };
+}
+
+/**
+ * The tutor's first message in the open check (its reply to the request that opened it), as the check keys it,
+ * when the tutor has moved on from it and the learner left it unanswered; else null. TerraTutor live test 2026-11-20 part
+ * 10, step 2: "Can you tell me what the cell membrane does?", "I don't know", an easier question about a
+ * house's wall answered right, then a new question about the cytoplasm; the learner answered the membrane
+ * question right and was graded against the cytoplasm one: "That's not right yet." Left unanswered: the
+ * learner's message after it is not an answer ("I don't know", "help", a hint request), or code repeated it
+ * after that message (an answer that answered nothing, codeRepeat). One the learner answered, right or wrong,
+ * is not reopened: after "56" for "What is 7 x 8?", "56" for the next question is still graded on that one
+ * only. Nor is one answered after the tutor moved on (`on: "earlier"`): code's repeat of another question
+ * after HINT_ANSWER_BACK, later than it, marks that turn (a hint's answer on a later question stops it too,
+ * the safe side); else every later wrong answer graded it again, "right" each time, until the check closed
+ * (review of TerraTutor #268). `checked` is the index of the message the newest answer is keyed against (checkedAt).
+ */
+function openingQuestion(conversation: ReadonlyArray<Message>, checked: number, memo: Map<number, number>): string | null {
+  const at = openCheckAt(conversation);
+  const q = at + 1;
+  if (at < 0 || q >= checked || !tutorAt(conversation, q) || conversation[q + 1]?.role !== "user") return null;
+  const left = !readsAsAnswer(conversation[q + 1].content) || codeRepeat(conversation, q + 2, memo);
+  if (!left) return null;
+  for (let k = q + 2; k < conversation.length - 1; k++) {
+    if (conversation[k].role === "assistant" && afterAnsweredCard(conversation[k].content).includes(HINT_ANSWER_BACK)
+      && codeRepeat(conversation, k, memo) && checkedAt(conversation, k - 2, memo) !== q) return null;
+  }
+  return keyedText(conversation, q);
 }
 
 const tutorAt = (conversation: ReadonlyArray<Message>, k: number) =>
@@ -272,12 +312,13 @@ function codeRepeat(conversation: ReadonlyArray<Message>, k: number, memo: Map<n
 export const HINT_ANSWER_BACK = "Now back to the question:";
 
 /**
- * What code adds after the reply when the learner answered the hint's own question (`on: "hint"`), or null
- * on any other turn: the check's question again, so it stays open and the next try is checked against it
- * (checkedMessage). The answer to the hint never passes the check (TutorEngine's mastery gate).
+ * What code adds after the reply when the learner answered the hint's own question (`on: "hint"`) or the
+ * check's opening question after the tutor moved on (`on: "earlier"`), or null on any other turn: the
+ * question still open again (`tutorMessage`'s, the message the answer was keyed against), so the next try is
+ * checked against it (checkedMessage). Neither answer passes the check (TutorEngine's mastery gate).
  */
 export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null): string | null {
-  if (check?.on !== "hint") return null;
+  if (!check?.on) return null;
   const again = questionAgain(tutorMessage, check.checkQuestion ?? "");
   return again ? `${HINT_ANSWER_BACK}\n\n${again}` : null;
 }
@@ -564,6 +605,9 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
  * `on: "hint"` (right or partly right for the hint's question; when feedback follows the hint's question,
  * only code's match with the hint's key; "unsure" when the hint ends on a question with no key).
  * Anything else keeps the check's verdict.
+ * `opening` is the check's own first question when the tutor has moved on from it unanswered (checkedMessage):
+ * an answer graded "incorrect" for `tutorMessage`'s question, with no hint question in play, is graded against
+ * it too; right or partly right there is its verdict, tagged `on: "earlier"`.
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -571,6 +615,7 @@ export async function checkAnswer(
   config: LLMConfig,
   opts: CallOpts,
   hintReply: string | null = null,
+  opening: string | null = null,
 ): Promise<AnswerCheck | null> {
   const keyed = await answerKey(tutorMessage, config, opts);
   if (keyed === "none") return null;
@@ -630,7 +675,23 @@ export async function checkAnswer(
       return { question: asked, key: "", verdict: "unsure", by: hinted === null ? "failed" : "model", on: "hint", checkQuestion: keyed.question };
     }
   }
-  return graded(keyed, ctx, raw, studentMessage, config, opts);
+  const onTheNewest = await graded(keyed, ctx, raw, studentMessage, config, opts);
+  if (onTheNewest.verdict !== "incorrect" || !opening) return onTheNewest;
+  // The tutor moved on from the check's opening question before it was answered, and the answer is not right
+  // for the newest one: it may be the opening question's (TerraTutor live test 2026-11-20 part 10, step 2). Graded there
+  // second, so at most two grader calls, as after a hint. Right or partly right there is its verdict, tagged
+  // `on: "earlier"`: it never counts toward mastery (it was not the first try), and code asks the newest
+  // question again after the reply (hintAnswerBack). Wrong for both keeps the newest's verdict.
+  const earlier = await answerKey(opening, config, opts);
+  if (!earlier || earlier === "none" || sameKey(earlier.key, keyed.key) || asksSameQuestion(earlier, keyed)) return onTheNewest;
+  const earlierCtx = { question: earlier.question, options: optionsIn(opening) };
+  const earlierRaw = compareToKey(earlier.key, studentMessage, earlierCtx);
+  const onTheEarlier: AnswerCheck = earlierRaw === "match"
+    ? { ...earlier, verdict: "correct", by: "code" }
+    : await graded(earlier, earlierCtx, earlierRaw, studentMessage, config, opts);
+  return onTheEarlier.verdict === "correct" || onTheEarlier.verdict === "partly"
+    ? { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question }
+    : onTheNewest;
 }
 
 /** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."). */
@@ -724,7 +785,9 @@ const FIRST_SENTENCE = /^[^.!?:]*[.!:]+(?=\s)/;
 // comma and a number, in digits or words, is kept ("Good, now Sam has five apples."): it may hold the
 // problem's setup, and only its praise is taken off (PRAISE_COMMAS). "That one", "two more" and "one down"
 // are not a number.
-const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:right|correct)|that is (?:right|correct)|you got it)/i;
+// "That is exactly right." too: the tutor's move-on code asks again after an `on: "earlier"` verdict opens
+// with it (TerraTutor live test 2026-11-20 part 10), and kept, it said "right" under "That's partly right.".
+const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:exactly |absolutely |totally )?(?:right|correct)|that is (?:exactly |absolutely |totally )?(?:right|correct)|you got it)/i;
 const holdsNumber = (text: string) =>
   numbersIn(text.replace(/\b(?:that|this|the|next|another|each|every|which|last) one\b|\b(?:one|two|three) more\b|\bone down\b/gi, "")).length > 0;
 // Praise for a pick on a question card: "That is a good choice.", "Great pick!", "That is a good choice,
@@ -900,7 +963,9 @@ export function answerCheckNote(check: AnswerCheck): string {
   // again after the reply (hintAnswerBack), so the reply neither asks nor answers it.
   const open = check.on === "hint"
     ? `That was the hint's question, not the check's. The check's question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
-    : "";
+    : check.on === "earlier"
+      ? `That answers the check's first question, not the last one you asked. Your last question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
+      : "";
   return `<tutor_note>\n${question}${body}\n${open}Do not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
 }
 

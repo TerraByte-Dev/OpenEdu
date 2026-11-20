@@ -1,5 +1,5 @@
 {
- "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart.",
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice.",
  "repeats": [
   {
    "a": {
@@ -863,6 +863,122 @@
      "D) Cells can only perform metabolic functions."
     ],
     "correct_answer": "B) All living organisms are composed of one or more cells, and the cell is the basic unit of life."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #1",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels volcanic arcs is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the mantle wedge above the subducting slab due to volatiles r"
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #31",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels the volcanic arc is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the overlying mantle wedge caused by the introduction of vola"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #1",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels volcanic arcs is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the mantle wedge above the subducting slab due to volatiles r"
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #35",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels arc volcanism is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the overlying mantle wedge due to the introduction of volatil"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #31",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels the volcanic arc is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the overlying mantle wedge caused by the introduction of vola"
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #35",
+    "question_text": "In a subduction zone setting, the primary mechanism responsible for generating the magma that fuels arc volcanism is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Flux melting of the overlying mantle wedge due to the introduction of volatil"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #7",
+    "question_text": "At a divergent plate boundary, the process that directly leads to the generation of magma is primarily driven by:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Decompression melting resulting from the reduction in pressure as plates sepa"
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #17",
+    "question_text": "At a divergent plate boundary characterized by active seafloor spreading, the process that directly leads to the generation of magma is primarily driven by:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Decompression melting resulting from the reduction in pressure as plates pull"
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 10, #3",
+    "question_text": "What is the primary function of the cell membrane in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To store the cell's genetic material",
+     "B) To produce energy for the cell",
+     "C) To act as the outer boundary separating the cell from its surroundings",
+     "D) To synthesize proteins within the cytoplasm"
+    ],
+    "correct_answer": "C) To act as the outer boundary separating the cell from its surroundings"
+   },
+   "b": {
+    "from": "cells L1 quiz 1, live test part 10, #17",
+    "question_text": "What is the primary function of the cell membrane in relation to the cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To synthesize proteins for the cell",
+     "B) To provide structural support to the cytoplasm",
+     "C) To act as a barrier separating the cell from its surroundings",
+     "D) To store the cell's genetic material"
+    ],
+    "correct_answer": "C) To act as a barrier separating the cell from its surroundings"
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 10, #15",
+    "question_text": "Which of the following best describes the primary difference in internal organization between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) The cytoplasm of a prokaryotic cell is always denser than the cytoplasm of a eukaryotic cell.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Eukaryotic cells have a complex internal structure including a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells have a complex internal structure including a membrane-bound nucleus, which prokaryotic cells lack."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 10, #16",
+    "question_text": "Which of the following best describes the primary difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "B) Eukaryotic cells have a complex internal structure with a nucleus, whereas prokaryotic cells do not.",
+     "C) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually.",
+     "D) Prokaryotic cells are always larger than eukaryotic cells."
+    ],
+    "correct_answer": "B) Eukaryotic cells have a complex internal structure with a nucleus, whereas prokaryotic cells do not."
    }
   }
  ],
@@ -2831,6 +2947,334 @@
      "D) I am not sure"
     ],
     "correct_answer": "A) Bats use echolocation and owls use sharp eyes and hearing in the dark"
+   }
+  },
+  {
+   "note": "high silica / lower silica (live test part 10)",
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #39",
+    "question_text": "Magma with a high percentage of silica (SiO2) tends to have what characteristic, which influences how it erupts?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) High viscosity, leading to explosive eruptions."
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #42",
+    "question_text": "Magma with a lower percentage of silica tends to have what characteristic regarding its flow?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) Low viscosity and fast flow"
+   }
+  },
+  {
+   "note": "high silica / lower silica, its flow (live test part 10)",
+   "a": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #40",
+    "question_text": "Magma with a high silica content generally has what characteristic regarding its flow?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) High viscosity, making it flow slowly"
+   },
+   "b": {
+    "from": "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them), #42",
+    "question_text": "Magma with a lower percentage of silica tends to have what characteristic regarding its flow?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) Low viscosity and fast flow"
+   }
+  },
+  {
+   "note": "the cytoplasm / the cell membrane, which component (live test part 10)",
+   "a": {
+    "from": "cells L1 quiz 1, live test part 10, #11",
+    "question_text": "Which component of the cell is primarily responsible for filling the space within the cell and hosting the necessary chemical reactions for life processes?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Nucleus",
+     "B) Cell Membrane",
+     "C) Cell Wall",
+     "D) Cytoplasm"
+    ],
+    "correct_answer": "D) Cytoplasm"
+   },
+   "b": {
+    "from": "cells L1 quiz 1, live test part 10, #12",
+    "question_text": "Which of the following best describes the basic structural component that separates the cytoplasm from the outside environment in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Ribosome",
+     "B) Cell membrane",
+     "C) Nucleus",
+     "D) Cell wall"
+    ],
+    "correct_answer": "B) Cell membrane"
+   }
+  },
+  {
+   "note": "the cytoplasm's function / the cell membrane's (live test part 10)",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 10, #17",
+    "question_text": "Which of the following best describes the primary function of the cytoplasm within a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To regulate the intake of nutrients from the external environment.",
+     "B) To store genetic material exclusively.",
+     "C) To serve as the site for most of the cell's metabolic activities.",
+     "D) To provide structural support and protection to the cell membrane."
+    ],
+    "correct_answer": "C) To serve as the site for most of the cell's metabolic activities."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 10, #18",
+    "question_text": "Which of the following best describes the primary function of the cell membrane?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To generate the majority of the cell's energy.",
+     "B) To regulate what enters and leaves the cell.",
+     "C) To store the cell's genetic material.",
+     "D) To provide structural support to the cell."
+    ],
+    "correct_answer": "B) To regulate what enters and leaves the cell."
+   }
+  },
+  {
+   "note": "cactus: to live / to live and grow without water in the desert (qualifier in a new \"and\" tail, OpenEdu #408 review)",
+   "a": {
+    "question_text": "What do cactus plants need to live?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Water sunlight and air"
+   },
+   "b": {
+    "question_text": "What do cactus plants need to live and grow without water in the desert?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Stored water sunlight and air"
+   }
+  },
+  {
+   "note": "cactus: to live / to live and grow without water in the desert (qualifier in a new \"and\" tail, OpenEdu #408 review) (multiple choice)",
+   "a": {
+    "question_text": "What do cactus plants need to live?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Water sunlight and air",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Water sunlight and air"
+   },
+   "b": {
+    "question_text": "What do cactus plants need to live and grow without water in the desert?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Stored water sunlight and air",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Stored water sunlight and air"
+   }
+  },
+  {
+   "note": "honey bees: to feed the hive / and store during the winter (qualifier in a new \"and\" tail, written for OpenEdu #408's review)",
+   "a": {
+    "question_text": "What do honey bees collect from flowers to feed the hive?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Nectar and pollen"
+   },
+   "b": {
+    "question_text": "What do honey bees collect from flowers to feed the hive and store during the winter?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Honey made from nectar, and some pollen"
+   }
+  },
+  {
+   "note": "honey bees: to feed the hive / and store during the winter (qualifier in a new \"and\" tail, written for OpenEdu #408's review) (multiple choice)",
+   "a": {
+    "question_text": "What do honey bees collect from flowers to feed the hive?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Nectar and pollen",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Nectar and pollen"
+   },
+   "b": {
+    "question_text": "What do honey bees collect from flowers to feed the hive and store during the winter?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Honey made from nectar, and some pollen",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Honey made from nectar, and some pollen"
+   }
+  },
+  {
+   "note": "a plant: to make its own food / and grow inside a dark cave (qualifier in a new \"and\" tail, written for OpenEdu #408's review)",
+   "a": {
+    "question_text": "What does a plant need to make its own food?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Sunlight, water and carbon dioxide"
+   },
+   "b": {
+    "question_text": "What does a plant need to make its own food and grow inside a dark cave?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Water and carbon dioxide, with a grow light instead of sunlight"
+   }
+  },
+  {
+   "note": "a plant: to make its own food / and grow inside a dark cave (qualifier in a new \"and\" tail, written for OpenEdu #408's review) (multiple choice)",
+   "a": {
+    "question_text": "What does a plant need to make its own food?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Sunlight, water and carbon dioxide",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Sunlight, water and carbon dioxide"
+   },
+   "b": {
+    "question_text": "What does a plant need to make its own food and grow inside a dark cave?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Water and carbon dioxide, with a grow light instead of sunlight",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Water and carbon dioxide, with a grow light instead of sunlight"
+   }
+  },
+  {
+   "note": "the bird / the birds, subject-verb agreement (written for the live test part 10 branch review)",
+   "a": {
+    "question_text": "Which verb fits the sentence: The bird ___ every morning?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "sings"
+   },
+   "b": {
+    "question_text": "Which verb fits the sentence: The birds ___ every morning?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "sing"
+   }
+  },
+  {
+   "note": "the bird / the birds, subject-verb agreement (written for the live test part 10 branch review) (multiple choice)",
+   "a": {
+    "question_text": "Which verb fits the sentence: The bird ___ every morning?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) sings",
+     "B) singing",
+     "C) sung",
+     "D) to sing"
+    ],
+    "correct_answer": "A) sings"
+   },
+   "b": {
+    "question_text": "Which verb fits the sentence: The birds ___ every morning?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) sing",
+     "B) singing",
+     "C) sung",
+     "D) to sing"
+    ],
+    "correct_answer": "A) sing"
+   }
+  },
+  {
+   "note": "the dog / the dogs, subject-verb agreement (written for the live test part 10 branch review)",
+   "a": {
+    "question_text": "The dog ___ fast in the park.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "runs"
+   },
+   "b": {
+    "question_text": "The dogs ___ fast in the park.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "run"
+   }
+  },
+  {
+   "note": "the dog / the dogs, subject-verb agreement (written for the live test part 10 branch review) (multiple choice)",
+   "a": {
+    "question_text": "The dog ___ fast in the park.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) runs",
+     "B) running",
+     "C) ran fastly",
+     "D) to run"
+    ],
+    "correct_answer": "A) runs"
+   },
+   "b": {
+    "question_text": "The dogs ___ fast in the park.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) run",
+     "B) running",
+     "C) ran fastly",
+     "D) to run"
+    ],
+    "correct_answer": "A) run"
+   }
+  },
+  {
+   "note": "a solid into a liquid / a liquid into a solid, reversed with long keys (written for the live test part 10 branch review)",
+   "a": {
+    "question_text": "How does a solid change into a liquid?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "When it is heated, its particles gain energy, vibrate faster and break free of their fixed positions"
+   },
+   "b": {
+    "question_text": "How does a liquid change into a solid?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "When it is cooled, its particles lose energy, slow down and settle into fixed positions"
+   }
+  },
+  {
+   "note": "a solid into a liquid / a liquid into a solid, reversed with long keys (written for the live test part 10 branch review) (multiple choice)",
+   "a": {
+    "question_text": "How does a solid change into a liquid?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) When it is heated, its particles gain energy, vibrate faster and break free of their fixed positions",
+     "B) It is crushed into a powder",
+     "C) It is mixed with air",
+     "D) It is left in the dark"
+    ],
+    "correct_answer": "A) When it is heated, its particles gain energy, vibrate faster and break free of their fixed positions"
+   },
+   "b": {
+    "question_text": "How does a liquid change into a solid?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) When it is cooled, its particles lose energy, slow down and settle into fixed positions",
+     "B) It is crushed into a powder",
+     "C) It is mixed with air",
+     "D) It is left in the dark"
+    ],
+    "correct_answer": "A) When it is cooled, its particles lose energy, slow down and settle into fixed positions"
    }
   }
  ]

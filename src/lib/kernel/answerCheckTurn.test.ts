@@ -57,7 +57,7 @@ vi.mock("../db", async (importOriginal) => ({
   getSyllabus: vi.fn(async () => SYLLABUS),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_HINT, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_EARLIER, MASTERY_REFUSED_HINT, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
 import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES } from "./answerCheck";
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
@@ -2011,6 +2011,134 @@ What is 6 x 8?`);
     const { result } = await answer(CHECK, text);
     expect(structured.map((c) => c.tool)).toContain("AnswerGrade");
     expect(result.answerCheck?.by).not.toBe("code");
+  }, 30_000);
+});
+
+// ── An answer to the check's first question after the tutor moved on ─────────────────────────
+
+// TerraTutor live test 2026-11-20 part 10, step 2, thread B (gemma4:e2b): the check asked "Can you tell me what the cell
+// membrane does?", the learner said "I don't know", the tutor asked an easier question (a house's wall),
+// which was answered right, and then a new one about the cytoplasm. The learner then answered the check's own
+// question right, was graded against the cytoplasm question, and was told "That's not right yet."
+describe("an answer to the check's first question after the tutor moved on", () => {
+  const Q_MEMBRANE = "Can you tell me what the cell membrane does?";
+  const Q_CYTOPLASM = "Now, thinking about the cytoplasm, what do you think it does inside the cell?";
+  const KEY_MEMBRANE = { question: Q_MEMBRANE, working: "", answer: "It protects the cell and controls what goes in and out" };
+  const KEY_CYTOPLASM = { question: Q_CYTOPLASM, working: "", answer: "Life processes happen there" };
+  const OPENED = `${answeredCard("", PICKER_QUESTION, { text: "Basic Cell Terminology", typed: false })}I will check your understanding of the basic cell parts. ${Q_MEMBRANE}`;
+  const MOVED_ON = `That is exactly right. The cell membrane keeps things in and out. ${Q_CYTOPLASM}`;
+  const MOVED_ON_AGAIN = `The cell membrane keeps things in and out. ${Q_CYTOPLASM}`;
+  const PART_10 = [
+    student(ASSESS_MESSAGE), tutor(OPENED),
+    student("I don't know"), tutor("No problem. Imagine your cell is like a house. The cell membrane is the wall of the house. What is the job of a wall around a house?"),
+    student("A wall keeps things out and protects the house."), tutor(MOVED_ON),
+  ];
+  const MEMBRANE_ANSWER = "The cell membrane protects the cell and controls what goes in and out of it.";
+  const keyByQuestion = (sent: Sent) => {
+    const text = sent.map((m) => m.content).join("\n");
+    return text.includes("cytoplasm") ? KEY_CYTOPLASM : text.includes(Q_MEMBRANE) ? KEY_MEMBRANE : { question: "What is the job of a wall around a house?", working: "", answer: "to protect the house" };
+  };
+  const gradeRightFor = (right: string) => (sent: Sent) => ({
+    student_answer: lastUser(sent).split("\n").pop()!.replace(/^Student's answer: /, ""),
+    verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${right}\n`) ? "correct" : "incorrect",
+  });
+  const gradedQuestions = () => structured.filter((c) => c.tool === "AnswerGrade").map((c) => /Question: (.*)\n/.exec(c.messages.map((m) => m.content).join("\n"))![1]);
+
+  beforeEach(() => { keyOut = keyByQuestion; });
+
+  it("the part-10 sequence: right for the check's first question is not \"not right yet\", nothing is marked, and the newest question comes back", async () => {
+    gradeOut = gradeRightFor(Q_MEMBRANE);
+    script = [markCall("mastered"), reply("Yes, the cell membrane protects the cell and controls what goes in and out.")];
+    const { result, confirms } = await answer(PART_10, MEMBRANE_ANSWER);
+    expect(result.answerCheck).toMatchObject({ question: Q_MEMBRANE, key: KEY_MEMBRANE.answer, verdict: "correct", on: "earlier", checkQuestion: Q_CYTOPLASM });
+    // Graded on the newest question first, then on the check's: two grader calls, no more.
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM, Q_MEMBRANE]);
+    expect(result.text).not.toMatch(/not right yet/i);
+    // The model is told which question the answer was to; its mark is refused and code makes none.
+    expect(lastUser(replies[0])).toContain(`The question was: ${Q_MEMBRANE}`);
+    expect(lastUser(replies[0])).toContain(`Your last question is still open: ${Q_CYTOPLASM}`);
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    // Code asks the newest question again after the reply, without the move-on's praise for the wall answer
+    // ("That is exactly right.", questionAgain): kept, it would read as a verdict on this answer.
+    expect(result.text).toBe(`Yes, the cell membrane protects the cell and controls what goes in and out.\n\n${HINT_ANSWER_BACK}\n\n${MOVED_ON_AGAIN}`);
+
+    // The next try is graded against the cytoplasm question, the one code asked again, and is still no mark.
+    structured.length = 0;
+    gradeOut = gradeRightFor(Q_CYTOPLASM);
+    const next = await answer([...PART_10, student(MEMBRANE_ANSWER), tutor(result.text)], "The cytoplasm is the jelly where the cell does its life processes.");
+    expect(next.result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "correct" });
+    expect(next.result.answerCheck?.on).toBeUndefined();
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM]);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  // TerraTutor #268's review, probe P1: only the learner's message straight after the first question was read, so
+  // after an `on: "earlier"` turn every later wrong answer graded the first question again, "right" each time.
+  it("a first question answered after the tutor moved on is not graded again", async () => {
+    gradeOut = gradeRightFor(Q_MEMBRANE);
+    script = [reply("Yes, the cell membrane protects the cell and controls what goes in and out.")];
+    const first = await answer(PART_10, MEMBRANE_ANSWER);
+    expect(first.result.answerCheck).toMatchObject({ verdict: "correct", on: "earlier" });
+
+    structured.length = 0;
+    script = [reply("Good try. Think about the jelly inside the cell.")];
+    const { result } = await answer([...PART_10, student(MEMBRANE_ANSWER), tutor(first.result.text)], MEMBRANE_ANSWER);
+    expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "incorrect" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM]);
+    expect(structured.filter((c) => c.tool === "AnswerKey")).toHaveLength(1);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  // Probe P5: partly right for the first question, and the move-on code asks again opens with "That is exactly
+  // right.", the wall answer's praise: under "That's partly right." it contradicted the verdict.
+  it("a partly right answer to the first question: no \"exactly right\" after \"partly right\"", async () => {
+    gradeOut = (sent: Sent) => ({
+      ...gradeRightFor("no question")(sent),
+      verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${Q_MEMBRANE}\n`) ? "partly" : "incorrect",
+    });
+    script = [reply("What else does the membrane do?")];
+    const { result } = await answer(PART_10, "It is the outside of the cell.");
+    expect(result.answerCheck).toMatchObject({ question: Q_MEMBRANE, verdict: "partly", on: "earlier" });
+    expect(result.text).toBe(`That's partly right.\n\n${HINT_ANSWER_BACK}\n\n${MOVED_ON_AGAIN}`);
+    expect(result.text).not.toMatch(/exactly right/i);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("a wrong answer to both questions is still \"not right yet\", graded on the newest question", async () => {
+    gradeOut = gradeRightFor("no question");
+    script = [reply("Correct! Well done!")];
+    const { result } = await answer(PART_10, "The nucleus holds the cell's DNA.");
+    expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "incorrect" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM, Q_MEMBRANE]);
+    expect(result.text).toMatch(/^That's not right yet\./);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("a right answer to the newest question is graded on it as before, with one grader call", async () => {
+    gradeOut = gradeRightFor(Q_CYTOPLASM);
+    script = [reply("Yes, that's right.")];
+    const { result } = await answer(PART_10, "It is the jelly where the cell's life processes happen.");
+    expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, key: KEY_CYTOPLASM.answer, verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM]);
+    expect(structured.filter((c) => c.tool === "AnswerKey")).toHaveLength(1);
+    expect(result.text).toBe("Yes, that's right.");
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("a first question the learner answered is not reopened when the tutor moves on", async () => {
+    gradeOut = gradeRightFor(Q_MEMBRANE);
+    const answered = [student(ASSESS_MESSAGE), tutor(OPENED), student("It is the skin of the cell."), tutor(MOVED_ON)];
+    const { result } = await answer(answered, MEMBRANE_ANSWER);
+    expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "incorrect" });
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM]);
   }, 30_000);
 });
 

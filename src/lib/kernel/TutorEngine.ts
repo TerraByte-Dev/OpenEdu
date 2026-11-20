@@ -63,6 +63,10 @@ export const MASTERY_REFUSED_UNCHECKED =
  *  (AnswerCheck.on): right, but the check's question is still open, so nothing that turn counts toward mastery. */
 export const MASTERY_REFUSED_HINT =
   "Not saved: the student answered the hint's question, not the check's question, so this subtopic can't be marked mastered now. The check's question is still open.";
+/** What the model is told when it tries to mark mastered on a turn whose answer was to the check's first question
+ *  after the tutor had moved on from it (AnswerCheck.on "earlier"): not a first try, and the last question is still open. */
+export const MASTERY_REFUSED_EARLIER =
+  "Not saved: the student answered the check's first question after the tutor had moved on, not on a first try, so this subtopic can't be marked mastered now. Your last question is still open.";
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
@@ -127,7 +131,7 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   const { beforeCard, modelMarked, firstCardChecked } = result.markInput ?? { beforeCard: null, modelMarked: false, firstCardChecked: false };
   if (modelMarked) return null;
   const checked = [result.answerCheck, ...result.cardChecks].filter((c): c is AnswerCheck => !!c);
-  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer)) return null;
+  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on)) return null;
   if (result.answerCheck ? !firstAttempt(conversation) : !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
@@ -320,10 +324,11 @@ function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult 
   };
 }
 
-// The verdict line on the reply to an answer to a hint's own question, when the model's reply showed nothing
-// (it was only a question, which TrailingQuestionHold drops): VERDICT_FALLBACK's, without its question, as
-// code asks the check's question right after it. An answer tagged `on: "hint"` is right, partly right or
-// "unsure" (a hint question with no key), never "incorrect": that entry is only there to fill the record.
+// The verdict line on the reply to an answer to a hint's own question, or to the check's first question after
+// the tutor moved on, when the model's reply showed nothing (it was only a question, which TrailingQuestionHold
+// drops): VERDICT_FALLBACK's, without its question, as code asks the open question right after it. An answer
+// tagged `on` is right, partly right or "unsure" (a hint question with no key), never "incorrect": that entry
+// is only there to fill the record.
 const HINT_LEAD: Record<AnswerCheck["verdict"], string> = {
   correct: VERDICT_FALLBACK.correct,
   partly: "That's partly right.",
@@ -448,7 +453,7 @@ export class TutorEngine {
     const answerTurn = !disclosure && turn.answerCheck !== "off" && isAssessAnswerTurn(conversation, ctx.activeSkill?.name);
     const checked = checkedMessage(conversation);
     const answerCheckRun = answerTurn && !firstTurnHold && !asked
-      ? checkAnswer(checked.message, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort }, checked.hint)
+      ? checkAnswer(checked.message, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort }, checked.hint, checked.opening)
       : Promise.resolve(null);
 
     let eduTools = await selectTools(ctx);
@@ -859,9 +864,11 @@ ${lastUser.content}` };
         // Nor on a turn whose answer was to a hint's own question (AnswerCheck.on), a card picked in the turn
         // included: code asks the check's own question again after the reply, so no mark that turn can stand
         // beside it (ported from TerraTutor #258; a card that asked the hint's question passed there before).
+        // Nor when the answer was to the check's first question after the tutor moved on (`on: "earlier"`,
+        // TerraTutor live test 2026-11-20 part 10): not a first try, and code asks the tutor's last question again.
         const checked = [answerCheck, ...cardChecks].filter((c): c is AnswerCheck => !!c);
         const unchecked = prepared.answerTurn && checked.length === 0;
-        const hintTurn = answerCheck?.on === "hint";
+        const hintTurn = !!answerCheck?.on;
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
           unchecked || hintTurn || checked.some((c) => c.verdict !== "correct"));
         // On a safety-disclosure turn, and every later turn in its thread, nothing the learner said is kept:
@@ -869,7 +876,7 @@ ${lastUser.content}` };
         // nothing is shown; the model is told.
         const keepsWords = prepared.keepsNothing && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? MASTERY_REFUSED_HINT : MASTERY_REFUSED };
+        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? (answerCheck?.on === "earlier" ? MASTERY_REFUSED_EARLIER : MASTERY_REFUSED_HINT) : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design

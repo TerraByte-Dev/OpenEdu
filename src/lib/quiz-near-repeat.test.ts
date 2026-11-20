@@ -16,7 +16,7 @@ vi.mock("./llm", () => ({
 }));
 
 import { generateQuizQuestions, generatePromotionTestQuestions, SAME_KEY_CAP } from "./quiz";
-import { isNearDuplicate, dedupeByQuestionText, keyForm, sameKeyForm, type NearDuplicateQ } from "./quiz-grading";
+import { isNearDuplicate, dedupeByQuestionText, keyForm, sameKeyForm, sameAnswer, foldPlural, type NearDuplicateQ } from "./quiz-grading";
 import { callLLMStructured, log } from "./llm";
 import pairs from "./__fixtures__/near-repeat-pairs.json";
 import type { LLMConfig, Syllabus } from "../types";
@@ -78,11 +78,13 @@ describe("labelled near-repeat pairs (TerraTutor live tests 6-9)", () => {
     for (const p of pairs.different as Pair[]) expect(dedupeByQuestionText([p.a, p.b]), label(p)).toHaveLength(2);
   });
 
-  it("catches at least 28 of the 34 repeats in the saved quizzes and level tests", () => {
+  it("catches at least 29 of the 40 repeats in the saved quizzes and level tests", () => {
     const caught = (pairs.repeats as Pair[]).filter((p) => isNearDuplicate(p.a, p.b) && isNearDuplicate(p.b, p.a));
-    // Measured 2026-11-20: 28 of 34 (master: 2). The 6 missed restate the stem with other content
-    // words ("the role of the cell membrane" after a sentence on the Cell Theory, "a lower silica content").
-    expect(caught.length).toBeGreaterThanOrEqual(28);
+    // Measured 2026-11-20: 29 of 40 (28 of 40 before live test part 10's round). The 11 missed restate
+    // the stem with other content words ("the role of the cell membrane" after a sentence on the Cell
+    // Theory, "a lower silica content", "volcanic arcs" / "arc volcanism") or add words that are kept as a
+    // qualifier ("in relation to the cell", "characterized by active seafloor spreading").
+    expect(caught.length).toBeGreaterThanOrEqual(29);
   });
 
   it("catches the live ones: quiz 2 #3, #6 and #8, and level test #13 and #35", () => {
@@ -134,6 +136,15 @@ describe("labelled near-repeat pairs (TerraTutor live tests 6-9)", () => {
     const shared = (pairs.different as Pair[]).filter((p) => /after a shared "and"/.test(p.note ?? ""));
     expect(shared).toHaveLength(6);
     expect(shared.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+  });
+
+  // OpenEdu #408's review: an "and ..." tail whose words are all new was excused even when it says where,
+  // when or under what condition, so "What do cactus plants need to live?" merged with "... to live and grow
+  // without water in the desert?" (all 6 of these merged before QUALIFIER_LINKS).
+  it("keeps apart a qualifier in a new \"and\" tail", () => {
+    const tail = (pairs.different as Pair[]).filter((p) => /new "and" tail/.test(p.note ?? ""));
+    expect(tail).toHaveLength(6);
+    expect(tail.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
   });
 
   it("local path: a quiz keeps the tides and the highest tides", async () => {
@@ -209,4 +220,116 @@ describe("a key with a digit is routine only when it is a number at heart (Terra
     expect(current.filter((q) => /silica/.test(q.correct_answer))).toHaveLength(SAME_KEY_CAP);
     expect(vi.mocked(log.info).mock.calls.some((c) => /2 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
   }, 30_000);
+});
+
+describe("live test part 10: plurals, the review pool's near-twins and key wordings", () => {
+  const LT10 = "volcanoes L3 level test, live test part 10 (options not saved, keys cut at 80 characters as the run saved them)";
+  const lt10 = (i: number) => fromFixture(`${LT10}, #${i}`);
+  // The level test saved no options: its key as option A of four.
+  const asMc = (q: NearDuplicateQ, subtopic_id: string): Raw => {
+    const key = `A) ${String(q.correct_answer).replace(/^[A-D]\)\s*/, "")}`;
+    return asRaw({ ...q, correct_answer: key, options: [key, "B) Crystal size of the rock", "C) Gas pressure in the vent", "D) Temperature of the lava"] }, subtopic_id);
+  };
+  const mcq = (question_text: string, key: string, others: string[]): Raw =>
+    asRaw({ question_text, question_type: "multiple_choice", options: [key, ...others], correct_answer: key }, "1.1");
+
+  it("folds a plural to its singular only where that is safe", () => {
+    for (const [w, one] of [["arcs", "arc"], ["cells", "cell"], ["plates", "plate"], ["volatiles", "volatile"], ["bodies", "body"]]) expect(foldPlural(w), w).toBe(one);
+    for (const w of ["gas", "glass", "is", "its", "was", "process", "nucleus", "basis", "news", "means", "species", "arc",
+      "physics", "genetics", "mathematics", "besides", "towards", "lens"]) expect(foldPlural(w), w).toBe(w);
+    for (const [w, one] of [["movies", "movie"], ["cookies", "cookie"], ["calories", "calorie"]]) expect(foldPlural(w), w).toBe(one);
+    // "gases" keeps its "e": a missed repeat with "gas", never a merge.
+    expect(foldPlural("gases")).not.toBe("gas");
+  });
+
+  it("catches \"... fuels volcanic arcs is:\" asked again as \"... fuels the volcanic arc is:\" (#1 / #31)", () => {
+    expect(isNearDuplicate(lt10(1), lt10(31))).toBe(true);
+    expect(isNearDuplicate(lt10(31), lt10(1))).toBe(true);
+    // "arc volcanism" (#35) is another word than "volcanic", not a plural: still two questions here.
+    expect(isNearDuplicate(lt10(1), lt10(35))).toBe(false);
+  });
+
+  it("level test path: #31 is dropped as #1 asked again", async () => {
+    model([asMc(lt10(1), "2.1"), asMc(lt10(31), "2.1")], "2.1");
+    const { current } = await generatePromotionTestQuestions(volcanoes, [], { ...medium });
+    expect(current).toHaveLength(35);
+    const texts = current.map((q) => q.question_text);
+    expect(texts).toContain(lt10(1).question_text);
+    expect(texts).not.toContain(lt10(31).question_text);
+  }, 30_000);
+
+  // The branch review's pairs: subject-verb agreement folds to one word only if a plural fold reaches the
+  // key, and a reversed question has one set of asked words in another order.
+  it("keeps apart subject-verb agreement pairs and a reversed question with long keys", () => {
+    const review = (pairs.different as Pair[]).filter((p) => /live test part 10 branch review/.test(p.note ?? ""));
+    expect(review).toHaveLength(6);
+    expect(review.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+  });
+
+  it("quiz path: two missed true/false questions on other numbers are both re-posed", async () => {
+    const tf = (id: number, a: string) => ({
+      id: String(id), attempt_id: "quiz-1", question_text: `Is the fraction ${a} more than the fraction 1/2 on this number line?`,
+      question_type: "true_false", options: null, correct_answer: "False", user_answer: "True", is_correct: false,
+      difficulty_level: 1, explanation: `${a} is less than 4/8. Therefore the answer is False`, subtopic_id: "1.1",
+      matching_pairs: null, blank_position: null,
+    }) as never;
+    const pool = [tf(1, "3/8"), tf(2, "1/8")];
+    model([], "1.1");
+    const qs = await generateQuizQuestions(cells, 10, { ...medium }, pool, undefined, null, null);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).toContain("Is the fraction 3/8 more than the fraction 1/2 on this number line?");
+    expect(texts).toContain("Is the fraction 1/8 more than the fraction 1/2 on this number line?");
+  }, 30_000);
+
+  it("quiz path: the review pool re-poses one of two near-twin misses and takes the next miss instead", async () => {
+    const q2 = (i: number) => asRaw(fromFixture(`cells L1 quiz 2, live test part 9, #${i}`), "1.1");
+    const missed = (q: Raw, id: number) => ({ ...q, id: String(id), attempt_id: "quiz-1", user_answer: "B) none", is_correct: false }) as never;
+    const others = [filler("1.1"), filler("1.1"), filler("1.1")];
+    const pool = [missed(q2(3), 1), missed(q2(6), 2), ...others.map((q, i) => missed(q, 3 + i))];
+    model([], "1.1");
+    const qs = await generateQuizQuestions(cells, 20, { ...medium }, pool, undefined, null, null);
+    expect(qs).toHaveLength(20);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).toContain(q2(3).question_text);
+    expect(texts).not.toContain(q2(6).question_text);
+    for (const q of others) expect(texts).toContain(q.question_text);
+  }, 30_000);
+
+  it("counts one answer in other wordings as one key for the cap, and nothing else", () => {
+    const k = (s: string) => sameKeyForm({ question_text: "", question_type: "short_answer", options: [], correct_answer: s })!;
+    expect(sameAnswer(k("All cells arise from pre-existing cells."), k("Cells arise only from pre-existing cells."))).toBe(true);
+    expect(sameAnswer(k("cells arise from pre-existing cells"), k("Cells arise only from pre-existing cells."))).toBe(true);
+    for (const [a, b] of [["The inner core", "The outer core"], ["Ionic bond", "Covalent bond"], ["Na+", "Na"], ["it's", "its"],
+      ["liquid water turning into water vapor", "water vapor turning into liquid water"], ["All", "Only"],
+      // The branch review's: a one-word key is never folded, a short key keeps "all" and "only", and a
+      // leading "only" is another claim.
+      ["sings", "sing"], ["Arms", "Arm"], ["Genetics", "Genetic"], ["The odds", "Odd"], ["Only plants", "All plants"],
+      ["Plants only", "Plants"], ["Only cells arise from pre-existing cells", "Cells arise only from pre-existing cells"]]) {
+      expect(sameAnswer(k(a), k(b)), `${a} / ${b}`).toBe(false);
+    }
+    // No different pair in the fixture shares a key this way that keyForm kept apart.
+    const merged = (pairs.different as Pair[]).filter((p) => {
+      const [ka, kb] = [sameKeyForm(p.a), sameKeyForm(p.b)];
+      return ka !== null && kb !== null && ka !== kb && sameAnswer(ka, kb);
+    });
+    expect(merged.map(label)).toEqual([]);
+  });
+
+  // Quiz 2's #4 and #5 (model text), and a third wording written here.
+  it(`quiz path: three wordings of "cells arise from pre-existing cells" count toward one ${SAME_KEY_CAP}-per-key cap`, async () => {
+    const wordings = [
+      mcq("Which of the following is a fundamental concept that the Cell Theory supports regarding the origin of new cells?",
+        "D) All cells arise from pre-existing cells.", ["A) Cells only exist in multicellular organisms.", "B) Cells can spontaneously generate energy.", "C) Cells are the only structures capable of reproduction."]),
+      mcq("Which of the following statements best represents one of the three main tenets of the Cell Theory?",
+        "C) Cells arise only from pre-existing cells.", ["A) All living things are made up of cells.", "B) Cells can only be found in multicellular organisms.", "D) Cells contain genetic material."]),
+      mcq("According to the Cell Theory, where do new cells come from?",
+        "B) Cells arise from pre-existing cells.", ["A) From nonliving matter", "C) From the air", "D) From sunlight"]),
+    ];
+    model([wordings[0], filler("1.1"), wordings[1], wordings[2]], "1.1");
+    const qs = await generateQuizQuestions(cells, 6, { ...medium }, [], undefined, null, null);
+    expect(qs).toHaveLength(6);
+    expect(qs.filter((q) => /arise/i.test(q.correct_answer))).toHaveLength(SAME_KEY_CAP);
+    expect(qs.map((q) => q.question_text)).not.toContain(wordings[2].question_text);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
+  });
 });

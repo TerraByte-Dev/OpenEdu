@@ -212,6 +212,15 @@ The section for each release is also what the app shows when you press Check for
   in a check on 6 x 8) never counts for the check, and the app then asks the check's question again; an
   answer that is right for the check's question still counts for the check. When the app asks a question
   again that points back ("what the "whole" is in this example?"), it keeps the example.
+- **A right answer to the check's first question is no longer "not right yet" after the tutor moved on.**
+  When the learner said "I don't know" (or asked for help) and the tutor went on to other questions, an
+  answer to the check's first question was checked against the tutor's newest question and called wrong
+  ("The cell membrane protects the cell ..." after a question about the cytoplasm, a TerraTutor live test).
+  Now an answer that is wrong for the newest question is also checked against the check's first question;
+  right there, the app says so and asks the newest question again. It never marks the skill learned: it
+  was not the first try. A first question the learner already answered, this way too, is not checked
+  again, and the question asked again leaves out the tutor's praise for the answer before it ("That is
+  exactly right."), so it never follows "That's partly right.".
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number
@@ -233,12 +242,19 @@ The section for each release is also what the app shows when you press Check for
   tides", "a front" / "a cold front", "to make food" / "to make food without sunlight", "plants and
   animals need to live" / "... in the desert", and "igneous rock" / "intrusive igneous rock", which had
   counted as a repeat) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
+  A plural no longer hides a repeat ("the magma that fuels volcanic arcs" / "... the volcanic arc" in one
+  TerraTutor level test), and a question that adds where, when or under what condition after an "and"
+  ("What do cactus plants need to live?" / "... to live and grow without water in the desert?") stays a
+  question of its own.
+- **A quiz's review re-poses a missed question once**, not twice in other words: of two missed questions
+  that ask the same thing, the review takes one and the next missed question instead.
 - **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
   came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
   last question had been the one before's, word for word.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
-  one), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
+  one, and so do "All cells arise from pre-existing cells." and "Cells arise only from pre-existing
+  cells."), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
   times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
   enough others for the quiz's or test's minimum (10 questions for a quiz, 30 for a level test) are the
   set-aside ones used, and then before any question an earlier quiz on the level already asked.

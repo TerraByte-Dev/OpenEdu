@@ -231,23 +231,33 @@ written: they came from a once-a-minute timer whose only reader was the learning
   questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
   answered right after it in that course, by the key, the model or the learner's own mark (never an
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
-  later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
+  later miss puts it back. A pool question that asks what one already re-posed asks, in other words
+  (`quiz-review.ts pickReview`, `isNearDuplicate` below, with the same numbers in the same order, so "is
+  3/8 more than 1/2?" and "is 1/8 more than 1/2?" are both re-posed), is skipped for the next one in the
+  pool (TerraTutor live test part 10 re-posed two such misses in one quiz; ported from TerraTutor #269). A
+  fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
   fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
   "she herself is kind"), with the same numbers in the same order and the
   same last clause word for word, so only the setup differs; TerraTutor #259; or the same question
   reworded with its key reworded too, `isRewordedRepeat`: neither key routine nor a fill-in-the-blank's,
   one stem's asked words, its content words less question framing such as "best describes", "main",
-  "primary role", all inside the other's and at least half the two shared, the same negations ("isn't"
-  and "doesn't" read as "not") and numbers, and keys that share half the shorter one's content words and
-  at least 2 of them, but not all of them in another order or with another symbol, so "high silica" /
+  "primary role", folded to the singular where that is safe (`foldPlural`: "volcanic arcs" / "the
+  volcanic arc", never "gas" or "process"; TerraTutor live test part 10), all inside the other's and at
+  least half the two shared, the same negations ("isn't" and "doesn't" read as "not") and numbers, and
+  keys that share half the shorter one's content words and at least 2 of them (or at least 4, whatever
+  the share, when neither stem adds an asked word to the other and both ask them in the same order, so "a
+  solid change into a liquid" / "a liquid change into a solid" stay apart), but not all of them in another order or with another symbol, so "high silica" /
   "low silica", "ion" / "atom", "evaporation" / "condensation", "Covalent bond" / "Ionic bond" after a
   stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; with keys
   that differ, the longer stem adds no qualifier (`addsQualifier`: every word it adds is
   `ADDED_FILLER_WORDS`, such as "within" or "defining", or in an "and ..." it ends with whose words the
-  shorter stem has none of), so "the tides" / "the highest tides", "a front" / "a cold front", "Igneous
-  rock" / "Intrusive igneous rock" (merged as borderline before) and "plants and animals need to live" /
-  "... in the desert" stay apart too (OpenEdu #407's review; ported from TerraTutor #267); TerraTutor
+  shorter stem has none of and that says no where, when or under what condition, `QUALIFIER_LINKS` such
+  as "in", "without", "during"), so "the tides" / "the highest tides", "a front" / "a cold front",
+  "Igneous rock" / "Intrusive igneous rock" (merged as borderline before), "plants and animals need to
+  live" / "... in the desert" (OpenEdu #407's review; ported from TerraTutor #267) and "cactus plants need
+  to live" / "... to live and grow without water in the desert" (OpenEdu #408's review; ported from
+  TerraTutor #269) stay apart too; TerraTutor
   live test part 9 issue 2, bars measured on `src/lib/__fixtures__/near-repeat-pairs.json`; keys compared
   as `keyForm` reads them, without a leading article or punctuation other than the apostrophe (a numeric
   key, below, loses only end punctuation; a longer key keeps a minus before a number and a decimal point,
@@ -257,7 +267,12 @@ written: they came from a once-a-minute timer whose only reader was the learning
   a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
-  counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
+  counted (`GenPlan.sameQuiz`). Two keys of 2 or more words are one when they are the same words in the
+  same order once folded to the singular and, with at least 4 other words, without "all" or an "only"
+  after the first word (`sameAnswer`: "All cells arise from pre-existing cells." / "Cells arise only from
+  pre-existing cells.", TerraTutor live test part 10), so "inner core" / "outer core", "liquid water
+  turning into water vapor" / "water vapor turning into liquid water", "Only plants" / "All plants" and
+  the one-word "sings" / "sing" stay two. A routine key is not counted: true/false, a matching question's, a number,
   fraction, time, money or expression (a number standing on its own with at most two words, "5 cm", "x =
   4"; not a key that only contains a digit, "The percentage of silica (SiO2) content", TerraTutor live
   test part 9 issue 1), and a classification's pick, which the stem names itself ("Is 8 *even* or
@@ -1109,6 +1124,25 @@ So the verdict on the child's answer is the app's, not the reply's:
   keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
   against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
   else is graded against the check's question as below (ported from TerraTutor #255).
+- **An answer to the check's first question after the tutor moved on** (TerraTutor live test 2026-11-20
+  part 10, step 2: "Can you tell me what the cell membrane does?", "I don't know", an easier question
+  answered right, a new question about the cytoplasm, then the membrane question answered right, graded
+  against the cytoplasm one: "That's not right yet."; ported from TerraTutor #268). The answer is graded
+  against the message just before it, as always; only when that gives `incorrect`, no hint question is in
+  play, and the check's first question (the tutor's reply to the request that opened the check,
+  `checkedMessage`'s `opening`) was left unanswered, the answer is keyed and graded against that question
+  too: at most two grader calls, the newest question's first. Left unanswered: the learner's message after
+  it was not an answer ("I don't know", "help", a hint request) or got code's repeat (an answer that
+  answered nothing). One the learner answered, right or wrong, is not reopened, so "56" for the next
+  question after "56" passed "What is 7 x 8?" is still graded on the next question only; nor is one
+  answered this way: code's repeat of another question under "Now back to the question:" later in the
+  check closes it (a hint's answer on a later question does too, the safe side), so a later wrong answer
+  is graded on the newest question with one grader call. Right or partly right for the first question is
+  that question's verdict, tagged `on: "earlier"`: it never passes the check (`MASTERY_REFUSED_EARLIER`,
+  and code makes no mark: it is not the first try), the note says the tutor's last question is still open,
+  and code asks that question again after the reply under "Now back to the question:", as after a hint's
+  answer, so the next try is graded against it. Wrong for both keeps the newest question's verdict. One
+  more key call on such a turn (none when the first question is a plain operation code keys).
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
@@ -1120,7 +1154,7 @@ So the verdict on the child's answer is the app's, not the reply's:
   before it ("this", "these", "it", "the picture", "that example": "Can you tell me what the "whole" is in
   this example?") keeps the nearest paragraph before it that holds more than praise, a lead-in or the
   check's announcement, up to two paragraphs up (TerraTutor click test 2026-11-19 part 7, issue 6: the
-  chocolate-bar example was lost; ported from TerraTutor #260); without leading praise or a lead-in ("Great job!", "Next
+  chocolate-bar example was lost; ported from TerraTutor #260); without leading praise or a lead-in ("Great job!", "That is exactly right.", "Next
   one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice.", a sentence
   that announces the check: "I will check your understanding of "What is a Fraction? Whole and Parts."",
   "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now",
@@ -1200,7 +1234,8 @@ So the verdict on the child's answer is the app's, not the reply's:
   "none", or it failed on a tutor message with no "?"), or the check did not run (the learner asked what a
   word means, or a first-turn hold), and no card answered in the turn was checked. It is refused on any
   turn whose typed answer was to a hint's own question, whatever a card picked that turn
-  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258). Before, nothing refused
+  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258), or to the check's first question after the
+  tutor moved on (`MASTERY_REFUSED_EARLIER`, above; ported from TerraTutor #268). Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
