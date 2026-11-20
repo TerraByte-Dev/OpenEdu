@@ -1230,6 +1230,10 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Perfect Squares, which of these is one: 8 or 16?", "Perfect Squares, which of these is one: 8 or 16?", "16"],
     ["Right Angles, how many does a square have?", "Right Angles, how many does a square have?", "4"],
     ["Good Friday, when is it?", "Good Friday, when is it?", "the Friday before Easter"],
+    // ... and praise before that subject comes off, the subject stays (review of the port).
+    ["Yes, Great Lakes, which one is the largest?", "Great Lakes, which one is the largest?", "Lake Superior"],
+    ["Right, Great Britain, now which country is the largest?", "Great Britain, now which country is the largest?", "England"],
+    ["Good one, Perfect Squares, which of these is one: 8 or 16?", "Perfect Squares, which of these is one: 8 or 16?", "16"],
     // "Good job," before a setup with a number is praise before the setup, not the whole sentence (same review).
     ["Good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
     ["Good job on that, Sam has 5 apples. How many if he eats 2?", "Sam has 5 apples. How many if he eats 2?", "3"],

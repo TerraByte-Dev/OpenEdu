@@ -437,7 +437,8 @@ export async function checkAnswer(
 // readers, now which word ..." (TerraTutor #255 and its review).
 // The name comes only after a praise ending ("Nice one Sam,") or after a praise word that is never an
 // adjective before a noun (NAME_HEAD): "Great Lakes, which ...", "Perfect Squares, which ...", "Right
-// Angles, how many ...", "Good Friday, when is it?" are kept whole (ported from TerraTutor #258).
+// Angles, how many ...", "Good Friday, when is it?" are kept whole (ported from TerraTutor #258), and
+// only praise before them comes off: "Yes, Great Lakes, which ..." (review of the port).
 const PRAISE_ITEM = /^(correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+((?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
 const AFTER_PRAISE = /^(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
 // The name, matched case-sensitively: PRAISE_ITEM is case-insensitive.
@@ -447,7 +448,10 @@ const NAME_HEAD = /^(?:correct|yes|yep|yeah|exactly|well done|that(?:'|’)?s ri
 const nameFits = (m: RegExpExecArray) => !m[3] || (NAME.test(m[3]) && (!!m[2] || NAME_HEAD.test(m[1])));
 function withoutPraiseLead(question: string): string {
   let cut = 0;
-  for (let at = 0, m = PRAISE_ITEM.exec(question); m && nameFits(m); m = PRAISE_ITEM.exec(question.slice(at))) {
+  for (let at = 0, m = PRAISE_ITEM.exec(question); m; m = PRAISE_ITEM.exec(question.slice(at))) {
+    // The question's own subject after praise ("Yes, Great Lakes, which ..."): the praise before it comes
+    // off, the subject stays (review of the port).
+    if (!nameFits(m)) { cut = Math.max(cut, at); break; }
     at += m[0].length;
     const next = AFTER_PRAISE.exec(question.slice(at));
     if (next) cut = at + next[0].length;
