@@ -7,7 +7,7 @@ import {
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, alignKeyToOption,
   hasSelfCorrection, duplicateOptionPair, optionEqualToKey, rewriteLetterRefs, isNearDuplicate,
-  repeatedMatchSide, questionWithSentence, questionKey, askedText, sameKeyForm, sameAnswer, type EarlierQuestion,
+  repeatedMatchSide, questionWithSentence, questionKey, askedText, sameKeyForm, sameCapKey, type EarlierQuestion,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
@@ -556,14 +556,12 @@ function earlierFor(plan: GenPlan, subtopicId: string): string[] {
 }
 
 // A question that would be one more than SAME_KEY_CAP with that key (or the same answer in other words,
-// sameAnswer) among `list` and the quiz's re-posed ones.
+// sameAnswer, or with another explaining tail, sameKeyHead: sameCapKey) among `list` and the quiz's re-posed ones.
 function overCap(plan: GenPlan, list: ReadonlyArray<GenQuestion>, q: GenQuestion): boolean {
-  const k = sameKeyForm(q);
-  if (k === null) return false;
+  if (sameKeyForm(q) === null) return false;
   let n = 0;
   for (const x of [...(plan.sameQuiz ?? []), ...list]) {
-    const kx = sameKeyForm(x);
-    if (kx !== null && sameAnswer(kx, k) && ++n >= SAME_KEY_CAP) return true;
+    if (sameCapKey(x, q) && ++n >= SAME_KEY_CAP) return true;
   }
   return false;
 }

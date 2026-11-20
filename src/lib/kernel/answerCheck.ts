@@ -32,6 +32,8 @@ import { compareToKey, numbersIn, optionsIn, type CompareContext, type KeyMatch 
 import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
 import { replyFromPersisted } from "./persistedReply";
+import { STOPWORDS as CONTENT_STOPWORDS } from "./contentWords";
+import { foldPlural } from "../quiz-grading";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -55,6 +57,10 @@ export interface AnswerCheck {
   /** With `on`, the question still open, as its key call copied it: the check's own after an answer to a hint's
    *  question, the tutor's newest after an answer to the check's opening question. */
   checkQuestion?: string;
+  /** True when the tutor's newest question was the check's opening one asked again in other words, and the
+   *  verdict came from grading the opening wording second (checkAnswer, rewordsQuestion): given on the newest
+   *  question with nothing asked again, but not a first try, so TutorEngine refuses a mark on it. */
+  reworded?: true;
 }
 
 // ── When it runs ────────────────────────────────────────────────────────────────────────────────
@@ -331,6 +337,14 @@ const AFTER_QUESTION = /^[\W_]*(?:(?:take your time|you can do it|you(?:'|’)ve
 // A sentence's end in streamed text: an end mark or a colon with any closing marks after it, then spaces; or
 // a line break. The spaces are the group.
 const SENTENCE_BREAK = /(?:[.!?:][*_"”')\]]*|(?=\n))(\s+)/;
+// A sentence that only announces going back to a question: "Now, let's go back to my last question.", "Back to
+// the question.", "Let's return to the first question!". Code's HINT_ANSWER_BACK says it after the reply, so it
+// is held like a lead-in: dropped when nothing but the held question follows it (TerraTutor live test 2026-11-20
+// part 11, thread D: "Now, let's go back to my last question. Now back to the question:"), let out before
+// feedback. One that says anything more ("... to the question about the nucleus.", "... of why cells divide.") is
+// not one.
+// After a held question it is read as before (let out with it), so endsOnQuestion reads a hint as it did.
+const GOES_BACK = /^[\W_]*(?:(?:now|okay|ok|so|alright|all right|anyway|great|good)\b[\s,!.]*)*(?:(?:let(?:'|’)?s|let us|we(?:'|’)ll|we will|i(?:'|’)ll|i will|time to)\s+(?:(?:go|get|come|head|turn)\s+back|return)\s+to|(?:going|getting|coming)\s+back\s+to|back\s+to)\s+(?:my|our|the|your)\s+(?:(?:last|earlier|first|previous|original|other|main|current|open|real|check(?:'|’)s)\s+)?question[.!]*[*_"”')\]]*$/i;
 
 /**
  * The reply to an answer to a hint's own question, as it streams, without its trailing question
@@ -391,7 +405,7 @@ export class TrailingQuestionHold {
 
   private sentence(text: string, spaces: string): string {
     const s = text.trim();
-    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s)
+    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s) || (!this.asked && GOES_BACK.test(s))
       || (this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s)));
     if (held) {
       if (s.includes("?")) this.asked = true;
@@ -505,8 +519,47 @@ export function onlyQuestion(message: string): string {
   return asks.length === 1 ? asks[0] : "";
 }
 
+// A key call's "answer" that is no answer: a request for input, a refusal or a note about the message. TerraTutor
+// live test 2026-11-20 part 11, issue 6: the key for a message that asked nothing was "Please provide a topic", and the
+// learner's answer was graded "correct" against it. Read as no key ("none"), so no verdict is given. Narrow: it
+// must open the answer, so "No", "None", "0" and "Not enough water" stay keys; "please" needs a request for input
+// after it ("Please give me the ball." is a key), "I cannot" a refusal to answer ("I can't see it because it is
+// too small" is a key), and "any answer" nothing after it but "is fine" ("Any answer that is a mammal" is a key).
+const META_KEY = new RegExp(String.raw`^[\W_]*(?:${[
+  String.raw`(?:please|kindly)\s+(?:provide|give|specify|share|tell|clarify|enter|supply|ask|state)\s+(?:(?:me|us)\s+)?(?:(?:a|an|the|more|your|some|specific|clear)\s+)*(?:topic|question|context|message|details?|information|subject|input|prompt)s?\b`,
+  String.raw`(?:i|we)\s+(?:cannot|can(?:'|’)?t|can not|(?:am|are|(?:'|’)m|(?:'|’)re)\s+unable\s+to|do not|don(?:'|’)?t)\s+(?:determine|answer|tell)\s+(?:the|this|which|what|from|without)\b`,
+  String.raw`as an ai\b`,
+  String.raw`(?:there is|there(?:'|’)s|there are)\s+no\s+(?:\w+\s+)?(?:question|answer)s?\b`,
+  String.raw`no\s+(?:\w+\s+)?question\b`,
+  String.raw`(?:the|this|tutor(?:'|’)s)\s+message\s+(?:does not|doesn(?:'|’)?t|did not|didn(?:'|’)?t)\s+(?:ask|contain|have|include)\b`,
+  String.raw`(?:n\/a|not applicable)[\W_]*$`,
+  String.raw`(?:answers?|responses?)\s+(?:will|may|can|could|might)\s+vary\b`,
+  String.raw`(?:it\s+)?(?:depends|varies)\s+on\s+(?:the\s+)?(?:student|learner|person|you)\b`,
+  String.raw`any\s+(?:answer|opinion|choice|response)\s*(?:(?:is|will be)\s+(?:fine|ok|okay|correct|acceptable|right|good)\b|works\b|will do\b|[\W_]*$)`,
+  String.raw`the\s+student(?:'|’)s?(?:\s+own)?\s+(?:answer|opinion|choice|response)\b`,
+  String.raw`(?:(?:this|it)\s+is\s+)?(?:an?\s+)?(?:opinion|open[- ]ended|subjective|personal)\s+(?:question|answer|response)\b`,
+].join("|")})`, "i");
+
+/** True when the key call's answer is no answer key at all (META_KEY). */
+export function isMetaKey(answer: string): boolean {
+  return META_KEY.test(answer.trim());
+}
+
+// A question that asks what the learner thinks, likes or feels, with no one right answer: "Can you tell me which
+// idea you think is the most important one?" (TerraTutor live test part 11, thread E: keyed "Cells are the basic
+// unit of life" and graded on it), "What is your favorite planet?", "Would you rather be a bird or a fish?". Narrow:
+// "What do you think 7 x 8 is?" and "What do you think is the first part?" ask for a fact, and are keyed.
+const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:like|prefer|agree|enjoy)|would\s+you\s+(?:rather|prefer)|how\s+do(?:es)?\s+(?:you|it\s+make\s+you)\s+feel|you\s+(?:think|feel|believe)\s+(?:is|was|are|were)\s+(?:the\s+)?(?:most|best|least|more|less)\s+(?:important|interesting|fun|useful|exciting|surprising|cool|beautiful)|(?:most|more)\s+(?:interesting|fun|exciting|surprising)\s+to\s+you|which\s+(?:one|idea|part|of\s+these|of\s+them)\s+(?:do\s+you|you)\s+(?:like|prefer|enjoy)|you\s+(?:like|enjoy)\s+(?:the\s+)?(?:most|best))\b/i;
+
+/** True when every question asked in `question` asks for the learner's opinion (OPINION), with no fact to key. */
+export function asksOpinion(question: string): boolean {
+  const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
+  return asks.length > 0 && asks.every((s) => OPINION.test(s));
+}
+
 /**
- * The key for the tutor's question; "none" when the message asks nothing with one right answer; null
+ * The key for the tutor's question; "none" when the message asks nothing with one right answer (also when its
+ * questions only ask the learner's opinion, asksOpinion, or the key call's answer is no key, isMetaKey); null
  * when the call failed. A message whose one question asks for one plain operation is keyed by code,
  * with no call. (Two questions in one message go to the model, which keys both.)
  */
@@ -518,6 +571,7 @@ export async function answerKey(
   const asked = onlyQuestion(tutorMessage);
   const byCode = asked ? keyFromArithmetic(asked) : null;
   if (byCode !== null) return { question: asked, key: byCode };
+  if (asked && asksOpinion(asked)) return "none";
   const out = await withDeadline(opts, (signal) => callLLMStructured<KeyOut>(keyMessages(tutorMessage), config, {
     schema: KEY_SCHEMA,
     toolName: "AnswerKey",
@@ -529,9 +583,10 @@ export async function answerKey(
   }));
   if (!out) return null;
   const answer = out.answer.trim();
-  if (!answer) return "none";
+  if (!answer || isMetaKey(answer)) return "none";
   if (validateKey(out, tutorMessage).length) return null;
   const question = out.question.trim();
+  if (asksOpinion(question)) return "none";
   // A plain operation is worked by code; the model's key stands only when its number agrees.
   const coded = keyFromArithmetic(question);
   if (coded !== null && !numbersIn(answer).some((n) => Math.abs(n.value - Number(coded)) < 1e-9)) return { question, key: coded };
@@ -606,8 +661,9 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
  * only code's match with the hint's key; "unsure" when the hint ends on a question with no key).
  * Anything else keeps the check's verdict.
  * `opening` is the check's own first question when the tutor has moved on from it unanswered (checkedMessage):
- * an answer graded "incorrect" for `tutorMessage`'s question, with no hint question in play, is graded against
- * it too; right or partly right there is its verdict, tagged `on: "earlier"`.
+ * an answer graded "incorrect" or "partly" for `tutorMessage`'s question, with no hint question in play, is graded
+ * against it too; a better verdict there is its verdict, tagged `on: "earlier"`, or given on the newest question
+ * and marked `reworded` when that question is the opening one reworded (rewordsQuestion, keys that agree).
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -676,12 +732,15 @@ export async function checkAnswer(
     }
   }
   const onTheNewest = await graded(keyed, ctx, raw, studentMessage, config, opts);
-  if (onTheNewest.verdict !== "incorrect" || !opening) return onTheNewest;
+  if ((onTheNewest.verdict !== "incorrect" && onTheNewest.verdict !== "partly") || !opening) return onTheNewest;
   // The tutor moved on from the check's opening question before it was answered, and the answer is not right
-  // for the newest one: it may be the opening question's (TerraTutor live test 2026-11-20 part 10, step 2). Graded there
-  // second, so at most two grader calls, as after a hint. Right or partly right there is its verdict, tagged
-  // `on: "earlier"`: it never counts toward mastery (it was not the first try), and code asks the newest
-  // question again after the reply (hintAnswerBack). Wrong for both keeps the newest's verdict.
+  // for the newest one: it may be the opening question's (TerraTutor live test 2026-11-20 part 10, step 2).
+  // Graded there second, so at most two grader calls, as after a hint. A better verdict there (correct over
+  // partly, either over incorrect) is its verdict, tagged `on: "earlier"`: it never counts toward mastery (it
+  // was not the first try), and code asks the newest question again after the reply (hintAnswerBack).
+  // Otherwise the newest's verdict stands. "partly" on the newest is tried too (TerraTutor live test part 11,
+  // threads A and C: a whole three-part answer to "what are the three main ideas of the cell theory?" was
+  // "partly" right for the move-on question and told to give "the other two").
   const earlier = await answerKey(opening, config, opts);
   if (!earlier || earlier === "none" || sameKey(earlier.key, keyed.key) || asksSameQuestion(earlier, keyed)) return onTheNewest;
   const earlierCtx = { question: earlier.question, options: optionsIn(opening) };
@@ -689,9 +748,85 @@ export async function checkAnswer(
   const onTheEarlier: AnswerCheck = earlierRaw === "match"
     ? { ...earlier, verdict: "correct", by: "code" }
     : await graded(earlier, earlierCtx, earlierRaw, studentMessage, config, opts);
-  return onTheEarlier.verdict === "correct" || onTheEarlier.verdict === "partly"
-    ? { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question }
-    : onTheNewest;
+  if (VERDICT_RANK[onTheEarlier.verdict] <= VERDICT_RANK[onTheNewest.verdict]) return onTheNewest;
+  // The newest question is the opening one asked again in other words (rewordsQuestion): one question, so one
+  // verdict, the better one, on the newest, and nothing asked again. Tagged `on: "earlier"`, the reply said
+  // "That's partly right." and code then asked the same question again (this repo's port of TerraTutor #268,
+  // take-back 2026-11-20-0752). Only when the two keys say the same thing (keysContradict): "36" and "24", or
+  // "Yes" and "No", are two questions however alike their words. Marked `reworded`: the verdict came from grading the
+  // opening question second, so it is not a first try, and TutorEngine refuses the model's own mark on it
+  // (MASTERY_REFUSED_REWORDED), as it does after `on: "earlier"`.
+  if (rewordsQuestion(earlier.question, keyed.question) && !keysContradict(earlier.key, keyed.key)) {
+    return { ...onTheEarlier, question: keyed.question, reworded: true };
+  }
+  return { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question };
+}
+
+// The order checkAnswer prefers verdicts in when an answer is graded on two questions. "unsure" (a failed call)
+// is never preferred.
+const VERDICT_RANK: Record<Verdict, number> = { unsure: -1, incorrect: 0, partly: 1, correct: 2 };
+
+// Words that frame a question in the chat rather than say what it asks: "Can you tell me what the cell membrane
+// does?" and "So, what job does the membrane do for the cell?" ask one thing.
+const ASK_FRAMING = new Set(["think", "know", "remember", "explain", "describe", "job", "role", "function",
+  "main", "really", "again", "own", "words", "try", "use"]);
+// A negation the stopwords leave out: "Which one is NOT ..." asks another question.
+const NEGATION = /\b(?:not|never|no|none|except)\b|n['’]t\b/gi;
+// Words that make the order of the others part of the question: "Is the sun bigger than the earth?" and "Is the
+// earth bigger than the sun?" share every word. "from" counts only with a "to" after it.
+const ORDER_WORD = /\b(?:than|before|after|or|between)\b|\bfrom\b.*\bto\b/i;
+
+// What a question asks, word by word in order: every word token (numbers and single letters kept, so "12 times 3"
+// and "12 times 2", "3/4" and "1/2", "the letter A" and "the letter B" differ), folded to its singular, less the
+// stopwords and ASK_FRAMING. A single capital letter is kept even where it is a stopword ("Is the letter I a
+// vowel?"); a lowercase "a" or "i" is the article or the pronoun.
+function askedWords(q: string): string[] {
+  const out: string[] = [];
+  for (const t of q.replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu) ?? []) {
+    const w = t.toLowerCase();
+    if (t.length === 1 && /\p{Lu}/u.test(t)) out.push(w);
+    else if (!CONTENT_STOPWORDS.has(w) && !ASK_FRAMING.has(foldPlural(w))) out.push(foldPlural(w));
+  }
+  return out;
+}
+
+/**
+ * True when two keyed questions ask the same thing in other words: the same asked words (askedWords: numbers and
+ * single letters included), at least one of them, the same numbers in the same order, the same negations, and,
+ * when either has an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in
+ * the same order. Strict on purpose: a question that adds a word ("... keep out of the cell?" after "What does
+ * the cell membrane do?"), another number ("12 times 2" after "12 times 3") or another order ("the earth bigger
+ * than the sun") is another question, and two questions are then graded apart as before (`on: "earlier"`).
+ * checkAnswer also needs the two keys to agree (keysContradict) before it merges.
+ */
+export function rewordsQuestion(a: string, b: string): boolean {
+  const negations = (q: string) => (q.toLowerCase().match(NEGATION) ?? []).sort().join(" ");
+  const numbers = (ws: string[]) => ws.filter((w) => /^\p{N}+$/u.test(w)).join(" ");
+  const inOrder = (ws: string[]) => [...new Set(ws)].join(" ");
+  const wa = askedWords(a);
+  const wb = askedWords(b);
+  const sa = new Set(wa);
+  const sb = new Set(wb);
+  if (!sa.size || sa.size !== sb.size || ![...sa].every((w) => sb.has(w))) return false;
+  if (numbers(wa) !== numbers(wb) || negations(a) !== negations(b)) return false;
+  return !(ORDER_WORD.test(a) || ORDER_WORD.test(b)) || inOrder(wa) === inOrder(wb);
+}
+
+// A key's yes or no, as a leading word ("Yes", "No, it is smaller", "True"), or null.
+function yesNo(key: string): "yes" | "no" | null {
+  const m = /^[\W_]*(yes|true|no|false)\b/i.exec(key);
+  return m ? (/^(?:yes|true)$/i.test(m[1]) ? "yes" : "no") : null;
+}
+
+/** True when two keys say different things outright: both have numbers and they differ ("36", "24"), or both are
+ *  yes/no (or true/false) and differ. Two questions keyed that way are two questions, however alike their words. */
+function keysContradict(a: string, b: string): boolean {
+  const na = numbersIn(a).map((n) => n.value);
+  const nb = numbersIn(b).map((n) => n.value);
+  if (na.length && nb.length && (na.length !== nb.length || na.some((v, i) => Math.abs(v - nb[i]) > 1e-9))) return true;
+  const ya = yesNo(a);
+  const yb = yesNo(b);
+  return !!ya && !!yb && ya !== yb;
 }
 
 /** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."). */

@@ -752,6 +752,21 @@ export function keyForm(s: string): string {
   return stripped || k;
 }
 
+// A keyForm key without a leading "to" before at least 3 more words, for isNearDuplicate only. Two keys
+// that differ only by it ("To separate the cell's interior ..." / "Separate the cell's interior ...") may
+// be one answer, or the "make / let" against "want / tell" infinitive a grammar question contrasts ("wash
+// the dirty dishes" / "to wash the dirty dishes"), so isNearDuplicate reads them as one only on stems
+// with the same words but for FRAMING_WORDS (sameButFraming), and as a reworded repeat.
+const withoutTo = (key: string) => key.replace(/^to (?=\S+ \S+ \S)/, "");
+
+// Whether two stems have the same words, each folded to its singular, once FRAMING_WORDS are left out. Every
+// word counts, stopwords too: "tell" is one, and "Let her ___" / "Tell her ___" ask two things.
+function sameButFraming(a: string, b: string): boolean {
+  const set = (t: string) => [...new Set(String(t ?? "").toLowerCase().split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w && !FRAMING_WORDS.has(w)).map(foldPlural))].sort().join(" ");
+  return set(a) === set(b);
+}
+
 // Keys that many different questions share as a matter of course: true / false, a matching question's
 // "See matching_pairs", an option letter, a number, fraction, clock time, amount of money or expression
 // ("12", "seven", "three quarters", "2:30", "two dimes", "5 cm", "x = 4"; numericKey, not any key with a
@@ -831,12 +846,21 @@ const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", 
 // vs "after 1:45"; a multiple-choice "B) Numerator" vs "C) Denominator").
 // Keys are compared as keyForm reads them ("The Cell Membrane" = "cell membrane"). A question asked again
 // in other words with its key reworded too is caught by isRewordedRepeat. Many questions with one key and
-// different stems are not caught here; quiz.ts SAME_KEY_CAP caps them instead.
+// different stems are not caught here; quiz.ts SAME_KEY_CAP caps them instead. Keys that differ only by a
+// leading "to" (withoutTo) take isRewordedRepeat as one key, never the stem overlap: TerraTutor live test part 11's
+// quiz 2 asked "The primary role of the cell membrane in relation to the cytoplasm is to:" keyed "To
+// separate the cell's interior from the outside environment", quiz 1's "The primary function ..." keyed
+// "Separate ...", while "My mom made me ___." / "My mom wants me ___." share most stem words and differ in
+// the one that asks (sameButFraming).
 export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   if (a.correct_answer === undefined || b.correct_answer === undefined) return false;
   const wa = stemWords(a.question_text);
   const wb = stemWords(b.question_text);
-  const sameKey = keyForm(a.correct_answer) === keyForm(b.correct_answer);
+  const [ka, kb] = [keyForm(a.correct_answer), keyForm(b.correct_answer)];
+  const sameKey = ka === kb;
+  if (!sameKey && withoutTo(ka) === withoutTo(kb)) {
+    return sameButFraming(a.question_text, b.question_text) && isRewordedRepeat(a, b, true);
+  }
   if (!sameKey && !freeTextRepeat(a, b, wa, wb)) return isRewordedRepeat(a, b, false);
   const ta = new Set(wa);
   const tb = new Set(wb);
@@ -899,7 +923,8 @@ const NOT_PLURALS = new Set(["news", "means", "goods", "series", "species", "alw
 const IE_PLURALS = new Set(["movies", "cookies", "calories", "brownies", "zombies", "prairies", "rookies", "smoothies", "selfies", "goalies"]);
 
 /**
- * A word's singular, folded only where that is safe (isRewordedRepeat, sameAnswer): "ies" to "y" in a
+ * A word's singular, folded only where that is safe (isRewordedRepeat, sameAnswer, answerCheck.ts
+ * rewordsQuestion): "ies" to "y" in a
  * word of 5 or more letters ("bodies" -> "body"), else a final "s" off a word of 4 or more letters that
  * does not end in "ss", "us", "is" or "ics" ("arcs" -> "arc", "cells" -> "cell", "plates" -> "plate"). So
  * "gas", "glass", "is", "its", "was", "process", "nucleus", "basis" and "physics" stay as they are. "gases"
@@ -936,6 +961,126 @@ export function sameAnswer(a: string, b: string): boolean {
     return (rest.length >= 4 ? rest : words).map(foldPlural).join(" ");
   };
   return a === b || folded(a) === folded(b);
+}
+
+// Words that start the part of a key that explains what it names: "The Joule-Thomson effect, where a gas
+// expands ...", "Decompression melting resulting from ...", "Low viscosity, allowing ...". A cause or
+// result word starts it wherever it stands; a relative word ("where", "which", "that", "when", "while")
+// only after a comma, since without one it narrows the name ("Plant cells that have chloroplasts" /
+// "Plant cells that lack them" are two answers).
+const KEY_TAIL_CAUSES = new Set(["because", "since", "whereby", "due", "caused", "causing", "leading", "resulting",
+  "allowing", "making", "meaning", "suggesting", "promoting", "giving"]);
+const KEY_TAIL_RELATIVES = new Set(["where", "which", "that", "when", "while"]);
+
+// A key's head: its words before an explaining tail, cut before a KEY_TAIL_CAUSES word, or after a ",",
+// ";", ":" or dash when the next word is a KEY_TAIL_RELATIVES word. Nothing else cuts: a comma before
+// anything else is a list or the answer itself ("Igneous rock, metamorphic rock", "Plate boundaries,
+// converging"), and so is a bracket ("Cellular respiration (aerobic)"). `tail` is the words after the
+// cut, `cause` whether a KEY_TAIL_CAUSES word made it, `cut` whether a tail was found.
+function keyHead(key: string): { text: string; tail: string; cause: boolean; cut: boolean } {
+  const tokens = normalizeOption(key).split(" ").filter(Boolean);
+  const head: string[] = [];
+  for (const [i, t] of tokens.entries()) {
+    const bare = t.replace(/[^\p{L}\p{N}'-]/gu, "");
+    const prev = tokens[i - 1] ?? "";
+    const afterBreak = /[,;:]$/.test(prev) || /^[-—–]+$/.test(prev);
+    const cause = KEY_TAIL_CAUSES.has(bare);
+    if (head.length && (cause || (afterBreak && KEY_TAIL_RELATIVES.has(bare)))) {
+      return { text: head.join(" "), tail: tokens.slice(i + 1).join(" "), cause, cut: true };
+    }
+    if (!/^[-—–]+$/.test(t)) head.push(t);
+  }
+  return { text: head.join(" "), tail: "", cause: false, cut: false };
+}
+
+// Words a tail shares without saying the same thing: the link after a cause word ("caused by", "resulting
+// from"), pronouns, and the tail words themselves.
+const TAIL_LINKS = new Set(["by", "from", "at", "as", "into", "onto", "upon", "through", "via", "than"]);
+const tailWords = (s: string) => new Set(contentWords(s)
+  .filter((w) => !TAIL_LINKS.has(w) && !KEY_PRONOUNS.has(w) && !KEY_TAIL_CAUSES.has(w) && !KEY_TAIL_RELATIVES.has(w)).map(foldPlural));
+
+// Whether two tails cut on a cause word still explain one answer: at least half the content words (each
+// folded to its singular, tailWords) of the shorter one are in the other. "due to the reduction in pressure"
+// / "resulting from the reduction in pressure" do; "caused by wind" / "caused by water", "caused by an
+// asteroid impact" / "caused by volcanic activity" are the answer itself and do not.
+function sameTailIdea(a: string, b: string): boolean {
+  const [wa, wb] = [tailWords(a), tailWords(b)];
+  if (wa.size === 0 || wb.size === 0) return false;
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  return shared / Math.min(wa.size, wb.size) >= 0.5;
+}
+
+const negationsIn = (s: string) => {
+  const lower = String(s ?? "").toLowerCase();
+  return [...lower.split(/[^\p{L}\p{N}]+/u).filter((w) => NEGATIONS.has(w)), ...(lower.match(NEGATED_CONTRACTION) ?? []).map(() => "n't")].join(" ");
+};
+
+/**
+ * Whether two keys name one answer and differ only in the tail that explains it (keyHead): at least one has
+ * a tail, and their heads have the same content words (each folded to its singular) in the same order, at
+ * least 2 of them, with the same negations and numbers; and when both have a tail and either was cut on a
+ * cause word, tails that share at least half their content words (sameTailIdea), since such a tail is
+ * often the answer itself ("Soil erosion caused by wind" / "... by water"). TerraTutor live test part 11's
+ * level test keyed one section "The Joule-Thomson effect", "The Joule-Thomson effect, where a gas expands
+ * rapidly upon throttling." and "The Joule-Thomson effect, where rapid depressurization causes ...", and the
+ * same-key cap counted three keys; part 10's keyed "Decompression melting" 7 times, each with another tail. A one-word head never
+ * folds ("Nucleus, which ..." / "Nucleus, the ..."): a single word answers many questions. Measured on the
+ * labelled pairs (quiz-near-repeat.test.ts): 0 of the different pairs' keys fold this way. Folding any key
+ * that contains a shorter one, or starts with it with no tail between, was measured too and kept apart
+ * "Cell membrane" / "Cell wall before the cell membrane" and "Water, sunlight and air" / "Stored water,
+ * sunlight and air" only by not doing it (4 of 112 different pairs). Only for the cap.
+ */
+export function sameKeyHead(a: string, b: string): boolean {
+  const [ha, hb] = [keyHead(a), keyHead(b)];
+  if (!ha.cut && !hb.cut) return false;
+  const words = (s: string) => contentWords(s).map(foldPlural).join(" ");
+  const [wa, wb] = [words(ha.text), words(hb.text)];
+  if (wa !== wb || wa.split(" ").length < 2) return false;
+  if (ha.cut && hb.cut && (ha.cause || hb.cause) && !sameTailIdea(ha.tail, hb.tail)) return false;
+  return negationsIn(ha.text) === negationsIn(hb.text) && sameStemNumbers(ha.text, hb.text);
+}
+
+/** A key's content words at least, for sameStatedAnswer: a statement, not a name ("Abraham Lincoln") or a term. */
+const STATED_KEY_MIN_WORDS = 4;
+/** And the asked words (content words less FRAMING_WORDS) two stems share at least (measured: 2). */
+const STATED_KEY_MIN_SHARED = 2;
+
+/**
+ * Two questions that ask for one stated answer in other words, for the review pool (quiz-review.ts
+ * pickReview): keys sameAnswer counts as one (keyForm, plurals, "all" / "only"), each of at least
+ * STATED_KEY_MIN_WORDS content words, stems with the same numbers that share at least
+ * STATED_KEY_MIN_SHARED asked words. TerraTutor live test part 11's quiz 2 re-posed both of quiz 1's misses "Which of
+ * the following is a fundamental concept that the Cell Theory supports regarding the origin of new
+ * cells?" (key "All cells arise from pre-existing cells.") and "Which of the following statements best
+ * represents one of the three main tenets of the Cell Theory?" (key "Cells arise only from pre-existing
+ * cells."): their stems share 2 asked words, too few for isNearDuplicate. No stem bar does it alone: the
+ * fixture's "Who was president during the Civil War?" / "Who gave the Gettysburg Address during the Civil
+ * War?" (both "Abraham Lincoln", two questions) share 4. The key's length does: a name answers many
+ * questions, a sentence states one idea. The stems must also have the same negations (NEGATIONS and
+ * NEGATED_CONTRACTION, as isRewordedRepeat reads them): "Which statement is true of mitosis ...?" / "Which
+ * statement is not true of meiosis ...?" share a key and ask opposite things. Measured on the labelled
+ * pairs (quiz-near-repeat.test.ts): 0 of the different pairs.
+ */
+export function sameStatedAnswer(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
+  const [ka, kb] = [sameKeyForm(a), sameKeyForm(b)];
+  if (ka === null || kb === null || !sameAnswer(ka, kb)) return false;
+  if (Math.min(contentWords(ka).length, contentWords(kb).length) < STATED_KEY_MIN_WORDS) return false;
+  if (!sameStemNumbers(a.question_text, b.question_text)) return false;
+  if (negationsIn(a.question_text) !== negationsIn(b.question_text)) return false;
+  const asked = (t: string) => new Set(contentWords(t).map(foldPlural).filter((w) => !FRAMING_WORDS.has(w)));
+  const wb = asked(b.question_text);
+  let shared = 0;
+  for (const w of asked(a.question_text)) if (wb.has(w)) shared++;
+  return shared >= STATED_KEY_MIN_SHARED;
+}
+
+/** Whether the same-key cap (quiz.ts SAME_KEY_CAP) counts two questions' keys as one answer: neither is
+ *  routine (sameKeyForm), and sameAnswer or sameKeyHead says so. */
+export function sameCapKey(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
+  const [ka, kb] = [sameKeyForm(a), sameKeyForm(b)];
+  if (ka === null || kb === null) return false;
+  return sameAnswer(ka, kb) || sameKeyHead(String(a.correct_answer), String(b.correct_answer));
 }
 
 // Words that start a qualifier: a place, a time or a condition ("... and grow without water in the
@@ -1008,6 +1153,13 @@ function addsQualifier(short: ReadonlySet<string>, long: ReadonlySet<string>, lo
 // the same-stem rule read the asked words as a set; with neither, 29 of 40 and 0 of 112. Out of sample for
 // those two rules, not for foldPlural itself. Known gap: a plural that changes the meaning ("customs" /
 // "custom") with long keys sharing 4 of 9 words still merges; no key-share bar separates it from #1 / #31.
+// TerraTutor live test part 11 added 7 repeats and 6 different pairs, and TerraTutor #271's review 5
+// different pairs written fresh (an infinitive with and without "to", mirror questions with one key): 30 of
+// 47 caught and 0 of 123 merged (29 of 47 before isNearDuplicate read keys that differ only by a leading
+// "to"; the one new catch, quiz 1 #7 / quiz 2 #20, is the pair it was written for). Of the 6 part 11
+// repeats still missed, 3 have keys sameCapKey counts as one, so the same-key cap still reads them as one
+// answer (the cells pair also through the review pool's sameStatedAnswer); the other 3 have keys in other
+// words (Reynolds number, "density and temperature gradient ...") or contradictory ones.
 function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean): boolean {
   if (a.question_type === "fill_in_blank" || b.question_type === "fill_in_blank") return false;
   const ka = sameKeyForm(a);
