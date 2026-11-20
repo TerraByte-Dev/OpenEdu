@@ -1006,8 +1006,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: an
   answer that is neither right for the check's question nor a non-answer is compared by code with the
   key of the last hint's question too (code's for a plain operation, else one more key call), and a
-  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). Anything else
-  is graded against the check's question as below (ported from TerraTutor #255).
+  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). That verdict is
+  tagged `on: "hint"` and never passes the check: every `mastered` mark on that turn is refused by code
+  (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
+  check's question is still open, and code shows it again after the reply under "Now back to the
+  question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The next turn
+  keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
+  against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
+  else is graded against the check's question as below (ported from TerraTutor #255).
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
@@ -1093,7 +1099,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   still runs. On a check's answer turn with no verdict at all, it is refused too
   (`MASTERY_REFUSED_UNCHECKED`, ported from TerraTutor #230): `checkAnswer` gave none (the key call said
   "none", or it failed on a tutor message with no "?"), or the check did not run (the learner asked what a
-  word means, or a first-turn hold), and no card answered in the turn was checked. Before, nothing refused
+  word means, or a first-turn hold), and no card answered in the turn was checked. It is refused on any
+  turn whose typed answer was to a hint's own question, whatever a card picked that turn
+  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258). Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.

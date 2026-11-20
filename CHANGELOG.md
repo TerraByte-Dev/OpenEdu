@@ -168,7 +168,8 @@ The section for each release is also what the app shows when you press Check for
   check opened from "Which one should we check first?", it asks only the check's question again, not the
   topic picker and the pick; after a hint, it asks the check's question again, not the hint's, and the
   next answer is checked against the check's question, or, when it answers the hint's own question ("16"
-  for "What is 8 + 8?"), counted right for that one. Typing "hint" or "I need a hint" in a check asks for
+  for "What is 8 + 8?"), counted right for that one, but never as passing the check: nothing is marked
+  mastered, and the app asks the check's question again. Typing "hint" or "I need a hint" in a check asks for
   a hint instead of being marked as a wrong answer.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or

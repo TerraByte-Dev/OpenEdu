@@ -31,6 +31,7 @@ import { ASSESS_MESSAGE } from "./suggestions";
 import { compareToKey, numbersIn, optionsIn, type KeyMatch } from "./answerCompare";
 import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
+import { replyFromPersisted } from "./persistedReply";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -47,6 +48,11 @@ export interface AnswerCheck {
   studentAnswer?: string;
   /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no reply call (the post-turn reflection still runs). */
   nonAnswer?: boolean;
+  /** "hint" when the answer was to a hint's own question, not the check's (checkAnswer): it never counts toward
+   *  mastery (TutorEngine refuses the mark), and the check's question stays open (hintAnswerBack). */
+  on?: "hint";
+  /** With `on: "hint"`, the check's own question as its key call copied it. */
+  checkQuestion?: string;
 }
 
 // ── When it runs ────────────────────────────────────────────────────────────────────────────────
@@ -146,13 +152,36 @@ const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnsw
  * me a hint.", "xyz" was given the hint's "Are they the same size?"). The last hint's reply comes with it
  * (`hint`, else null): a hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a
  * learner who answers that one ("16") is right (checkAnswer). `conversation` ends with the newest message.
+ * The reply to that answer ends with the check's question again, after HINT_ANSWER_BACK (hintAnswerBack):
+ * only that part is taken from it, so the next try is checked against the check's question, not
+ * against anything the reply asked before it. A reply that stalled still ends with it, before the saved
+ * stalled marker (persistedReply.ts), which is left out.
  */
 export function checkedMessage(conversation: ReadonlyArray<{ role: string; content: string }>): { message: string; hint: string | null } {
   const last = conversation.length - 2;
   let i = last;
   while (i >= 2 && conversation[i - 1].role === "user" && isHintRequest(conversation[i - 1].content)
     && conversation[i - 2].role === "assistant" && conversation[i - 2].content.trim()) i -= 2;
-  return { message: afterAnsweredCard(conversation[i]?.content ?? ""), hint: i < last ? afterAnsweredCard(conversation[last].content) : null };
+  const message = afterAnsweredCard(conversation[i]?.content ?? "");
+  const back = message.lastIndexOf(HINT_ANSWER_BACK);
+  return {
+    message: back < 0 ? message : replyFromPersisted(message.slice(back + HINT_ANSWER_BACK.length)).text.trim(),
+    hint: i < last ? afterAnsweredCard(conversation[last].content) : null,
+  };
+}
+
+/** The line code puts before the check's question, after the reply to an answer to a hint's own question. */
+export const HINT_ANSWER_BACK = "Now back to the question:";
+
+/**
+ * What code adds after the reply when the learner answered the hint's own question (`on: "hint"`), or null
+ * on any other turn: the check's question again, so it stays open and the next try is checked against it
+ * (checkedMessage). The answer to the hint never passes the check (TutorEngine's mastery gate).
+ */
+export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null): string | null {
+  if (check?.on !== "hint") return null;
+  const again = questionAgain(tutorMessage, check.checkQuestion ?? "");
+  return again ? `${HINT_ANSWER_BACK}\n\n${again}` : null;
 }
 
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
@@ -378,7 +407,9 @@ export async function checkAnswer(
     const hinted = await answerKey(hintReply, config, opts);
     if (hinted && hinted !== "none"
       && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
-      return { ...hinted, verdict: "correct", by: "code" };
+      // Tagged: right, but an answer to the hint's easier question, never to the check's. It never counts
+      // toward mastery, and the check's question stays open (ported from TerraTutor #258).
+      return { ...hinted, verdict: "correct", by: "code", on: "hint", checkQuestion: keyed.question };
     }
   }
   const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
@@ -556,7 +587,12 @@ export function answerCheckNote(check: AnswerCheck): string {
   // Which question the answer was to: with two questions asked, a small model answered question 1's
   // when the child was answering question 2 (TerraTutor B9 rerun 2).
   const question = check.question ? `The question was: ${check.question}\n` : "";
-  return `<tutor_note>\n${question}${body}\nDo not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
+  // An answer to the hint's own question: right, but the check's question is still open, and the app asks it
+  // again after the reply (hintAnswerBack), so the reply neither asks nor answers it.
+  const open = check.on === "hint"
+    ? `That was the hint's question, not the check's. The check's question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
+    : "";
+  return `<tutor_note>\n${question}${body}\n${open}Do not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
 }
 
 export function withAnswerCheckNote(userContent: string, check: AnswerCheck): string {
