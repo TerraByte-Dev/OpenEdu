@@ -2454,6 +2454,23 @@ describe("an answer to the check's first question after the tutor moved on", () 
       expect(marks).toEqual([]);
     }, 30_000);
 
+    // TerraTutor take-back 2026-11-20-1623, items 2 and 3 (ported from TerraTutor #276): a key in math dollars or bold
+    // is the same answer, so the move-on question the learner just answered is not asked again.
+    for (const againKey of ["$4$", "$4$ pieces", "**4** pieces", "n = 4"]) {
+      it(`thread A with the move-on key ${JSON.stringify(againKey)}: one verdict, nothing asked again`, async () => {
+        keyOut = keyA(againKey);
+        gradeOut = gradeBy({ [A_FIRST]: "correct" });
+        script = [markCall("mastered"), reply("That is correct! The denominator is 4.")];
+        const { result, confirms } = await answer(THREAD_A, "The denominator would be 4.");
+        expect(result.answerCheck).toMatchObject({ question: A_AGAIN, key: againKey, verdict: "correct", reworded: true });
+        expect(result.answerCheck?.on).toBeUndefined();
+        expect(result.text).toBe("That is correct! The denominator is 4.");
+        expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
+        expect(confirms).toEqual([]);
+        expect(marks).toEqual([]);
+      }, 30_000);
+    }
+
     it.each([
       ["another number", "8 pieces", "The denominator would be 4."],
       ["the same number with another unit word beside the first key's", "4 rows", "The denominator would be 4."],
@@ -2498,6 +2515,9 @@ describe("an answer to the check's first question after the tutor moved on", () 
     const AREA = "What is the area of a square with sides of 4 cm?";
     const TIMES = "There are 3 bags with 4 apples each. What multiplication shows this?";
     const PLUS = "There are 3 apples and 4 pears. What addition shows this?";
+    const FEET = "A door is 5 feet tall. How do you write its height with the feet mark?";
+    const INCHES = "A pencil is 5 inches long. How do you write its length with the inch mark?";
+    const MARK_AFTER = "I would write the 5 with its mark after it.";
     it.each([
       ["perimeter, then area in cm²", PERIMETER, "16 cm", AREA, "16 cm²", "16 cm"],
       ["perimeter, then area in square cm", PERIMETER, "16 cm", AREA, "16 square cm", "16 cm"],
@@ -2505,6 +2525,11 @@ describe("an answer to the check's first question after the tutor moved on", () 
       ["the review's perimeter, then area", "A square has sides of 1 cm. What is its perimeter?", "4 cm", "What is the area of a square with sides of 2 cm?", "4 cm²", "4 cm"],
       ["multiplication, then addition", TIMES, "3 × 4", PLUS, "3 + 4", "3 × 4"],
       ["multiplication with an x, then addition", TIMES, "3 x 4", PLUS, "3 + 4", "3 x 4"],
+      // TerraTutor take-back 2026-11-20-1623, item 4: feet and inches, and a factorial, are other answers. The answer is
+      // a sentence, so code's exact match (answerCompare, which reads "5'" as 5) leaves the newest question to the grader.
+      ["feet, then inches", FEET, "5'", INCHES, "5\"", MARK_AFTER],
+      ["inches, then feet (prime marks)", INCHES, "5″", FEET, "5′", MARK_AFTER],
+      ["a factorial, then a count", "How do you write 5 × 4 × 3 × 2 × 1 as a factorial?", "5!", "There are 5 apples in a bowl. How many apples are there?", "5", MARK_AFTER],
     ])("%s, the same number in both keys: graded apart and asked again", async (_, first, firstKey, again, againKey, said) => {
       keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes(again)
         ? { question: again, working: "", answer: againKey }
@@ -2611,7 +2636,6 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["insects", "snakes and birds", false],
     // Review of this port, MUST-FIX 1: a symbol beside the numbers is part of the answer.
     ["3 x 4", "3 × 4", true],
-    ["3 × 4", "$3 \\times 4$", true],
     ["16 cm²", "16 cm².", true],
     ["4 cm", "4 square cm", true],
     ["4 cm", "4 cm²", false],
@@ -2619,7 +2643,6 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["3 x 4", "3 + 4", false],
     ["3 + 4 × 5", "3 × 4 + 5", false],
     ["50%", "50", false],
-    ["$4", "4 cents", false],
     ["4 > 3", "4 < 3", false],
     ["2:30", "2/30", false],
     ["It controls what enters and leaves the cell", "It lets some things in and keeps others out", false],
@@ -2627,6 +2650,60 @@ describe("an answer to the check's first question after the tutor moved on", () 
     expect(keysAgree(a, b)).toBe(same);
     expect(keysAgree(b, a)).toBe(same);
   });
+
+  // Rows with a "$" in a key: it.each reads "$3" and "$4" in a title as placeholders, so these rows have titles of
+  // their own (as in TerraTutor 87577a00).
+  // TerraTutor take-back 2026-11-20-1623, items 2-4 (ported from TerraTutor #276): plain math dollars read as their
+  // contents and formatting is not an answer symbol, a closed set of words reads as its symbols, and feet, inch and
+  // factorial marks are answer symbols. Money stays money; anything outside the closed set stays a different answer.
+  const takeBack1623: ReadonlyArray<readonly [string, string, boolean]> = [
+    ["$4$", "4 pieces", true],
+    ["$4$ pieces", "4", true],
+    ["$3/8$", "3/8", true],
+    ["$4 and $5", "4 and 5", false],
+    ["$4.50", "4.50", false],
+    ["**4**", "4 pieces", true],
+    ["__4__", "4", true],
+    ["x = 4", "4", true],
+    ["n = 4", "4 pieces", true],
+    ["7 - 2", "7 – 2", true],
+    ["7 - 2", "7 − 2", true],
+    ["50%", "50 percent", true],
+    ["90°", "90 degrees", true],
+    ["$4.50", "4.50 dollars", true],
+    ["4 > 3", "4 is greater than 3", true],
+    ["3 < 4", "3 is less than 4", true],
+    ["4 > 3", "4 is less than 3", false],
+    ["50 percent", "50", false],
+    ["90°", "90", false],
+    ["5 feet", "5'", false],
+    ["5'", "5\"", false],
+    ["5′", "5″", false],
+    ["5'", "5′", true],
+    ["5'6\"", "5'6\"", true],
+    ["5!", "5", false],
+    ["\"four\"", "four", true],
+    ["\"4\" pieces", "4 pieces", true],
+    // TerraTutor #276's review: "or equal to" keeps the words (not ">" or "<"), a quote after ":" or "=" is not an
+    // inch mark, "**" between two numbers is a power, and keys for two unknowns are two answers.
+    ["x is greater than or equal to 3", "x > 3", false],
+    ["x is less than or equal to 5", "x < 5", false],
+    ["4 is greater than or equal to 4", "4 > 4", false],
+    ["x is greater than or equal to 3", "x ≥ 3", false],
+    ["answer:\"4\"", "4", true],
+    ["[\"4\"]", "4", true],
+    ["2 ** 3", "2 and 3", false],
+    ["2 ** 3", "2 × 3", false],
+    ["2 ** 3", "2^3", true],
+    ["x = 4", "y = 4", false],
+    ["x = 4", "X = 4", true],
+  ];
+  for (const [a, b, same] of [["3 × 4", "$3 \\times 4$", true], ["$4", "4 cents", false], ...takeBack1623] as const) {
+    it(`keysAgree(${JSON.stringify(a)}, ${JSON.stringify(b)}) is ${same}`, () => {
+      expect(keysAgree(a, b)).toBe(same);
+      expect(keysAgree(b, a)).toBe(same);
+    });
+  }
 
   it.each([
     [Q_MEMBRANE, "So, what job does the membrane do for the cell?", true],
@@ -2849,6 +2926,11 @@ describe("a question that offers a choice of what to do next", () => {
     ["Do you want to try 6 × 7, or would you like an easier one?", false],
     ["Would you like to solve 12 ÷ 3 next, or try a different one?", false],
     ["Do you want to shade 3 of the 4 blocks, or try another way?", false],
+    // TerraTutor take-back 2026-11-20-1623, item 1 (ported from TerraTutor 87577a00): a number with no problem in it
+    // leaves an offer an offer.
+    ["Do you want to do 3 more, or would you like to stop?", true],
+    ["Do you want 5 more minutes, or should we take a break?", true],
+    ["Do you want to try question 2, or go back to question 1?", true],
   ])("asksOpinion(%j) is %s", (question, offer) => {
     expect(asksOpinion(question)).toBe(offer);
   });

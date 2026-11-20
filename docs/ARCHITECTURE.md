@@ -1114,10 +1114,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   you want to try another example, or would you like to check another part of ...?", TerraTutor live test
   2026-11-20 part 12, step 3, keyed "2/6", a statement before it; "Is a whale a fish or a mammal?", "Is 3/4
   bigger or smaller than 1/2?" and "Do you want to add or subtract ...?" are keyed, and so is an offer with
-  a question inside it: a question word, "whether" or "if", a ":", a digit, or "tell", "name", "find",
-  "guess" or "answer", as in "Do you want to tell me what the nucleus does, or would you like a hint?" or "Do you
-  want to try 6 × 7, or would you like an easier one?"; ported from TerraTutor #273, the digit from this
-  repo's review of that port), with no key call when it is the message's one question, and a key whose answer is no
+  a question inside it: a question word, "whether" or "if", a ":", an operation between two numbers or "3 of
+  the 4", or "tell", "name", "find", "guess" or "answer", as in "Do you want to tell me what the nucleus does,
+  or would you like a hint?" or "Do you want to try 6 × 7, or would you like an easier one?"; ported from
+  TerraTutor #273, the numbers from this repo's review of that port; a number alone, "Do you want to do 3
+  more, or would you like to stop?", leaves an offer an offer, TerraTutor take-back 2026-11-20-1623, item 1),
+  with no key call when it is the message's one question, and a key whose answer is no
   answer: a
   request for input, a refusal or a note about the message (`isMetaKey`: "Please provide a topic", "There
   is no question in this message.", "Answers will vary."; it must open the answer, so "No", "None" and
@@ -1231,7 +1233,13 @@ So the verdict on the child's answer is the app's, not the reply's:
   the same negations and yes or no, and every other word of one key in the other: "4" / "4 pieces", not "4
   pieces" / "4 blocks", "3/4" / "4/3", "4" / "not 4", "4 cm" / "4 cm²", "3 × 4" / "3 + 4" ("3 x 4" is "3 ×
   4"), "50%" / "50" or "$4" / "4 cents"; ported from TerraTutor #273, which replaced `keysContradict`; the
-  symbols are this repo's review of that port, MUST-FIX 1), the two are one question: one verdict, the better one, given on the newest question
+  symbols are this repo's review of that port, MUST-FIX 1; formatting is not a symbol: "$4$" / "4 pieces"
+  (plain math dollars; "$4 and $5" and "$4.50" stay money), "**4**" / "4", "x = 4" / "4" (not "x = 4" / "y =
+  4"), "7 – 2" / "7 - 2", "2 ** 3" / "2^3", and only these words read as their symbols: "50 percent" / "50%",
+  "90 degrees" / "90°", "4.50 dollars" / "$4.50", "is greater than" / ">", "is less than" / "<" ("is greater
+  than or equal to" stays words, another answer than ">" and "≥"); a feet, inch or factorial mark after a
+  number is part of the answer: not `5'` / `5"`, "5!" / "5", in `keysAgree` and in the same-key check alike;
+  TerraTutor take-back 2026-11-20-1623, items 2-4, ported from TerraTutor #276), the two are one question: one verdict, the better one, given on the newest question
   with its own key, with nothing asked again (this repo's take-back 2026-11-20-0752 of the #268 port:
   "That's partly right." and then the same question again). Keys that do not give one answer are two
   answers, however alike the questions' words: "What does a frog eat?" / "What eats a frog?", keyed
