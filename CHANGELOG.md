@@ -171,7 +171,25 @@ The section for each release is also what the app shows when you press Check for
   for "What is 8 + 8?"), counted right for that one, but never as passing the check: nothing is marked
   mastered, and the app asks the check's question again. Typing "hint" or "I need a hint" in a check asks for
   a hint instead of being marked as a wrong answer.
+- **A check stays open while the learner asks for hints.** In "Check if I've got this", asking for a hint,
+  answering the hint's question or typing something that answers nothing no longer uses up the check, so
+  the right answer after them is still checked and can mark the skill learned. A check still ends after
+  four other messages (answers, or requests such as "can you explain that again?") or twelve messages. An
+  answer to a hint's own question ("break it into equal pieces" for "How could you share a chocolate bar
+  equally?") is now checked against the hint's question, never the check's, and the app then asks the
+  check's question again; an answer that is right for the check's question, by the app's own match ("48"
+  after the hint "What is 8 + 8?") or by the grader when it is not right for the hint's ("A fraction is a
+  part of a whole, like one slice of a pizza."), still counts for the check. When the app asks a question
+  again that points back ("what the "whole" is in this example?"), it keeps the example.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
+- **A question asked again in other words counts as a repeat** when its answer is written in words, too:
+  the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number
+  of slices you ate", is no longer asked twice in a quiz or in the next quiz on the level. Questions whose
+  numbers differ, or come in another order ("what does 7 represent in 7/10" and "what does 10 represent"),
+  stay apart, as do ones whose answers share no word ("numerator" and "denominator") and ones that ask
+  something else at the end ("what does the numerator tell you?" and "the denominator", the job of the
+  roots and of the leaves). Number, fraction, time, money, multiple-choice and word-problem answers still
+  count as a repeat only when they are the same.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an
   English question asks about ("an eighth" and "a eighth"), and so do a hyphen or a space in a question

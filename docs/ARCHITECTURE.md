@@ -231,8 +231,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
   questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
   answered right after it in that course, by the key, the model or the learner's own mark (never an
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
-  later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`),
-  is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
+  stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
+  fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind"), with the same numbers in the same order and the
+  same last clause word for word, so only the setup differs; TerraTutor #259), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. The re-posed missed questions
   repeat across quizzes on purpose. Fresh ones are kept apart from the last quizzes on the level
   (`db.ts getRecentQuizQuestions`, the newest `RECENT_QUESTIONS` answered rows, `GenPlan.earlier`; ported
@@ -887,13 +889,24 @@ So the verdict on the child's answer is the app's, not the reply's:
   and the like: "ok check me. give me a question", TerraTutor click test 2026-11-19; "ok 46" is still an
   answer) to the tutor's message just before it, in a
   mastery check: the turn runs in assess mode, or
-  a request for one is among the student's last four messages: the assess chip's message
+  a check the student opened is still open (`openCheck`): opened by the assess chip's message
   (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on
   fractions", "can you check if I've mastered fractions?", "am I ready for the test?", opening the
   message or a clause of it; not "check my spelling", "check if I got this right" or "my teacher will
-  quiz me tomorrow"). The chat resets the chip's mode after every send, so ChatTab picks the next turn's
+  quiz me tomorrow"). A check stays open until four of the student's messages after the request were used
+  (`ASSESS_LOOKBACK`): answers, and requests other than a hint ("can you explain that again?"), the
+  student asks for a new check (the newest request wins), or 12 of their messages followed the request,
+  whatever they were (`CHECK_MAX_MESSAGES`: two questions with a hint, its answer, a non-answer and a
+  wrong try each fit). A hint request, an answer to a hint's question and an answer that answers nothing
+  use none of the four; each is read from the reply after it, and only a reply code wrote counts
+  (`codeRepeat`: code's non-answer reply, or the check's question asked again after "Now back to the
+  question:", each rebuilt from the message the answer was checked against; a model reply that only
+  starts the same way asks something new and is not one). Before, every message counted, so a check
+  asked for, then "hint", the hint's answer, "xyz", "hint" and the right answer never graded that answer
+  (TerraTutor click test 2026-11-19 part 7, issue 1; ported from TerraTutor #260). A new thread is a new
+  check. The chat resets the chip's mode after every send, so ChatTab picks the next turn's
   mode from the conversation (`chatSkills.ts chatTurnMode`, ported from TerraTutor #227): with no chip
-  tapped, the answers to a check whose newest request within those four messages is the assess chip's
+  tapped, the answers to a check whose opening request is the assess chip's
   exact message run in assess again, which is the one mode that offers `progress.mark_mastered` and
   `ask_user.question`, so the learner's typed answer can be marked (before, it ran in the default mode and
   a mark was refused as not offered). Every other check stays in the default mode, as before: a typed
@@ -1002,12 +1015,29 @@ So the verdict on the child's answer is the app's, not the reply's:
   in it (`askCard.ts afterAnsweredCard`: the topic picker's "Which one should we check first?" and the
   pick are settled, so a check opened from the picker keys only its own question); when that message
   answered the student's request for a hint ("Give me a hint."), the message the hint was asked on is
-  keyed instead, through any number of hints: the check grades its question, not the hint's nudge. A
-  hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: an
-  answer that is neither right for the check's question nor a non-answer is compared by code with the
-  key of the last hint's question too (code's for a plain operation, else one more key call), and a
-  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). That verdict is
-  tagged `on: "hint"` and never passes the check: every `mastered` mark on that turn is refused by code
+  keyed instead, through any number of hints: the check grades its question, not the hint's nudge.
+  Code's own repeats of the check's question (`codeRepeat`, as above) are stepped back over the same way:
+  the reply to a non-answer and the reply to a hint's answer are not keyed, the message they repeat is,
+  so a topic named only in the check's announcement, which the repeat leaves out ("Let's quiz you on
+  Charlotte's Web. Who is Wilbur?"), is still in the next try's key (#402 review). A hint often ends in a
+  question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: after a hint whose reply
+  ends in a question, an answer that is neither right for the check's question by code (that match wins:
+  "48" is graded against "What is 6 x 8?") nor a non-answer is the hint's answer, graded against the
+  hint's question the same way (its key: code's for a plain operation, else one more key call; code
+  compares, then the grader, with the hint's question and key). When that grade is not right or partly
+  right, the grader also reads the answer against the check's question, and a right or partly right
+  verdict there is the check's, untagged, so a right answer to the check in words code cannot match ("A
+  fraction is a part of a whole, like one slice of a pizza.", "it is 48 because 40 + 8 is 48") is not
+  called wrong. A hint question with no one right answer, or a failed key call, gives "unsure", tagged,
+  and no second grade. Before, only an exact code match with the hint's key was caught, and the grader
+  read "break it into equal pieces", the answer to "How could you share a chocolate bar equally?", as
+  right for "what a fraction is, using a real-life example" (TerraTutor click test 2026-11-19 part 7,
+  issue 2; ported from TerraTutor #260). A hint that asks nothing, or asks only the check's
+  question again, is not keyed. A hint whose question is not its last sentence ("What is 8 + 8? Try it!",
+  "What is 8 + 8? 😊") is keyed for code's match only: an answer that matches its key is right for the
+  hint, tagged; anything else is graded against the check's question, as before this port (review of the
+  port). A verdict on the hint's question, right or not, is tagged `on: "hint"`
+  and never passes the check: every `mastered` mark on that turn is refused by code
   (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
   check's question is still open, and code shows it again after the reply under "Now back to the
   question:" (`hintAnswerBack`), on a reply that stalled too (not one the learner stopped). The next turn
@@ -1021,7 +1051,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   further call, and code writes the whole reply too, with no reply call (`nonAnswerReply`: "That doesn't
   answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
   before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
-  apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
+  apples. He eats 2. How many are left?"); a question whose first sentence points back at something said
+  before it ("this", "these", "it", "the picture", "that example": "Can you tell me what the "whole" is in
+  this example?") keeps the nearest paragraph before it that holds more than praise, a lead-in or the
+  check's announcement, up to two paragraphs up (TerraTutor click test 2026-11-19 part 7, issue 6: the
+  chocolate-bar example was lost; ported from TerraTutor #260); without leading praise or a lead-in ("Great job!", "Next
   one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice.", a sentence
   that announces the check: "I will check your understanding of "What is a Fraction? Whole and Parts."",
   "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now",
@@ -1212,13 +1246,13 @@ saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFa
   56?", "is it 56? what is 7 times 8", "I think it's 54"), and any message that asks to be quizzed or to
   work it out ("quiz me", "ask me", "hint", "don't tell me", "let me try").
 - **Never a question the tutor asked**: not on any turn of a mastery check (`inMasteryCheck`: assess mode,
-  the quiz chip, or "quiz me" / "test me" among the student's last messages), and not when one of the
+  or a check the student opened with the quiz chip or a typed request, still open, `openCheck`), and not when one of the
   tutor's last five messages (`TUTOR_LOOKBACK`) holds every operand, as a number or a number word
   ("eight sevens"), or holds the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"): it
   may have asked that sum, or a word problem with those numbers. "Half", "twice" and "double" count as 2,
   "third" and "triple" as 3, "quarter" as 4 and "dozen" as 12 ("What is half of 16?" then "what is 16 /
   2"). Five, not one, because a hint can sit between the tutor's question and the student's ask, and a
-  long quiz runs past `inMasteryCheck`'s window (the student's last five messages), where a question
+  long quiz runs past `inMasteryCheck`'s window (four graded answers, `openCheck`), where a question
   typed runs in explain mode. The student's own messages from that stretch are read the same way, so a
   word problem the student typed a message or more before the question ("Sam has 7 bags with 8 marbles
   in each. How many marbles?", the tutor's reply, then "what is 7 times 8?") is held as the student's

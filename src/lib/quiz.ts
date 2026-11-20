@@ -503,9 +503,11 @@ interface GenPlan {
 
 // Compared on askedText, so two fill-in-the-blank questions that share "Fill in the blank." but ask
 // different sentences are not repeats.
-type Asked = Parameters<typeof askedText>[0] & { correct_answer?: string };
+type Asked = Parameters<typeof askedText>[0] & { correct_answer?: string; options?: string[] | null };
 const repeatsAny = (list: ReadonlyArray<Asked>, q: GenQuestion): boolean => {
-  const asked = (x: Asked) => ({ question_text: askedText(x), correct_answer: x.correct_answer });
+  const asked = (x: Asked) => ({
+    question_text: askedText(x), correct_answer: x.correct_answer, question_type: x.question_type, options: x.options,
+  });
   const b = asked(q);
   const k = questionKey(b.question_text);
   return list.some((x) => { const a = asked(x); return questionKey(a.question_text) === k || isNearDuplicate(a, b); });

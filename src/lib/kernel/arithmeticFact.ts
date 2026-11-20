@@ -194,8 +194,8 @@ function mentions(text: string, digits: string): boolean {
 
 /**
  * How many of the tutor's newest messages the echo check reads. A quiz question can sit behind a hint
- * or two ("hmm", a hint, then "what is 7 times 8"), and a long quiz runs past inMasteryCheck's window of
- * the student's last ASSESS_LOOKBACK + 1 messages; this is the same five, on the tutor's side. The
+ * or two ("hmm", a hint, then "what is 7 times 8"), and a long quiz runs past inMasteryCheck's window (four
+ * graded answers, answerCheck.ts openCheck); this is five, on the tutor's side. The
  * student's own messages from that stretch are read too: a word problem the student typed one message
  * before the question ("Sam has 7 bags with 8 marbles in each...", the tutor's reply, then "what is 7
  * times 8?") is the student's own exercise, held by the attempt-first policy (B4 G1). A student message

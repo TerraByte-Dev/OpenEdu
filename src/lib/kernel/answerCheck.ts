@@ -28,7 +28,7 @@ import type { LLMConfig, ModelTier } from "../../types";
 import { arithmeticClaims } from "../arithmetic-claims";
 import { isAttemptText } from "./checkBeforePraise";
 import { ASSESS_MESSAGE } from "./suggestions";
-import { compareToKey, numbersIn, optionsIn, type KeyMatch } from "./answerCompare";
+import { compareToKey, numbersIn, optionsIn, type CompareContext, type KeyMatch } from "./answerCompare";
 import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
 import { replyFromPersisted } from "./persistedReply";
@@ -57,8 +57,17 @@ export interface AnswerCheck {
 
 // ── When it runs ────────────────────────────────────────────────────────────────────────────────
 
-/** How many student messages back the assess chip still makes the conversation a mastery check. */
+/** How many of the student's messages a check stays open for, hint requests, hint answers and non-answers aside (openCheck). */
 export const ASSESS_LOOKBACK = 4;
+
+/**
+ * The most student messages a check stays open for after the request that opened it, the newest
+ * included, whatever they are (openCheck). assess.md asks one or two questions; a question can take a
+ * hint request, an answer to the hint, a non-answer, another hint and a wrong try before the right one
+ * (TerraTutor click test 2026-11-19 part 7, issue 1: six messages for one question), so two questions fit in 12,
+ * and a check left behind for a chat about something else ends.
+ */
+export const CHECK_MAX_MESSAGES = 12;
 
 // A message that asks for something rather than answering: help, a hint, a question back, a new topic,
 // a picture or a change of plan ("Draw me a diagram of a pizza cut into 4 slices", "Let me pick the
@@ -108,14 +117,49 @@ export function asksForMasteryCheck(text: string): boolean {
   return t === ASSESS_MESSAGE || (t.length <= 300 && MASTERY_CHECK_REQUEST.test(t));
 }
 
+type Message = { role: string; content: string };
+
+/** How code's reply to an answer that answers nothing starts (nonAnswerReply). */
+const NON_ANSWER_LEAD = "That doesn't answer the question yet.";
+// Code's reply to it, before the question asked again, and when there is no question to ask again.
+const NON_ANSWER_AGAIN = `${NON_ANSWER_LEAD} Here it is again:`;
+const NON_ANSWER_RETRY = `${NON_ANSWER_LEAD} Want to try again?`;
+
+/**
+ * The message that opened the mastery check the newest message is in, or null when none is open. A
+ * check opens with the student's request (the assess chip, or the same request typed: asksForMasteryCheck)
+ * and stays open until ASSESS_LOOKBACK of the student's messages after it have been used, the student
+ * opens a new check (the newest request wins), or CHECK_MAX_MESSAGES of their messages have followed it.
+ * A hint request, an answer to a hint's question and an answer that answered nothing (the replies code
+ * wrote to them, codeRepeat) use none of it: TerraTutor click test 2026-11-19 part 7, issue 1, counted every message,
+ * so "hint", the hint's answer, "xyz", "hint" and then the right answer was never graded. Any other message
+ * uses one, a request ("can you explain it again?") too, so a check left open for a chat ends as before.
+ * A new thread is a new conversation. The newest message itself is not read: `conversation` ends with it.
+ */
+export function openCheck(conversation: ReadonlyArray<Message>): string | null {
+  const before = conversation.slice(0, -1);
+  const memo = new Map<number, number>();
+  let learner = 0;
+  let used = 0;
+  for (let j = before.length - 1; j >= 0; j--) {
+    const m = before[j];
+    if (m.role !== "user") continue;
+    if (asksForMasteryCheck(m.content)) return m.content;
+    if (++learner >= CHECK_MAX_MESSAGES) return null;
+    const free = isHintRequest(m.content) || (j + 1 < before.length && codeRepeat(before, j + 1, memo));
+    if (!free && ++used >= ASSESS_LOOKBACK) return null;
+  }
+  return null;
+}
+
 /**
  * True when this turn gets the answer check: the newest message is the student's answer to the tutor's
- * message just before it, and the conversation is a mastery check: the turn runs in assess mode, or
- * the student opened the check (the assess chip, or the same request typed) within their last
- * ASSESS_LOOKBACK messages. (The chat resets the chip's mode after every send. ChatTab runs the answers
- * to a check opened by the assess chip in assess again (chatSkills.ts chatTurnMode), but the answers to
- * a typed request or the quiz chip, and a headless caller's, may arrive in another mode.) `conversation`
- * is the user and assistant messages, ending with the newest.
+ * message just before it, and the conversation is a mastery check: the turn runs in assess mode, or a
+ * check the student opened (the assess chip, or the same request typed) is still open (openCheck). (The
+ * chat resets the chip's mode after every send. ChatTab runs the answers to a check opened by the assess
+ * chip in assess again (chatSkills.ts chatTurnMode), but the answers to a typed request or the quiz chip,
+ * and a headless caller's, may arrive in another mode.) `conversation` is the user and assistant
+ * messages, ending with the newest.
  */
 export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   const n = conversation.length;
@@ -124,18 +168,19 @@ export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; c
   if (!newest || newest.role !== "user" || !asked || asked.role !== "assistant" || !asked.content.trim()) return false;
   if (!readsAsAnswer(newest.content)) return false;
   if (activeSkill === "assess") return true;
-  return conversation.slice(0, n - 1).filter((m) => m.role === "user").slice(-ASSESS_LOOKBACK)
-    .some((m) => asksForMasteryCheck(m.content));
+  return openCheck(conversation) !== null;
 }
 
 /**
  * True on any turn of a mastery check, the opening request's own turn included: the turn runs in assess
- * mode, or a request for a check is among the student's last ASSESS_LOOKBACK + 1 messages. The reply
- * filter reads mastery claims on these turns (replyClaims.ts).
+ * mode, the newest message asks for a check, or a check is still open (openCheck). The reply filter
+ * reads mastery claims on these turns (replyClaims.ts).
  */
 export function inMasteryCheck(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   if (activeSkill === "assess") return true;
-  return conversation.filter((m) => m.role === "user").slice(-(ASSESS_LOOKBACK + 1)).some((m) => asksForMasteryCheck(m.content));
+  const newest = conversation[conversation.length - 1];
+  if (newest?.role === "user" && asksForMasteryCheck(newest.content)) return true;
+  return openCheck(conversation) !== null;
 }
 
 // A request for a hint ("Give me a hint.", "can I have a hint?"): its reply nudges toward the question, it
@@ -145,29 +190,82 @@ const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnsw
 /**
  * The tutor's message the newest message answers, as the check keys it and repeats it (nonAnswerReply):
  * the one just before it, from after a question card answered in it (askCard.ts afterAnsweredCard).
- * TerraTutor click test 2026-11-19 (TerraTutor #255), issue 1: after the topic picker, "xyz" was given
- * "Which one should we check first? *You picked: ...* That is a good choice." with the question. When that
- * message answered the student's request for a hint, the message the hint was asked on is taken instead,
- * through any number of hints: the check grades its question, not the hint's nudge (issue 6: after "Give
- * me a hint.", "xyz" was given the hint's "Are they the same size?"). The last hint's reply comes with it
- * (`hint`, else null): a hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a
- * learner who answers that one ("16") is right (checkAnswer). `conversation` ends with the newest message.
- * The reply to that answer ends with the check's question again, after HINT_ANSWER_BACK (hintAnswerBack):
- * only that part is taken from it, so the next try is checked against the check's question, not
- * against anything the reply asked before it. A reply that stalled still ends with it, before the saved
- * stalled marker (persistedReply.ts), which is left out.
+ * TerraTutor click test 2026-11-19, issue 1: after the topic picker, "xyz" was given "Which one should we check
+ * first? *You picked: ...* That is a good choice." with the question. When that message answered the
+ * student's request for a hint, the message the hint was asked on is taken instead, through any number
+ * of hints: the check grades its question, not the hint's nudge (issue 6: after "Give me a hint.", "xyz"
+ * was given the hint's "Are they the same size?"). The last hint's reply comes with it (`hint`, else
+ * null): a hint that ends in a question of its own ("Count by 8s. What is 8 + 8?") makes the next
+ * message an answer to it, unless code finds it right for the check's question (checkAnswer).
+ * Code's own repeats of the check's question are stepped back over the same way, to the message they
+ * repeat: the reply to an answer that answered nothing (nonAnswerReply) and the reply to an answer to a
+ * hint's question, which ends with the check's question after HINT_ANSWER_BACK (hintAnswerBack). A
+ * repeat leaves out the check's announcement, and with it a topic named only there ("Let's quiz you on
+ * Charlotte's Web. Who is Wilbur?" repeats as "Who is Wilbur?"; OpenEdu #402 review): keyed from the
+ * repeat, the next try's key had no topic. Keyed from the message itself, it has, and the next try is
+ * still graded against the check's question, not against anything a reply asked before the repeat.
+ * Only a repeat code wrote is stepped over (codeRepeat): a model reply that copies its opening ("That
+ * doesn't answer the question yet. Let's try a different one: ...") asks its own question, and is keyed.
+ * Only when the message the repeat follows is the tutor's; else the repeat is keyed, from after
+ * HINT_ANSWER_BACK (without a stalled reply's saved marker, persistedReply.ts).
+ * `conversation` ends with the newest message.
  */
-export function checkedMessage(conversation: ReadonlyArray<{ role: string; content: string }>): { message: string; hint: string | null } {
+export function checkedMessage(conversation: ReadonlyArray<Message>): { message: string; hint: string | null } {
   const last = conversation.length - 2;
-  let i = last;
-  while (i >= 2 && conversation[i - 1].role === "user" && isHintRequest(conversation[i - 1].content)
-    && conversation[i - 2].role === "assistant" && conversation[i - 2].content.trim()) i -= 2;
+  const hinted = last >= 2 && conversation[last - 1].role === "user" && isHintRequest(conversation[last - 1].content) && tutorAt(conversation, last - 2);
+  return {
+    message: keyedText(conversation, checkedAt(conversation, last, new Map())),
+    hint: hinted ? afterAnsweredCard(conversation[last].content) : null,
+  };
+}
+
+const tutorAt = (conversation: ReadonlyArray<Message>, k: number) =>
+  k >= 0 && conversation[k].role === "assistant" && !!conversation[k].content.trim();
+
+/** The text of the tutor's message at `i` the check keys: after an answered card, and after HINT_ANSWER_BACK. */
+function keyedText(conversation: ReadonlyArray<Message>, i: number): string {
   const message = afterAnsweredCard(conversation[i]?.content ?? "");
   const back = message.lastIndexOf(HINT_ANSWER_BACK);
-  return {
-    message: back < 0 ? message : replyFromPersisted(message.slice(back + HINT_ANSWER_BACK.length)).text.trim(),
-    hint: i < last ? afterAnsweredCard(conversation[last].content) : null,
-  };
+  return back < 0 ? message : replyFromPersisted(message.slice(back + HINT_ANSWER_BACK.length)).text.trim();
+}
+
+/**
+ * The index of the tutor's message the answer after `last` is checked against (checkedMessage): `last`, or
+ * the message before a hint request or a repeat code wrote, stepped back over any number of them. `memo`
+ * keeps each index's result for one read of the conversation.
+ */
+function checkedAt(conversation: ReadonlyArray<Message>, last: number, memo: Map<number, number>): number {
+  const known = memo.get(last);
+  if (known !== undefined) return known;
+  let i = last;
+  while (i >= 2 && conversation[i - 1].role === "user" && tutorAt(conversation, i - 2)
+    && (isHintRequest(conversation[i - 1].content) || codeRepeat(conversation, i, memo))) i -= 2;
+  memo.set(last, i);
+  return i;
+}
+
+/**
+ * True when the tutor's message at `k` is a reply code wrote that repeats the check's question: the reply to
+ * an answer that answered nothing (nonAnswerReply), or one that ends with HINT_ANSWER_BACK and the check's
+ * question (hintAnswerBack), each built from the message the answer before it was checked against
+ * (checkedAt). A model reply that only starts the same way ("That doesn't answer the question yet. Let's try
+ * a different one: ...", review of TerraTutor #260) or copies the line before its own
+ * question is not: it asks something new. When that message holds no "?", code's repeat was the keyed
+ * question, which code cannot rebuild, so any question there is taken as the repeat.
+ */
+function codeRepeat(conversation: ReadonlyArray<Message>, k: number, memo: Map<number, number>): boolean {
+  if (k < 2 || !tutorAt(conversation, k) || !tutorAt(conversation, k - 2)) return false;
+  const text = afterAnsweredCard(conversation[k].content).trim();
+  const nonAnswer = text.startsWith(NON_ANSWER_LEAD);
+  const back = text.lastIndexOf(HINT_ANSWER_BACK);
+  if (!nonAnswer && back < 0) return false;
+  const base = keyedText(conversation, checkedAt(conversation, k - 2, memo));
+  const again = (asked: string) => !!asked && asked === questionAgain(base, asked).trim();
+  if (nonAnswer) {
+    if (text === NON_ANSWER_RETRY) return true;
+    if (text.startsWith(NON_ANSWER_AGAIN) && again(text.slice(NON_ANSWER_AGAIN.length).trim())) return true;
+  }
+  return back >= 0 && again(replyFromPersisted(text.slice(back + HINT_ANSWER_BACK.length)).text.trim());
 }
 
 /** The line code puts before the check's question, after the reply to an answer to a hint's own question. */
@@ -379,8 +477,10 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
 /**
  * The verdict on the student's answer to the tutor's message, or null when that message asks nothing
  * with one right answer. Never throws: a failed call gives "unsure". `hintReply` is the reply to a hint
- * asked on that message (checkedMessage): an answer that matches its question's key is right, against
- * that question.
+ * asked on that message (checkedMessage): when it ends in a question, an answer code does not find right
+ * for the check's question is graded against the hint's, tagged `on: "hint"`, unless that grade is not
+ * right and the grader finds it right (or partly) for the check's question. When the hint asks a question
+ * that is not its last sentence, only code's match with the hint's key is the hint's, tagged.
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -398,26 +498,75 @@ export async function checkAnswer(
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
   // An answer that answers nothing ("xyz", "?!", non-answer.ts) is not right, and no grader is asked.
   if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code", nonAnswer: true };
-  // After a hint, the learner may have answered the hint's own question ("Count by 8s. What is 8 + 8?" →
-  // "16"): graded against the check's key, that was "not right yet" (review of TerraTutor #255,
-  // 2026-11-19). Code compares the answer with the hint's key too (a plain operation is keyed by code,
-  // with no call), and a match is right, against the hint's question. Anything else is graded as before;
-  // a hint that asks nothing ("Try counting by 8s.") is not keyed.
-  if (hintReply?.includes("?")) {
+  // After a hint that ends in a question of its own ("Count by 8s. What is 8 + 8?"), the answer is to the
+  // hint's question, unless code found it right for the check's (above: "48" is the check's answer). Graded
+  // against the check's key, "16" was "not right yet" (review of the check-repeat fix, 2026-11-19), and the
+  // grader read "break it into equal pieces", the answer to "How could you share a chocolate bar equally?",
+  // as right for "what a fraction is, with a real-life example" (TerraTutor click test 2026-11-19 part 7, issue 2).
+  // So it is graded against the hint's question the same way (code first, a plain operation keyed by code
+  // with no call, then the grader), and tagged: it never counts toward mastery, and the check's question
+  // stays open (ported from TerraTutor #260). A hint that asks nothing ("Try counting by 8s.") or asks
+  // only the check's question again is not keyed. A hint question with no one right answer, or a failed key
+  // call, gives "unsure" and no second grade: the grader is not asked about the check's question then, as
+  // issue 2's "break it into equal pieces" was.
+  if (hintReply && endsWithQuestion(hintReply)) {
+    const hinted = await answerKey(hintReply, config, opts);
+    const onHint = { on: "hint" as const, checkQuestion: keyed.question };
+    const sameQuestion = !!hinted && hinted !== "none"
+      && questionInMessage(hinted.question, keyed.question) && questionInMessage(keyed.question, hinted.question);
+    if (!sameQuestion) {
+      const asked = onlyQuestion(hintReply);
+      if (hinted === null) return { question: asked, key: "", verdict: "unsure", by: "failed", ...onHint };
+      // The hint's question has no one right answer: nothing to grade, and still not the check's answer.
+      if (hinted === "none") return { question: asked, key: "", verdict: "unsure", by: "model", ...onHint };
+      const hintCtx = { question: hinted.question, options: optionsIn(hintReply) };
+      const hintRaw = compareToKey(hinted.key, studentMessage, hintCtx);
+      if (hintRaw === "match") return { ...hinted, verdict: "correct", by: "code", ...onHint };
+      const onTheHint = { ...(await graded(hinted, hintCtx, hintRaw, studentMessage, config, opts)), ...onHint };
+      if (onTheHint.verdict === "correct" || onTheHint.verdict === "partly") return onTheHint;
+      // Not right for the hint's question: it may be right for the check's, in words code cannot match ("A
+      // fraction is a part of a whole, like one slice of a pizza.", "it is 48 because 40 + 8 is 48"). Graded
+      // only against the hint's, a right answer to the check was "not right yet" (review of the
+      // check-stays-open fix, 2026-11-19). So the grader reads it against the check's question too, and a
+      // right or partly right verdict there is the check's, untagged; else the hint's verdict stands.
+      const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
+      return onTheCheck.verdict === "correct" || onTheCheck.verdict === "partly" ? onTheCheck : onTheHint;
+    }
+  } else if (hintReply?.includes("?")) {
+    // A hint whose question is not its last sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊"): code
+    // alone compares the answer with the hint's key, as before the fix above, and a match is right for the
+    // hint, tagged. Without this, "16" was graded against the check's question and was "not right yet"
+    // again (review of OpenEdu's port of TerraTutor #260, 2026-11-19). Anything else is graded against the
+    // check's question, with no grader call on the hint's.
     const hinted = await answerKey(hintReply, config, opts);
     if (hinted && hinted !== "none"
       && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
-      // Tagged: right, but an answer to the hint's easier question, never to the check's. It never counts
-      // toward mastery, and the check's question stays open (ported from TerraTutor #258).
       return { ...hinted, verdict: "correct", by: "code", on: "hint", checkQuestion: keyed.question };
     }
   }
-  const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
-  if (!graded) return { ...keyed, verdict: "unsure", by: "failed" };
-  const extracted = graded.student_answer.trim() ? compareToKey(keyed.key, graded.student_answer, ctx) : "undecided";
+  return graded(keyed, ctx, raw, studentMessage, config, opts);
+}
+
+/** True when the hint's reply ends in a question: its last sentence asks one ("What is 8 + 8?"). */
+function endsWithQuestion(text: string): boolean {
+  return /\?[\s*_"”')\]]*$/.test(replyFromPersisted(text).text);
+}
+
+/** The grader's verdict on the answer against `keyed`, with code's reading of it (see the file comment). */
+async function graded(
+  keyed: { question: string; key: string },
+  ctx: CompareContext,
+  raw: KeyMatch,
+  studentMessage: string,
+  config: LLMConfig,
+  opts: CallOpts,
+): Promise<AnswerCheck> {
+  const grade = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
+  if (!grade) return { ...keyed, verdict: "unsure", by: "failed" };
+  const extracted = grade.student_answer.trim() ? compareToKey(keyed.key, grade.student_answer, ctx) : "undecided";
   // Code's own reading of the whole message outranks its reading of the grader's copy of it.
   const code: KeyMatch = raw === "mismatch" || extracted === "mismatch" ? "mismatch" : extracted;
-  return { ...keyed, ...combine(code, graded.verdict), studentAnswer: graded.student_answer.trim() };
+  return { ...keyed, ...combine(code, grade.verdict), studentAnswer: grade.student_answer.trim() };
 }
 
 // ── The reply to an answer that answers nothing ───────────────────────────────────────────────
@@ -520,18 +669,83 @@ const CHECK_INTRO = /^[*_\s]*(?:(?:now|so|okay|ok|alright|all right|next),?\s+)?
 const CLAUSE_WORD = /\b(?:when|if|whether|because|after|before|where)\b/i;
 // A word that points back at something named before it.
 const POINTS_BACK = /\b(?:it|its|this|these|those|they|them|their|he|she|him|his|her)\b/i;
-function checkIntro(question: string): RegExpExecArray | null {
+// `inSetup`: the text is a paragraph before the question (setupBefore), so no "?" is left after it and the
+// question is not in it: the announcement comes off whatever follows it.
+function checkIntro(question: string, inSetup = false): RegExpExecArray | null {
   const intro = CHECK_INTRO.exec(question);
   if (!intro || holdsNumber(intro[0]) || CLAUSE_WORD.test(intro[0].replace(/"[^"\n]*"|“[^”\n]*”/g, ""))) return null;
+  if (inSetup) return intro;
   const rest = question.slice(intro[0].length).trim();
   if (!rest.includes("?")) return null;
   return POINTS_BACK.test(rest.split(/(?<=[.!?])\s/)[0]) ? null : intro;
 }
 
 /**
+ * The text without what leads in to it: praise, a lead-in, the check's announcement, the last answer's
+ * feedback after praise, the praise before a setup, and praise joined to it by commas. Again after the
+ * praise with a praise ending ("Nice one, now") that the loop cannot read past and withoutPraiseLead takes
+ * off, until nothing more comes off: the announcement after it ("let's check your understanding of
+ * nouns."), and a lead-in or praise after that ("Here is your first question.", "great,"), come off too
+ * (the port's own merge with #401; TerraTutor master keeps them).
+ */
+function withoutLead(text: string, inSetup: boolean): string {
+  // A setup's last sentence ends the text: the space after it lets it be read as a sentence too.
+  let rest = inSetup ? `${text}\n` : text;
+  let praised = false;
+  for (let before = ""; before !== rest;) {
+    before = rest;
+    for (;;) {
+      const intro = checkIntro(rest, inSetup);
+      if (intro) { rest = rest.slice(intro[0].length).trimStart(); continue; }
+      const s = FIRST_SENTENCE.exec(rest);
+      if (!s) break;
+      const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(rest);
+      if (!lead) break;
+      praised ||= lead !== s || isPraise(s[0]);
+      rest = rest.slice(lead[0].length).trimStart();
+    }
+    rest = withoutPraiseLead(rest);
+  }
+  return rest.trim();
+}
+
+const capitalised = (text: string) => text.replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
+
+// A word in the question's first sentence that points back at something said before it: "Can you tell me
+// what the "whole" is in this example?", "What fraction of it is left?", "What does the picture show?"
+// (TerraTutor click test 2026-11-19 part 7, issue 6: the repeat lost the chocolate-bar example).
+// The empty "they" and "it" point at nothing: "What do they call the answer to an addition problem?", "What
+// is it called when you add numbers?" (review of TerraTutor #260: the repeat pulled in the
+// feedback above them). "What do they call it?" and "What is it called?" still point back.
+const POINTS_NOWHERE = /\bthey\s+call(?=\s+(?!(?:it|them|this|that|these|those)\b)\w)|\bit\s+called(?=\s+(?:when|if)\b)/gi;
+const POINTS_BEFORE = /\b(?:this|these|those|it|its|they|them|their)\b|\bthat\s+(?:example|picture|story|sentence|passage|problem|diagram|image|drawing|shape|number|fraction|word|poem|text|bar|one)\b|\bthe\s+(?:picture|example|story|passage|diagram|image|drawing|poem)\b/i;
+
+/**
+ * The setup a question that points back needs: the nearest paragraph before the question's own that holds
+ * more than what leads in to it (withoutLead, so praise, a lead-in and the check's announcement come off
+ * here too), at most two paragraphs up and never past a choice line. "" when there is none.
+ * `lines` are the message's lines before the question's "?", `first` the question paragraph's first line.
+ */
+function setupBefore(lines: string[], first: number): string {
+  for (let p = first, hops = 0; hops < 2; hops++) {
+    let end = p - 1;
+    while (end >= 0 && !lines[end].trim()) end--;
+    if (end < 0 || CHOICE_LINE.test(lines[end])) return "";
+    let begin = end;
+    while (begin > 0 && lines[begin - 1].trim() && !CHOICE_LINE.test(lines[begin - 1])) begin--;
+    const setup = withoutLead(lines.slice(begin, end + 1).join("\n").trim(), true);
+    if (setup) return setup;
+    p = begin;
+  }
+  return "";
+}
+
+/**
  * The tutor's question with its paragraph (the lines before it up to a blank line or a choice), from the
  * end of any praise or lead-in before it to the end of the message, and its choices: those after it come
- * with it, and those listed before it are put after it.
+ * with it, and those listed before it are put after it. When its first sentence points back at something
+ * said before it ("Can you tell me what the "whole" is in this example?"), the setup it points at comes
+ * first (setupBefore), without praise, a lead-in or the check's announcement.
  */
 export function questionAgain(tutorMessage: string, keyedQuestion: string): string {
   const m = tutorMessage.trim();
@@ -541,29 +755,11 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
   let first = lines.length - 1;
   while (first > 0 && lines[first - 1].trim() && !CHOICE_LINE.test(lines[first - 1])) first--;
   const start = lines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
-  let question = m.slice(start).trim();
-  // Praise, a lead-in, the check's announcement, the last answer's feedback after praise, or the praise
-  // before a setup comes off. Again after the praise with a praise ending ("Nice one, now") that the loop
-  // cannot read past and withoutPraiseLead takes off, until nothing more comes off: the announcement after
-  // it ("let's check your understanding of nouns."), and a lead-in or praise after that ("Here is your first
-  // question.", "great,"), come off too (the port's own merge with #401; TerraTutor master keeps them).
-  let praised = false;
-  for (let before = ""; before !== question;) {
-    before = question;
-    for (;;) {
-      const intro = checkIntro(question);
-      if (intro) { question = question.slice(intro[0].length).trim(); continue; }
-      const s = FIRST_SENTENCE.exec(question);
-      if (!s) break;
-      const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
-      if (!lead) break;
-      praised ||= lead !== s || isPraise(s[0]);
-      question = question.slice(lead[0].length).trim();
-    }
-    question = withoutPraiseLead(question);
-  }
-  question = question
-    .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
+  // Praise, a lead-in or the check's announcement comes off (withoutLead). A question that points back at
+  // what came before it ("... in this example?") keeps the setup it points at (setupBefore).
+  let question = withoutLead(m.slice(start).trim(), false);
+  const setup = POINTS_BEFORE.test(question.split(/(?<=[.!?:])\s/)[0].replace(POINTS_NOWHERE, "")) ? setupBefore(lines, first) : "";
+  question = setup ? `${capitalised(setup)}\n\n${capitalised(question)}` : capitalised(question);
   const choicesBefore = m.slice(0, start).split("\n").filter((l) => CHOICE_LINE.test(l)).map((l) => l.trim());
   return choicesBefore.length >= 2 && !question.split("\n").some((l) => CHOICE_LINE.test(l))
     ? `${question}\n${choicesBefore.join("\n")}`
@@ -573,7 +769,7 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
 /** The whole reply when code found the answer answers nothing: no reply call (TutorEngine). */
 export function nonAnswerReply(tutorMessage: string, check: AnswerCheck): string {
   const again = questionAgain(tutorMessage, check.question);
-  return again ? `That doesn't answer the question yet. Here it is again:\n\n${again}` : "That doesn't answer the question yet. Want to try again?";
+  return again ? `${NON_ANSWER_AGAIN}\n\n${again}` : NON_ANSWER_RETRY;
 }
 
 // ── The note ────────────────────────────────────────────────────────────────────────────────────

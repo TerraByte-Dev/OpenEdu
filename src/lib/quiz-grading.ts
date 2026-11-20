@@ -14,6 +14,7 @@
 
 import { isOllamaDefaultModel } from "./models";
 import { isSafetyDisclosure } from "./child-safety";
+import { contentWords } from "./kernel/contentWords";
 import type { Grade } from "./grade";
 
 // Minimal structural shapes (we deliberately don't import GeneratedQuestion to stay leaf).
@@ -709,29 +710,79 @@ export function askedText(q: {
   return lefts.length ? `${text}\nPairs: ${lefts.join(", ")}` : text;
 }
 
-// A stem's words and numbers as a set: lower case, punctuation dropped, "2:30" and "3/4" kept whole so
+// A stem's words and numbers in order: lower case, punctuation dropped, "2:30" and "3/4" kept whole so
 // two clock questions that differ only in the time stay apart.
-function stemTokens(text: string): Set<string> {
-  return new Set(String(text ?? "").normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+(?:[:/.,][\p{N}]+)*/gu) ?? []);
+function stemWords(text: string): string[] {
+  return String(text ?? "").normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+(?:[:/.,][\p{N}]+)*/gu) ?? [];
 }
 
 export const NEAR_DUPLICATE_OVERLAP = 0.85;
 
-// Two questions a learner would see as the same one: the same answer (option text, no label) and a
-// stem whose words are at least NEAR_DUPLICATE_OVERLAP inside the other's (overlap coefficient: shared
-// words over the shorter stem's, so a restatement with a few extra words still counts). Exact repeats
-// were already dropped; the 2026-11-14 readiness run still had 61 such pairs inside single quizzes and
-// tests ("What tool is used to measure how hot or cold the air is?" / "Which tool is specifically
-// used to ..."). Two different keys are never duplicates, however alike the stems ("15 minutes after
-// 2:30" vs "after 1:45").
-export function isNearDuplicate(
-  a: { question_text: string; correct_answer?: string },
-  b: { question_text: string; correct_answer?: string },
-): boolean {
+// The stem's last clause, the part that asks: its words after the last ",", ".", ";", ":", "?" or "!"
+// followed by a space ("..., and you eat 7 of those slices, what does the number 7 represent in the
+// fraction 7/10?" -> "what does the number 7 represent in the fraction 7/10").
+function lastClause(text: string): string {
+  const parts = String(text ?? "").trim().split(/[,.;:?!]\s+/u);
+  return stemWords(parts[parts.length - 1] ?? "").join(" ");
+}
+
+/** What isNearDuplicate reads. Without question_type a question is only matched on an equal key. */
+export interface NearDuplicateQ {
+  question_text: string; correct_answer?: string; question_type?: string; options?: readonly string[] | null;
+}
+
+// The only question types whose key is in the child's own words. A word problem's key is a value or a
+// short pick ("red apples" / "green apples"), so it keeps the equal-key rule.
+const FREE_TEXT_TYPES = new Set(["short_answer", "fill_in_blank"]);
+
+// A key in the child's own words: a short-answer or fill-in-the-blank key with no digit in it that is
+// not a number word ("seven", "three quarters"), an option letter, or one of the question's options.
+// Two such keys can say the same thing in other words ("the number of parts taken" / "the number of
+// slices you ate"), so comparing them as strings misses a reworded repeat (click test 2026-11-19 part 6).
+// An EarlierQuestion carries no options; the type check alone keeps option-keyed questions out.
+function hasFreeTextKey(q: NearDuplicateQ): boolean {
+  const key = String(q.correct_answer ?? "").trim();
+  if (!key || !FREE_TEXT_TYPES.has(q.question_type ?? "") || (q.options?.length ?? 0) > 0) return false;
+  if (/\p{N}/u.test(key) || LETTER_KEY_RE.test(key) || optionNumber(key) !== null || quantityOf(key) !== null) return false;
+  return true;
+}
+
+// Pronouns are not a shared content word: "she is kind" / "she is unkind and rude" about the same story
+// character share only "she" (review of OpenEdu's port of TerraTutor #259).
+const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", "them", "their", "theirs",
+  "we", "us", "our", "ours", "your", "yours", "mine", "these", "those", "there"]);
+
+// Two questions a learner would see as the same one: a stem whose words are at least
+// NEAR_DUPLICATE_OVERLAP inside the other's (overlap coefficient: shared words over the shorter stem's,
+// so a restatement with a few extra words still counts), and either
+// - the same answer (option text, no label). Exact repeats were already dropped; the 2026-11-14
+//   readiness run still had 61 such pairs inside single quizzes and tests ("What tool is used to
+//   measure how hot or cold the air is?" / "Which tool is specifically used to ..."); or
+// - two free-text keys (hasFreeTextKey) that share a content word, the same numbers in the same order,
+//   and the same last clause word for word (lastClause), so only the setup may differ. The click test
+//   (2026-11-19 part 6) asked "... and you take 7 of those slices, what does the number 7 represent in
+//   the fraction 7/10?" (key "the number of parts taken") and, in the next quiz, the same with "eat"
+//   (key "the number of slices you ate"). The order keeps "what does 7 represent in 7/10" apart from
+//   "what does 10 represent in 7/10". The last clause keeps apart a short stem with the one word it asks
+//   about swapped, whose keys often share a word: "what does the numerator tell you?" / "the
+//   denominator", the job of the roots / of the leaves ("to take in water" / "to take in sunlight"),
+//   evaporation / condensation, the main idea of the first / second paragraph.
+// Otherwise two different keys are never duplicates, however alike the stems ("15 minutes after 2:30"
+// vs "after 1:45"; a multiple-choice "B) Numerator" vs "C) Denominator").
+export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   if (a.correct_answer === undefined || b.correct_answer === undefined) return false;
-  if (normalizeOption(a.correct_answer) !== normalizeOption(b.correct_answer)) return false;
-  const ta = stemTokens(a.question_text);
-  const tb = stemTokens(b.question_text);
+  const wa = stemWords(a.question_text);
+  const wb = stemWords(b.question_text);
+  if (normalizeOption(a.correct_answer) !== normalizeOption(b.correct_answer)) {
+    if (!hasFreeTextKey(a) || !hasFreeTextKey(b)) return false;
+    const keyWords = new Set(contentWords(a.correct_answer).filter((w) => !KEY_PRONOUNS.has(w)));
+    if (!contentWords(b.correct_answer).some((w) => keyWords.has(w))) return false;
+    const numbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
+    if (numbers(wa) !== numbers(wb)) return false;
+    if (lastClause(a.question_text) !== lastClause(b.question_text)) return false;
+  }
+  const ta = new Set(wa);
+  const tb = new Set(wb);
   if (ta.size === 0 || tb.size === 0) return false;
   let shared = 0;
   for (const t of ta) if (tb.has(t)) shared++;
@@ -741,7 +792,7 @@ export function isNearDuplicate(
 // Keep the first occurrence of each distinct question; drop blanks, exact repeats (by normalized text)
 // and near-duplicates of an earlier one (isNearDuplicate). The top-up loop re-asks subtopics, so this
 // guards against the model repeating a question across rounds.
-export function dedupeByQuestionText<T extends { question_text: string; correct_answer?: string }>(items: T[]): T[] {
+export function dedupeByQuestionText<T extends NearDuplicateQ>(items: T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const it of items) {

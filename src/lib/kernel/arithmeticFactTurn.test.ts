@@ -152,7 +152,7 @@ describe("arithmetic-fact note: request through the kernel", () => {
     }
   });
 
-  // A quiz runs past inMasteryCheck's window (the student's last ASSESS_LOOKBACK + 1 messages), and a
+  // A quiz runs past inMasteryCheck's window (four graded answers, answerCheck.ts openCheck), and a
   // question typed in it runs in explain mode, so only the echo check over the tutor's last messages holds.
   it("(c) not on a long quiz's question with a hint in between, from either chip, or on practice", async () => {
     const answered: Sent = [1, 2, 3, 4].flatMap((n) => [

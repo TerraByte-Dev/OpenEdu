@@ -37,8 +37,8 @@ vi.mock("../llm", async (importOriginal) => ({
   }),
   callLLMStructured: vi.fn(async (messages: Sent, _config: unknown, opts: { toolName: string; validate?: (o: unknown) => string[] }) => {
     structured.push({ tool: opts.toolName, messages, opts });
-    // A key can be worked out from what the key call was sent (keyFrom), as a model works it out.
-    const out = opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(messages) : keyOut) : gradeOut;
+    // A key (or a grade) can be worked out from what the call was sent, as a model works it out.
+    const out = opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(messages) : keyOut) : (typeof gradeOut === "function" ? gradeOut(messages) : gradeOut);
     if (out instanceof Error) throw out;
     return out;
   }),
@@ -59,7 +59,7 @@ vi.mock("../db", async (importOriginal) => ({
 
 import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_HINT, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
-import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK } from "./answerCheck";
+import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES } from "./answerCheck";
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
@@ -1436,11 +1436,258 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(marks).toEqual([]);
   }, 30_000);
 
-  it("after a hint, an answer to neither question is graded against the check's question", async () => {
+  // TerraTutor click test 2026-11-19 part 7, issue 2 (ported from TerraTutor #260): after a hint that ends in its own
+  // question, an answer code does not find right for the check's question is the hint's answer. Graded
+  // against the check's question, it was (this test, before) "not right yet" for 6 x 8.
+  it("after a hint that asks a question, an answer to neither is graded against the hint's question, and the check's is asked again", async () => {
     gradeOut = { student_answer: "40", verdict: "incorrect" };
+    script = [markCall("mastered"), reply("Not quite: 8 + 8 is 16.")];
     const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
     const { result } = await answer(history, "40");
-    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "incorrect" });
+    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "incorrect", on: "hint", checkQuestion: "What is 6 x 8?" });
+    // The grader reads the hint's question and key, never the check's.
+    const graded = structured.find((c) => c.tool === "AnswerGrade")!.messages.map((m) => m.content).join("\n");
+    expect(graded).toContain("Question: What is 8 + 8?\nAnswer key: 16");
+    expect(result.text).toBe(`Not quite: 8 + 8 is 16.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("after a hint that asks nothing at its end, or asks the check's question again, the answer is the check's", async () => {
+    gradeOut = { student_answer: "40", verdict: "incorrect" };
+    for (const hint of ["Is it more than 40? Count by 8s.", "Count by 8s. So, what is 6 x 8?"]) {
+      const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor(hint)];
+      const { result } = await answer(history, "40");
+      expect(result.answerCheck, hint).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "incorrect" });
+      expect(result.answerCheck?.on, hint).toBeUndefined();
+      expect(result.text, hint).not.toContain(HINT_ANSWER_BACK);
+    }
+  }, 30_000);
+
+  // Review of OpenEdu's port of TerraTutor #260, 2026-11-19: small models often end a hint with a line after
+  // its question. Keyed only when the question was the hint's last sentence, "16" was "not right yet" again.
+  it("after a hint whose question is not its last sentence, an answer to that question is right for the hint, by code", async () => {
+    for (const hint of ["What is 8 + 8? Try it!", "What is 8 + 8? 😊", "Count by 8s. What is 8 + 8? You can do it."]) {
+      script = [markCall("mastered"), reply("Yes, 16 is right.")];
+      const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor(hint)];
+      const { result } = await answer(history, "16");
+      expect(result.answerCheck, hint).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "correct", by: "code", on: "hint", checkQuestion: "What is 6 x 8?" });
+      expect(result.text, hint).toBe(`Yes, 16 is right.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+      expect(marks, hint).toEqual([]);
+      // Both keys are code's: no key call, and no grader.
+      expect(structured, hint).toEqual([]);
+    }
+  }, 30_000);
+
+  // TerraTutor click test 2026-11-19 part 7, issue 2: "break it into equal pieces", the answer to the hint's chocolate-bar
+  // question, was graded correct for the check's "what a fraction is, using a real-life example", with no
+  // "Now back to the question:".
+  const Q_FRACTION = "Can you tell me what a fraction is, using a real-life example?";
+  const KEY_FRACTION = { question: Q_FRACTION, working: "", answer: "a part of a whole, like one slice of a pizza" };
+  const CHOCOLATE = "Imagine you have a chocolate bar. How could you share it equally?";
+  const KEY_CHOCOLATE = { question: "How could you share it equally?", working: "", answer: "cut it into pieces that are all the same size" };
+  const keyFraction = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("chocolate") ? KEY_CHOCOLATE : KEY_FRACTION);
+
+  it("an answer to the hint's chocolate-bar question is graded against that question, never passes the check, and the check's question comes back", async () => {
+    keyOut = keyFraction;
+    gradeOut = { student_answer: "break it into equal pieces", verdict: "correct" };
+    script = [markCall("mastered"), reply("Yes! Breaking it into equal pieces shares it fairly.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(CHOCOLATE)];
+    const { result, confirms } = await answer(history, "break it into equal pieces");
+    expect(result.answerCheck).toMatchObject({ question: KEY_CHOCOLATE.question, key: KEY_CHOCOLATE.answer, verdict: "correct", on: "hint", checkQuestion: Q_FRACTION });
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(1);
+    expect(graded[0]).toContain(`Question: ${KEY_CHOCOLATE.question}`);
+    expect(graded[0]).not.toContain("fraction");
+    // The model is told it was the hint's question, the mark is refused, and code asks the check's question again.
+    expect(lastUser(replies[0])).toContain(`The check's question is still open: ${Q_FRACTION}`);
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`)).toBe(true);
+  }, 30_000);
+
+  // Review of the check-stays-open fix (2026-11-19), MUST-FIX 1: a right answer to the check that code cannot
+  // match, typed straight after a hint that asks a question, was graded only against the hint's question and
+  // told "not right yet". The grader now reads it against the check's question too.
+  const gradeByQuestion = (right: string) => (sent: Sent) => {
+    const asked = sent.map((m) => m.content).join("\n");
+    return asked.includes(`Question: ${right}\n`)
+      ? { student_answer: lastUser(sent), verdict: "correct" }
+      : { student_answer: lastUser(sent), verdict: "incorrect" };
+  };
+
+  it("a right answer to the open-ended check, typed after a hint that asks a question, is graded against the check's question and passes", async () => {
+    const SLICES = "Think of a pizza cut into 8 equal slices. What do we call one of those slices?";
+    const KEY_SLICES = { question: "What do we call one of those slices?", working: "", answer: "one eighth" };
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("slices") ? KEY_SLICES : KEY_FRACTION);
+    gradeOut = gradeByQuestion(Q_FRACTION);
+    script = [markCall("mastered"), reply("Yes, that is what a fraction is.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(SLICES)];
+    const { result } = await answer(history, "A fraction is a part of a whole, like one slice of a pizza.");
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(2);
+    expect(graded[0]).toContain(`Question: ${KEY_SLICES.question}`);
+    expect(graded[1]).toContain(`Question: ${Q_FRACTION}`);
+    expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  it("\"it is 48 because 40 + 8 is 48\" after the 8 + 8 hint is graded against 6 x 8, not called wrong for the hint", async () => {
+    gradeOut = gradeByQuestion("What is 6 x 8?");
+    script = [markCall("mastered"), reply("Yes, 48 is right.")];
+    const { result } = await answer(HINTED, "it is 48 because 40 + 8 is 48");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  it("an answer the grader finds right for neither question keeps the hint's verdict, and the check's question comes back", async () => {
+    gradeOut = gradeByQuestion("nothing asked");
+    const { result } = await answer(HINTED, "it is 50 because 40 + 10 is 50");
+    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", verdict: "incorrect", on: "hint" });
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(2);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`)).toBe(true);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("an answer code finds right for the check's question wins over the hint: \"48\" right after the 8 + 8 hint passes the check", async () => {
+    script = [markCall("mastered"), reply("Yes, 48 is right.")];
+    const { result } = await answer(HINTED, "48");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct", by: "code" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  // TerraTutor click test 2026-11-19 part 7, issue 1: the check counted every message toward its window of four, so
+  // the right answer after hint, hint answer, "xyz", "hint" was never graded and mastery could not move.
+  it("a check stays open through hints, a hint's answer and a non-answer: the right answer after them is graded and can be marked", async () => {
+    const turns: Sent = [student(ASSESS_MESSAGE), tutor(Q_MULT)];
+    const say = async (text: string, modelReply: TurnEvent[][]) => {
+      script = modelReply;
+      const run = await answer(turns, text);
+      turns.push(student(text), tutor(run.result.text));
+      return run;
+    };
+    await say("Give me a hint.", [reply("Count by 8s. What is 8 + 8?")]);
+    const hintAnswer = await say("16", [reply("Yes, 8 + 8 = 16.")]);
+    expect(hintAnswer.result.answerCheck).toMatchObject({ on: "hint", verdict: "correct" });
+    const xyz = await say("xyz", []);
+    expect(xyz.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    const hint = await say("hint", [reply("5 x 8 is 40. Add one more 8. What is 40 + 8?")]);
+    expect(hint.result.answerCheck ?? null).toBeNull();
+    // Six messages after the request: the answer still runs in assess, is graded against 6 x 8, and is marked.
+    expect(chatTurnMode(null, [...turns, student("48")])).toBe("assess");
+    const right = await say("48", [markCall("mastered"), reply("Yes, 48 is right.")]);
+    expect(right.result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct", by: "code" });
+    expect(right.result.answerCheck?.on).toBeUndefined();
+    expect(right.result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: true });
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 60_000);
+
+  it("a check still ends: after four graded answers, or after CHECK_MAX_MESSAGES messages of anything", async () => {
+    const hints = (n: number): Sent => Array.from({ length: n }, () => [student("Give me a hint."), tutor("Count by 8s.")]).flat();
+    // Eleven hint requests, then the answer: the twelfth message after the request is still in the check.
+    expect(CHECK_MAX_MESSAGES).toBe(12);
+    const open = await answer([...CHECK, ...hints(CHECK_MAX_MESSAGES - 1)], "48");
+    expect(open.result.answerCheck).toMatchObject({ question: "What is 6 x 8?", verdict: "correct" });
+    structured.length = 0;
+    const closed = await answer([...CHECK, ...hints(CHECK_MAX_MESSAGES)], "46");
+    expect(closed.result.answerCheck ?? null).toBeNull();
+    expect(structured).toEqual([]);
+  }, 30_000);
+
+  // OpenEdu #402 review (OTHER-REPO-TOO): a topic named only in the check's announcement is left out of the
+  // repeat, and the next try was keyed from the repeat, so its key had no topic.
+  it("the next try after a repeat is keyed from the check's own message, so a topic named only in its announcement is kept", async () => {
+    const asked = "Let's quiz you on Charlotte's Web. Who is Wilbur?";
+    keyOut = (sent: Sent) => {
+      if (!sent.map((m) => m.content).join("\n").includes("Charlotte")) throw new Error("model returned no valid JSON");
+      return { question: "Who is Wilbur?", working: "", answer: "a pig" };
+    };
+    const first = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(first.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWho is Wilbur?");
+    const again = [student(ASSESS_MESSAGE), tutor(asked), student("xyz"), tutor(first.result.text)];
+    const second = await answer(again, "qwrtp");
+    expect(second.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWho is Wilbur?");
+    const { result } = await answer([...again, student("qwrtp"), tutor(second.result.text)], "a pig");
+    expect(result.answerCheck).toMatchObject({ question: "Who is Wilbur?", key: "a pig", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  // TerraTutor click test 2026-11-19 part 7, issue 6: "Can you tell me what the "whole" is in this example?" was repeated
+  // without the chocolate-bar example it points back at.
+  it.each([
+    ["Imagine you have a chocolate bar with 8 equal pieces. You eat 3 of them.\n\nCan you tell me what the \"whole\" is in this example?",
+      "Imagine you have a chocolate bar with 8 equal pieces. You eat 3 of them.\n\nCan you tell me what the \"whole\" is in this example?"],
+    ["Great job!\n\nI will check your understanding of fractions. Imagine you have a chocolate bar with 8 equal pieces.\n\nWhat is the whole in this example?",
+      "Imagine you have a chocolate bar with 8 equal pieces.\n\nWhat is the whole in this example?"],
+    ["Imagine you have a chocolate bar with 8 equal pieces.\n\nLet's check your understanding of fractions.\n\nWhat fraction of it is one piece?",
+      "Imagine you have a chocolate bar with 8 equal pieces.\n\nWhat fraction of it is one piece?"],
+    ["Look at the picture: 3 of the 4 squares are shaded.\n\nNice one, now what fraction does the picture show?",
+      "Look at the picture: 3 of the 4 squares are shaded.\n\nWhat fraction does the picture show?"],
+    // Nothing before it but praise and the announcement: the question alone, as before.
+    ["Great choice!\n\nI will check your understanding of fractions.\n\nWhat is the whole in this example?", "What is the whole in this example?"],
+    // A question that points at nothing before it keeps only its paragraph, as before.
+    ["Imagine you have a chocolate bar with 8 equal pieces.\n\nWhat is 6 x 8?", "What is 6 x 8?"],
+    // The empty "they" and "it" point at nothing: the feedback above them stays out (review, 2026-11-19).
+    ["You said 7, but 3 + 5 is 8.\n\nWhat do they call the answer to an addition problem?", "What do they call the answer to an addition problem?"],
+    ["You said 7, but 3 + 5 is 8.\n\nWhat is it called when you add two numbers?", "What is it called when you add two numbers?"],
+    // A "they" or "it" that points back still brings what it points at.
+    ["Look at the shape with three sides.\n\nWhat do they call it?", "Look at the shape with three sides.\n\nWhat do they call it?"],
+  ])("repeats a question that points back with the setup it points at: %j", async (asked, again) => {
+    keyOut = { question: again.split("\n\n").pop()!, working: "", answer: "the whole chocolate bar" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
+  }, 30_000);
+
+  // Review of the check-stays-open fix (2026-11-19), MUST-FIX 2: any reply that started with code's non-answer
+  // line was stepped over as code's repeat, so a model reply that copied it lost the new question it asked.
+  it("a model reply that copies code's non-answer line but asks a new question is keyed itself", async () => {
+    const KEY_NOUN = { question: "Which word is the noun in this sentence?", working: "", answer: "dog" };
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("noun") ? KEY_NOUN : KEY_MULT);
+    const copied = "That doesn't answer the question yet. Let's try a different one: The dog ran fast. Which word is the noun in this sentence?";
+    const { result } = await answer([...CHECK, student("I don't know"), tutor(copied)], "dog");
+    expect(result.answerCheck).toMatchObject({ question: KEY_NOUN.question, key: "dog", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  it("a model reply that copies \"Now back to the question:\" before a question of its own is keyed, not stepped over", async () => {
+    const KEY_SEVEN = { question: "What is 7 x 8?", working: "7 x 8 = 56", answer: "56" };
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("7 x 8") ? KEY_SEVEN : KEY_MULT);
+    const copied = `Yes, 48 is right.\n\n${HINT_ANSWER_BACK} What is 7 x 8?`;
+    const { result } = await answer([...CHECK, student("48"), tutor(copied)], "56");
+    expect(result.answerCheck).toMatchObject({ question: "What is 7 x 8?", key: "56", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  it("answers whose replies only copy code's repeat lines use up the check, as any graded answer does", async () => {
+    const tries = ["46", "47", "49", "50"].flatMap((n) => [student(n), tutor(`That doesn't answer the question yet. Try again: what is 6 x 8? (not ${n})`)]);
+    expect(chatTurnMode(null, [...CHECK, ...tries.slice(0, -2), student("48")])).toBe("assess");
+    const { result } = await answer([...CHECK, ...tries], "48");
+    expect(result.answerCheck ?? null).toBeNull();
+  }, 30_000);
+
+  // Review of the check-stays-open fix (2026-11-19), nit: only hint requests, hint answers and non-answers are
+  // free. A check opened by the chip and then left for a chat ends after four messages as on master.
+  it("requests other than hints use up the check: after four, a later question is not graded as the check's", async () => {
+    const chat = Array.from({ length: 4 }, () => [student("can you explain that again?"), tutor("Sure. 6 x 8 means six groups of 8. Quick one: what is 2 x 3?")]).flat();
+    expect(chatTurnMode(null, [...CHECK, ...chat, student("6")])).not.toBe("assess");
+    const { result } = await answer([...CHECK, ...chat], "6");
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(structured.filter((c) => c.tool === "AnswerKey" || c.tool === "AnswerGrade")).toEqual([]);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it("the check's question asked again after a hint's answer keeps the setup it points at", async () => {
+    const asked = "Imagine you have a chocolate bar with 8 equal pieces. You eat 3 of them.\n\nCan you tell me what the \"whole\" is in this example?";
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("share")
+      ? KEY_CHOCOLATE : { question: "Can you tell me what the \"whole\" is in this example?", working: "", answer: "the whole chocolate bar" });
+    gradeOut = { student_answer: "cut it into pieces that are all the same size", verdict: "correct" };
+    const history = [student(ASSESS_MESSAGE), tutor(asked), student("Give me a hint."), tutor("Think about sharing. How could you share it equally?")];
+    const { result } = await answer(history, "cut it into pieces that are all the same size");
+    expect(result.answerCheck).toMatchObject({ on: "hint" });
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${asked}`)).toBe(true);
   }, 30_000);
 
   it.each(["hint", "hint please", "I need a hint", "ok another hint"])("%j typed in a check is a request, not an answer", async (text) => {
