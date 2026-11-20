@@ -1032,8 +1032,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   and no second grade. Before, only an exact code match with the hint's key was caught, and the grader
   read "break it into equal pieces", the answer to "How could you share a chocolate bar equally?", as
   right for "what a fraction is, using a real-life example" (TerraTutor click test 2026-11-19 part 7,
-  issue 2; ported from TerraTutor #260). A hint that asks nothing at its end, or asks only the check's
-  question again, is not keyed. A verdict on the hint's question, right or not, is tagged `on: "hint"`
+  issue 2; ported from TerraTutor #260). A hint that asks nothing, or asks only the check's
+  question again, is not keyed. A hint whose question is not its last sentence ("What is 8 + 8? Try it!",
+  "What is 8 + 8? 😊") is keyed for code's match only: an answer that matches its key is right for the
+  hint, tagged; anything else is graded against the check's question, as before this port (review of the
+  port). A verdict on the hint's question, right or not, is tagged `on: "hint"`
   and never passes the check: every `mastered` mark on that turn is refused by code
   (`MASTERY_REFUSED_HINT`), a card picked right in the same reply included, the reply's note says the
   check's question is still open, and code shows it again after the reply under "Now back to the
@@ -1243,7 +1246,7 @@ saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFa
   56?", "is it 56? what is 7 times 8", "I think it's 54"), and any message that asks to be quizzed or to
   work it out ("quiz me", "ask me", "hint", "don't tell me", "let me try").
 - **Never a question the tutor asked**: not on any turn of a mastery check (`inMasteryCheck`: assess mode,
-  or a check the student opened still open, `openCheck`), and not when one of the
+  or a check the student opened with the quiz chip or a typed request, still open, `openCheck`), and not when one of the
   tutor's last five messages (`TUTOR_LOOKBACK`) holds every operand, as a number or a number word
   ("eight sevens"), or holds the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"): it
   may have asked that sum, or a word problem with those numbers. "Half", "twice" and "double" count as 2,

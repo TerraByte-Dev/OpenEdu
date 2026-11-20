@@ -479,7 +479,8 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
  * with one right answer. Never throws: a failed call gives "unsure". `hintReply` is the reply to a hint
  * asked on that message (checkedMessage): when it ends in a question, an answer code does not find right
  * for the check's question is graded against the hint's, tagged `on: "hint"`, unless that grade is not
- * right and the grader finds it right (or partly) for the check's question.
+ * right and the grader finds it right (or partly) for the check's question. When the hint asks a question
+ * that is not its last sentence, only code's match with the hint's key is the hint's, tagged.
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -530,6 +531,17 @@ export async function checkAnswer(
       // right or partly right verdict there is the check's, untagged; else the hint's verdict stands.
       const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
       return onTheCheck.verdict === "correct" || onTheCheck.verdict === "partly" ? onTheCheck : onTheHint;
+    }
+  } else if (hintReply?.includes("?")) {
+    // A hint whose question is not its last sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊"): code
+    // alone compares the answer with the hint's key, as before the fix above, and a match is right for the
+    // hint, tagged. Without this, "16" was graded against the check's question and was "not right yet"
+    // again (review of OpenEdu's port of TerraTutor #260, 2026-11-19). Anything else is graded against the
+    // check's question, with no grader call on the hint's.
+    const hinted = await answerKey(hintReply, config, opts);
+    if (hinted && hinted !== "none"
+      && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
+      return { ...hinted, verdict: "correct", by: "code", on: "hint", checkQuestion: keyed.question };
     }
   }
   return graded(keyed, ctx, raw, studentMessage, config, opts);
@@ -678,8 +690,7 @@ function checkIntro(question: string, inSetup = false): RegExpExecArray | null {
  */
 function withoutLead(text: string, inSetup: boolean): string {
   // A setup's last sentence ends the text: the space after it lets it be read as a sentence too.
-  let rest = inSetup ? `${text}
-` : text;
+  let rest = inSetup ? `${text}\n` : text;
   let praised = false;
   for (let before = ""; before !== rest;) {
     before = rest;

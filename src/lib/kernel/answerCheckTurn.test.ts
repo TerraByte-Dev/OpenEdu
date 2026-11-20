@@ -1463,6 +1463,21 @@ describe("an answer that answers nothing in a mastery check", () => {
     }
   }, 30_000);
 
+  // Review of OpenEdu's port of TerraTutor #260, 2026-11-19: small models often end a hint with a line after
+  // its question. Keyed only when the question was the hint's last sentence, "16" was "not right yet" again.
+  it("after a hint whose question is not its last sentence, an answer to that question is right for the hint, by code", async () => {
+    for (const hint of ["What is 8 + 8? Try it!", "What is 8 + 8? 😊", "Count by 8s. What is 8 + 8? You can do it."]) {
+      script = [markCall("mastered"), reply("Yes, 16 is right.")];
+      const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor(hint)];
+      const { result } = await answer(history, "16");
+      expect(result.answerCheck, hint).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "correct", by: "code", on: "hint", checkQuestion: "What is 6 x 8?" });
+      expect(result.text, hint).toBe(`Yes, 16 is right.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+      expect(marks, hint).toEqual([]);
+      // Both keys are code's: no key call, and no grader.
+      expect(structured, hint).toEqual([]);
+    }
+  }, 30_000);
+
   // TerraTutor click test 2026-11-19 part 7, issue 2: "break it into equal pieces", the answer to the hint's chocolate-bar
   // question, was graded correct for the check's "what a fraction is, using a real-life example", with no
   // "Now back to the question:".
