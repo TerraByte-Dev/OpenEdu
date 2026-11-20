@@ -1060,7 +1060,17 @@ So the verdict on the child's answer is the app's, not the reply's:
   one plain operation ("What is 6 x 8?", not "What is 5 + 3 and then double it?") is keyed by code
   with no call, and a model key for one ("Calculate 6 x 8.") is replaced by code's when they disagree.
   Two questions in one message are keyed together by the model ("63; 72"). A message that asks nothing
-  with one right answer ("which topic next?") gets no check, and the turn is as before. The tutor's
+  with one right answer ("which topic next?") gets no check, and the turn is as before. So does one whose
+  questions only ask what the learner thinks, likes or feels (`asksOpinion`: "which idea you think is the
+  most important one?", "your favorite", "would you rather"; "What do you think 7 x 8 is?" still asks for
+  a fact), with no key call when it is the message's one question, and a key whose answer is no answer: a
+  request for input, a refusal or a note about the message (`isMetaKey`: "Please provide a topic", "There
+  is no question in this message.", "Answers will vary."; it must open the answer, so "No", "None" and
+  "Not enough water" stay keys, and "please" needs a request for input after it, "I cannot" a refusal to
+  answer and "any answer" nothing more than "is fine", so "Please give me the ball.", "We cannot see air
+  because it is invisible." and "Any answer that is a mammal" stay keys too). TerraTutor live test
+  2026-11-20 part 11, issue 6: an answer was graded "correct" against "Please provide a topic", and an
+  opinion question got a key and a verdict (ported from TerraTutor #270). The tutor's
   message is the one the answer follows (`checkedMessage`), from after the last question card answered
   in it (`askCard.ts afterAnsweredCard`: the topic picker's "Which one should we check first?" and the
   pick are settled, so a check opened from the picker keys only its own question); when that message
@@ -1091,7 +1101,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   finds it right for "what a fraction is, using a real-life example", as it would with no hint (TerraTutor
   click test 2026-11-19 part 7, issue 2). A hint that asks nothing is not keyed. A hint that ends on a
   question with no one right answer ("Think of a time you shared food. What did you notice?", with or
-  without "You can do it!" after it), or whose key call failed, has nothing to grade the answer against:
+  without "You can do it!" after it; or one that only asks what the learner likes or thinks,
+  `asksOpinion`, "Which part do you like best?", which gets no key call), or whose key call failed, has
+  nothing to grade the answer against:
   an answer the grader finds right for the check's question is the check's; anything else is `unsure`,
   tagged `on: "hint"`, so no verdict is said, the mark is refused and the check's question is asked again.
   An answer wrong for the check's question is so `unsure` too, not `incorrect`. A hint "ends on" its
@@ -1128,21 +1140,44 @@ So the verdict on the child's answer is the app's, not the reply's:
   part 10, step 2: "Can you tell me what the cell membrane does?", "I don't know", an easier question
   answered right, a new question about the cytoplasm, then the membrane question answered right, graded
   against the cytoplasm one: "That's not right yet."; ported from TerraTutor #268). The answer is graded
-  against the message just before it, as always; only when that gives `incorrect`, no hint question is in
-  play, and the check's first question (the tutor's reply to the request that opened the check,
-  `checkedMessage`'s `opening`) was left unanswered, the answer is keyed and graded against that question
-  too: at most two grader calls, the newest question's first. Left unanswered: the learner's message after
+  against the message just before it, as always; only when that gives `incorrect` or `partly`, no hint
+  question is in play, and the check's first question (the tutor's reply to the request that opened the
+  check, `checkedMessage`'s `opening`) was left unanswered, the answer is keyed and graded against that
+  question too: at most two grader calls, the newest question's first. `partly` for the newest question is
+  tried too (TerraTutor live test 2026-11-20 part 11, threads A and C: a whole three-part answer to the cell
+  theory's first question was "partly" right for the move-on question and told to give "the other two";
+  ported from TerraTutor #270), and the first question's verdict is taken only when it is better (correct
+  over partly, either over incorrect). Left unanswered: the learner's message after
   it was not an answer ("I don't know", "help", a hint request) or got code's repeat (an answer that
   answered nothing). One the learner answered, right or wrong, is not reopened, so "56" for the next
   question after "56" passed "What is 7 x 8?" is still graded on the next question only; nor is one
   answered this way: code's repeat of another question under "Now back to the question:" later in the
   check closes it (a hint's answer on a later question does too, the safe side), so a later wrong answer
-  is graded on the newest question with one grader call. Right or partly right for the first question is
-  that question's verdict, tagged `on: "earlier"`: it never passes the check (`MASTERY_REFUSED_EARLIER`,
+  is graded on the newest question with one grader call. A better verdict for the first question is that
+  question's verdict, tagged `on: "earlier"`: it never passes the check (`MASTERY_REFUSED_EARLIER`,
   and code makes no mark: it is not the first try), the note says the tutor's last question is still open,
   and code asks that question again after the reply under "Now back to the question:", as after a hint's
-  answer, so the next try is graded against it. Wrong for both keeps the newest question's verdict. One
-  more key call on such a turn (none when the first question is a plain operation code keys).
+  answer, so the next try is graded against it. No better verdict there keeps the newest question's
+  verdict. When the newest question is the first one asked again in other words (`rewordsQuestion`: the
+  same words, numbers and single letters included, less stopwords and framing words such as "think",
+  "remember", "job" and "role"; the same numbers in the same order; the same negations; and, when either has
+  an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in the same
+  order; "Can you tell me what the cell membrane does?" / "So, what job does the membrane do for the
+  cell?"), and the two keys do not contradict (`keysContradict`: different numbers, or a different yes/no),
+  the two are one question: one verdict, the better one, given on the newest question, with nothing asked
+  again (this repo's take-back 2026-11-20-0752 of the #268 port: "That's partly right." and then the same
+  question again). Anything else is two questions, graded apart as above (`on: "earlier"`): a question that
+  adds a word ("... keep out of the cell?"), another number ("12 times 2" after "12 times 3"), another letter
+  ("the letter B" after "the letter A") or another order ("Is the earth bigger than the sun?" after "Is the
+  sun bigger than the earth?"). TerraTutor #270's review, 2026-11-20: a set of words of two letters or more,
+  in any order, merged those pairs once the tutor added framing words, and "36" was "correct" for "12 times
+  2" with the model's mark let through. The merged verdict is tagged `reworded`: it came from grading the
+  first wording second, so it is not a first try, code makes no mark and the model's own mark is refused
+  (`MASTERY_REFUSED_REWORDED`). One more key call on such a turn (none when the first question is a plain
+  operation code keys). When the reply to an answer like that ends on a sentence that only announces going
+  back ("Now, let's go back to my last question.", "Back to the question!"), it is held like a lead-in and
+  dropped before code's "Now back to the question:" (TerraTutor part 11, thread D: two lead-ins in a row);
+  one that says more ("... to the question about the nucleus.") or has feedback after it stays.
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An

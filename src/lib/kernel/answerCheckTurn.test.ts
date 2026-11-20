@@ -57,9 +57,9 @@ vi.mock("../db", async (importOriginal) => ({
   getSyllabus: vi.fn(async () => SYLLABUS),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_EARLIER, MASTERY_REFUSED_HINT, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_EARLIER, MASTERY_REFUSED_HINT, MASTERY_REFUSED_REWORDED, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
-import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES } from "./answerCheck";
+import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES, rewordsQuestion } from "./answerCheck";
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
@@ -1585,6 +1585,26 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(result.text).toBe(`The pieces were the same size.\n\n${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`);
   }, 30_000);
 
+  // TerraTutor #270's review, nit 2: a hint that ends on a question asking what the learner likes has no key
+  // (asksOpinion, no key call for it), so it takes the path above: "unsure", the hint's, and the check's question
+  // again.
+  it("after a hint that ends on an opinion question, an answer not right for the check is \"unsure\" with no key call for the hint", async () => {
+    const hint = "Think of a pizza cut into slices. Which part do you like best?";
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("pizza cut") ? { question: "Which part do you like best?", working: "", answer: "The crust" } : KEY_FRACTION);
+    gradeOut = { student_answer: "the crust", verdict: "incorrect" };
+    script = [markCall("mastered"), reply("The crust is a fun part.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(hint)];
+    const { result, confirms } = await answer(history, "the crust");
+    expect(result.answerCheck).toMatchObject({ question: "Which part do you like best?", key: "", verdict: "unsure", on: "hint", checkQuestion: Q_FRACTION });
+    expect(structured.filter((c) => c.tool === "AnswerKey")).toHaveLength(1);
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(1);
+    expect(result.text).not.toContain("not right yet");
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`)).toBe(true);
+  }, 30_000);
+
   it("after a hint that ends on a question with no one right answer, a right answer to the check is the check's and passes", async () => {
     keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? { question: "What did you notice?", working: "", answer: "" } : KEY_FRACTION);
     gradeOut = gradeByQuestion(Q_FRACTION);
@@ -2139,6 +2159,279 @@ describe("an answer to the check's first question after the tutor moved on", () 
     const { result } = await answer(answered, MEMBRANE_ANSWER);
     expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "incorrect" });
     expect(gradedQuestions()).toEqual([Q_CYTOPLASM]);
+  }, 30_000);
+
+  // The grader's verdict for each question, "incorrect" for any other.
+  const gradeBy = (verdicts: Record<string, string>) => (sent: Sent) => {
+    const text = sent.map((m) => m.content).join("\n");
+    return {
+      student_answer: lastUser(sent).split("\n").pop()!.replace(/^Student's answer: /, ""),
+      verdict: Object.entries(verdicts).find(([q]) => text.includes(`Question: ${q}\n`))?.[1] ?? "incorrect",
+    };
+  };
+
+  // TerraTutor live test 2026-11-20 part 11, threads A and C (gemma4:e2b): a whole answer to the check's first question was
+  // graded "partly" on the move-on question, and the first question was never tried: "partly" blocked it.
+  it("partly right for the newest question and right for the first: the first question's verdict, no mark", async () => {
+    gradeOut = gradeBy({ [Q_CYTOPLASM]: "partly", [Q_MEMBRANE]: "correct" });
+    script = [markCall("mastered"), reply("Yes, the cell membrane protects the cell and controls what goes in and out.")];
+    const { result, confirms } = await answer(PART_10, MEMBRANE_ANSWER);
+    expect(result.answerCheck).toMatchObject({ question: Q_MEMBRANE, verdict: "correct", on: "earlier", checkQuestion: Q_CYTOPLASM });
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM, Q_MEMBRANE]);
+    expect(result.text).toBe(`Yes, the cell membrane protects the cell and controls what goes in and out.\n\n${HINT_ANSWER_BACK}\n\n${MOVED_ON_AGAIN}`);
+    expect(result.text).not.toMatch(/partly/i);
+    expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it.each([
+    ["partly", "partly"],
+    ["partly", "incorrect"],
+    ["partly", "unsure"],
+  ])("%s for the newest question and %s for the first: the newest question's verdict stands", async (newest, first) => {
+    gradeOut = first === "unsure"
+      ? (sent: Sent) => (sent.map((m) => m.content).join("\n").includes(`Question: ${Q_MEMBRANE}\n`) ? new Error("grader timed out") : gradeBy({ [Q_CYTOPLASM]: newest })(sent))
+      : gradeBy({ [Q_CYTOPLASM]: newest, [Q_MEMBRANE]: first });
+    script = [reply("Part of that is there. What else happens in the cytoplasm?")];
+    const { result } = await answer(PART_10, "It is the jelly in the cell.");
+    expect(result.answerCheck).toMatchObject({ question: Q_CYTOPLASM, verdict: "partly" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(gradedQuestions()).toEqual([Q_CYTOPLASM, Q_MEMBRANE]);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  // This repo's port of TerraTutor #268, take-back 2026-11-20-0752, through its repro: the tutor asks the check's
+  // first question again in other words, the grader finds the answer partly right on the first wording only, and
+  // the learner saw "That's partly right." and then the same question again.
+  describe("the first question asked again in other words", () => {
+    const Q_FIRST = "Can you tell me what the cell membrane does?";
+    const Q_AGAIN = "So, what job does the membrane do for the cell?";
+    const REASKED = [student(ASSESS_MESSAGE), tutor(`Let's check. ${Q_FIRST}`), student("I don't know"), tutor(`The membrane is like a gate. ${Q_AGAIN}`)];
+    const keyEach = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("what job")
+      ? { question: Q_AGAIN, working: "", answer: "It lets some things in and keeps others out" }
+      : { question: Q_FIRST, working: "", answer: "It controls what enters and leaves the cell" });
+
+    beforeEach(() => { keyOut = keyEach; });
+
+    it("one verdict, the better one, on the newest question, and the question is not asked again", async () => {
+      gradeOut = gradeBy({ [Q_FIRST]: "partly" });
+      script = [reply("You have part of it. A gate also keeps some things out.")];
+      const { result } = await answer(REASKED, "it lets stuff in and out");
+      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "partly" });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(gradedQuestions()).toEqual([Q_AGAIN, Q_FIRST]);
+      expect(result.text).toBe("You have part of it. A gate also keeps some things out.");
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+      expect(lastUser(replies[0])).toContain(`The question was: ${Q_AGAIN}`);
+      expect(lastUser(replies[0])).not.toContain("still open");
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it("right on the first wording only: right, on the newest question, and still no mark (not a first try)", async () => {
+      gradeOut = gradeBy({ [Q_AGAIN]: "partly", [Q_FIRST]: "correct" });
+      script = [reply("Yes, that's right.")];
+      const { result } = await answer(REASKED, "it lets stuff in and out");
+      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct" });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.text).toBe("Yes, that's right.");
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    // TerraTutor #270's review, MUST-FIX (d): the merged verdict came from grading the first wording second, so the
+    // model's own mark is refused, as after `on: "earlier"`, and still nothing is asked again.
+    it("right on the first wording only: the model's own mark is refused too", async () => {
+      gradeOut = gradeBy({ [Q_AGAIN]: "partly", [Q_FIRST]: "correct" });
+      script = [markCall("mastered"), reply("Yes, that's right.")];
+      const { result, confirms } = await answer(REASKED, "it lets stuff in and out");
+      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct", reworded: true });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
+      expect(result.text).toBe("Yes, that's right.");
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it("wrong on both wordings is still the newest question's \"not right yet\"", async () => {
+      gradeOut = gradeBy({});
+      script = [reply("Not quite. Think about the gate.")];
+      const { result } = await answer(REASKED, "it makes food");
+      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "incorrect" });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    }, 30_000);
+  });
+
+  // TerraTutor #270's review, MUST-FIX: a set of content words (two letters or more, any order) merged two different
+  // questions once the tutor added framing words, and the opening question's verdict was given on the newest one,
+  // "correct", with the model's mark let through. Each pair is two questions: graded apart (`on: "earlier"`).
+  describe("a move-on question that only looks like the first one", () => {
+    const keyFor = (pairs: Array<[string, string]>) => (sent: Sent) => {
+      const message = sent[sent.length - 1].content;
+      const [question, key] = pairs.find(([q]) => message.includes(q))!;
+      return { question, working: "", answer: key };
+    };
+    it.each([
+      ["another number", "What is 12 times 3?", "36", "Let's try a smaller one. So, what do you think 12 times 2 is?", "24", "36"],
+      ["the same words in another order", "Is the sun bigger than the earth?", "Yes", "So, do you think the earth is bigger than the sun?", "No", "yes"],
+      ["another single letter", "Is the letter A a vowel?", "Yes", "Okay. So, is the letter B a vowel?", "No", "yes"],
+    ])("%s: the newest question's verdict is not the first one's, and nothing is marked", async (_, first, firstKey, again, againKey, said) => {
+      const asked = again.split(". ").pop()!;
+      keyOut = keyFor([[asked, againKey], [first, firstKey]]);
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      script = [markCall("mastered"), reply("Let's look at that one again.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(again)], said);
+      expect(rewordsQuestion(first, asked)).toBe(false);
+      // Right only for the first question: that question's verdict, tagged, never "correct" on the newest one.
+      expect(result.answerCheck).toMatchObject({ question: first, key: firstKey, verdict: "correct", on: "earlier" });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(lastUser(replies[0])).not.toContain(`The question was: ${asked}`);
+      expect(lastUser(replies[0])).toContain("Your last question is still open");
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    // MUST-FIX (b): the same words, but keys that say different things ("8" and "6", a bad key on one of them).
+    it("the same question in other words with keys that contradict is graded apart", async () => {
+      const first = "Can you tell me how many legs a spider has?";
+      const again = "So, how many legs does a spider have?";
+      keyOut = keyFor([[again, "6"], [first, "8"]]);
+      gradeOut = { student_answer: "8", verdict: "incorrect" };
+      script = [markCall("mastered"), reply("Let's count them.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(first), student("I don't know"), tutor(`Think of its body. ${again}`)], "8");
+      expect(rewordsQuestion(first, again)).toBe(true);
+      expect(result.answerCheck).toMatchObject({ question: first, verdict: "correct", on: "earlier" });
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(marks).toEqual([]);
+    }, 30_000);
+  });
+
+  it.each([
+    [Q_MEMBRANE, "So, what job does the membrane do for the cell?", true],
+    ["What do you think the nucleus does?", "Can you remember what the nucleus does?", true],
+    ["What are the three main ideas of the cell theory?", "Can you tell me the three main ideas of cell theory?", true],
+    // Another word asked, another number, a negation, another subject: two questions.
+    [Q_MEMBRANE, "What does the cell membrane keep out of the cell?", false],
+    [Q_MEMBRANE, Q_CYTOPLASM, false],
+    ["What are the three main ideas of the cell theory?", "What are the two main ideas of the cell theory?", false],
+    ["Which of these is a mammal?", "Which of these is not a mammal?", false],
+    ["Which of these is a mammal?", "Which of these isn't a mammal?", false],
+    ["Do you remember?", "What do you think?", false],
+    // TerraTutor #270's review, MUST-FIX: numbers, single letters and word order are part of the question.
+    ["What is 12 times 3?", "So, what do you think 12 times 2 is?", false],
+    ["Is the sun bigger than the earth?", "So, do you think the earth is bigger than the sun?", false],
+    ["Which is bigger, 3/4 or 2/3?", "Which is bigger, 1/2 or 1/3?", false],
+    ["Which is bigger, 3/4 or 2/3?", "Which is bigger, 2/3 or 3/4?", false],
+    ["Is the letter A a vowel?", "Is the letter B a vowel?", false],
+    ["Is the letter A a vowel?", "Is the letter I a vowel?", false],
+    ["What is 3 more than 5?", "What is 4 more than 5?", false],
+    ["Which comes first, the caterpillar or the butterfly?", "Which comes first, the butterfly or the caterpillar?", false],
+    ["What comes after 7?", "What comes before 7?", false],
+    // Still one question: the same words and numbers in the same order, framing aside.
+    ["What is 12 times 3?", "So, what do you think 12 times 3 is?", true],
+    ["Is the sun bigger than the earth?", "So, do you think the sun is bigger than the earth?", true],
+  ])("rewordsQuestion(%j, %j) is %s", (a, b, same) => {
+    expect(rewordsQuestion(a, b)).toBe(same);
+    expect(rewordsQuestion(b, a)).toBe(same);
+  });
+
+  // TerraTutor live test part 11, thread D: the model's own "Now, let's go back to my last question." and then
+  // code's "Now back to the question:", two lead-ins in a row. Code's stays; the model's comes off when it only announces going back.
+  it.each([
+    ["Yes, that is it. Now, let's go back to my last question.", "Yes, that is it."],
+    ["Yes, that is it. Let's go back to my last question. What does the cytoplasm do?", "Yes, that is it."],
+    ["Yes, that is it. Back to the question!", "Yes, that is it."],
+    ["Yes, that is it. Okay, let's return to the first question.", "Yes, that is it."],
+    // It says more than going back, or feedback follows it: kept.
+    ["Yes, that is it. Let's go back to the question about the cytoplasm.", "Yes, that is it. Let's go back to the question about the cytoplasm."],
+    ["Yes, that is it. Now, let's go back to my last question. Remember, the membrane is like a wall.", "Yes, that is it. Now, let's go back to my last question. Remember, the membrane is like a wall."],
+    ["Yes, that is it. Let's go back to the question of why cells divide.", "Yes, that is it. Let's go back to the question of why cells divide."],
+  ])("after %j code's lead-in is the only one", async (modelReply, shown) => {
+    gradeOut = gradeRightFor(Q_MEMBRANE);
+    script = [reply(modelReply)];
+    const { result } = await answer(PART_10, MEMBRANE_ANSWER);
+    expect(result.answerCheck).toMatchObject({ on: "earlier" });
+    expect(result.text).toBe(`${shown}\n\n${HINT_ANSWER_BACK}\n\n${MOVED_ON_AGAIN}`);
+  }, 30_000);
+});
+
+// ── A key that is no key ────────────────────────────────────────────────────────────────────────
+
+// TerraTutor live test 2026-11-20 part 11, issue 6 (gemma4:e2b): the key call answered "Please provide a topic"
+// for a message that asked nothing, and the learner's answer was graded "correct" against it; and "which idea you
+// think is the most important one?", a question with no one right answer, got a key and a verdict.
+describe("a key call that returns no answer key, and a question that asks for an opinion", () => {
+  const ASKS_NOTHING = "Tell me one thing you remember about cells.";
+  const keyed = (answer: string) => ({ question: ASKS_NOTHING, working: "", answer });
+  const graded = () => structured.filter((c) => c.tool === "AnswerGrade").length;
+  const keyCalls = () => structured.filter((c) => c.tool === "AnswerKey").length;
+
+  beforeEach(() => { gradeOut = { student_answer: "cells make up living things", verdict: "correct" }; });
+
+  it.each([
+    "Please provide a topic",
+    "Please provide the question you want answered.",
+    "I cannot determine the answer from this message.",
+    "There is no question in this message.",
+    "No specific question asked.",
+    "The message does not ask a question.",
+    "N/A",
+    "Answers will vary.",
+    "This is an opinion question.",
+    "Any answer is fine.",
+  ])("the key %j is no key: no verdict, no grader call, no mark", async (junk) => {
+    keyOut = keyed(junk);
+    script = [markCall("mastered"), reply("Good thinking.")];
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(ASKS_NOTHING)], "cells make up living things");
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(graded()).toBe(0);
+    expect(result.toolCalls[0]).toMatchObject({ name: "progress.mark_mastered", ok: false });
+    expect(marks).toEqual([]);
+  }, 30_000);
+
+  it.each([
+    "No", "None", "Not enough water", "Sorry", "It depends on the temperature", "Please and thank you",
+    // TerraTutor #270's review, nit 1: a polite request, a reason with "cannot", and "any answer" with more after it.
+    "Please give me the ball.", "Please tell me your name.", "We cannot see air because it is invisible.",
+    "I can't see it because it is too small", "Any answer that is a mammal",
+  ])("the key %j is still a key", async (key) => {
+    keyOut = keyed(key);
+    gradeOut = { student_answer: "cells make up living things", verdict: "incorrect" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(ASKS_NOTHING)], "cells make up living things");
+    expect(result.answerCheck).toMatchObject({ key, verdict: "incorrect" });
+    expect(graded()).toBe(1);
+  }, 30_000);
+
+  it("thread E's question, which idea the learner thinks is most important, gets no key call and no verdict", async () => {
+    keyOut = { question: "Can you tell me which idea you think is the most important one?", working: "", answer: "Cells are the basic unit of life" };
+    const message = "The Cell Theory has three main ideas. All living things are made of one or more cells. Cells are the basic unit of life. Cells come from other cells. Can you tell me which idea you think is the most important one?";
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(message)], "all living things are made of cells");
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(keyCalls()).toBe(0);
+    expect(graded()).toBe(0);
+  }, 30_000);
+
+  it("a message whose questions all ask for an opinion: keyed, then no verdict", async () => {
+    const asked = "What is your favorite part of the cell? Why do you like it?";
+    keyOut = { question: asked, working: "", answer: "The nucleus" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(`Great work. ${asked}`)], "the nucleus");
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(keyCalls()).toBe(1);
+    expect(graded()).toBe(0);
+  }, 30_000);
+
+  it.each([
+    ["What do you think is the first part of the cell theory?", "All living things are made of cells"],
+    ["What is your favorite planet? And which planet is closest to the Sun?", "Mercury"],
+    ["Which part do you think controls the cell?", "The nucleus"],
+  ])("%j asks for a fact and is keyed", async (asked, key) => {
+    keyOut = { question: asked, working: "", answer: key };
+    gradeOut = { student_answer: "the mitochondria", verdict: "incorrect" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "the mitochondria");
+    expect(result.answerCheck).toMatchObject({ key, verdict: "incorrect" });
   }, 30_000);
 });
 

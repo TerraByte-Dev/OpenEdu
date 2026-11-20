@@ -8,7 +8,7 @@ import { words, wordLength } from "../library-rank";
 // group is acknowledgement vocabulary — the words that make up a turn carrying no question at all
 // ("ok got it", "sure thanks", "cool"). They are what lets ground.ts's MIN_CONTENT_WORDS sit at 1 without
 // retrieving on every "yeah makes sense".
-const STOPWORDS = new Set([
+export const STOPWORDS = new Set([
   "the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "was", "were", "what", "whats",
   "show", "me", "my", "tell", "about", "give", "list", "and", "or", "how", "do", "does", "did",
   "i", "you", "can", "could", "with", "this", "that", "it", "its", "be", "been", "have", "has",

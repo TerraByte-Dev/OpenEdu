@@ -220,7 +220,18 @@ The section for each release is also what the app shows when you press Check for
   right there, the app says so and asks the newest question again. It never marks the skill learned: it
   was not the first try. A first question the learner already answered, this way too, is not checked
   again, and the question asked again leaves out the tutor's praise for the answer before it ("That is
-  exactly right."), so it never follows "That's partly right.".
+  exactly right."), so it never follows "That's partly right.". An answer only partly right for the newest
+  question is checked against the first question too: a whole answer to "what are the three main ideas of
+  the cell theory?" is no longer told to give "the other two". When the tutor asks the first question
+  again in other words, the learner gets one verdict on it, not "That's partly right." and the same
+  question again (only when the two really ask the same thing: "12 times 2" after "12 times 3", "the
+  letter B" after "the letter A" or "Is the earth bigger than the sun?" after "Is the sun bigger than the
+  earth?" are two questions, and a verdict given this way never marks the skill learned); and the tutor's
+  own "Let's go back to my last question." no longer comes right before the app's "Now back to the
+  question:".
+- **No verdict against an answer key that isn't one.** In a check, a key like "Please provide a topic" or
+  "Answers will vary.", and a question that asks what the learner thinks is most important or likes best,
+  no longer get a "right" or "not right yet".
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number

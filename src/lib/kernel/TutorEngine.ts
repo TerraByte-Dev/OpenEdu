@@ -67,6 +67,11 @@ export const MASTERY_REFUSED_HINT =
  *  after the tutor had moved on from it (AnswerCheck.on "earlier"): not a first try, and the last question is still open. */
 export const MASTERY_REFUSED_EARLIER =
   "Not saved: the student answered the check's first question after the tutor had moved on, not on a first try, so this subtopic can't be marked mastered now. Your last question is still open.";
+/** What the model is told when it tries to mark mastered on a turn whose verdict came from the check's first
+ *  question, which the tutor asked again in other words (AnswerCheck.reworded): one question, nothing asked
+ *  again, but not a first try. */
+export const MASTERY_REFUSED_REWORDED =
+  "Not saved: the student's answer was graded on the check's first question, which you had asked again in other words, so it was not a first try and this subtopic can't be marked mastered now.";
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
@@ -866,17 +871,20 @@ ${lastUser.content}` };
         // beside it (ported from TerraTutor #258; a card that asked the hint's question passed there before).
         // Nor when the answer was to the check's first question after the tutor moved on (`on: "earlier"`,
         // TerraTutor live test 2026-11-20 part 10): not a first try, and code asks the tutor's last question again.
+        // Nor when the newest question was that first one asked again in other words and the verdict came from
+        // grading the first wording (`reworded`): nothing is asked again, but it is not a first try either.
         const checked = [answerCheck, ...cardChecks].filter((c): c is AnswerCheck => !!c);
         const unchecked = prepared.answerTurn && checked.length === 0;
         const hintTurn = !!answerCheck?.on;
+        const reworded = !!answerCheck?.reworded;
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
-          unchecked || hintTurn || checked.some((c) => c.verdict !== "correct"));
+          unchecked || hintTurn || reworded || checked.some((c) => c.verdict !== "correct"));
         // On a safety-disclosure turn, and every later turn in its thread, nothing the learner said is kept:
         // the knowledge files, the notebook and a flashcard are refused the same way. Nothing runs and
         // nothing is shown; the model is told.
         const keepsWords = prepared.keepsNothing && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? (answerCheck?.on === "earlier" ? MASTERY_REFUSED_EARLIER : MASTERY_REFUSED_HINT) : MASTERY_REFUSED };
+        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? (answerCheck?.on === "earlier" ? MASTERY_REFUSED_EARLIER : MASTERY_REFUSED_HINT) : reworded ? MASTERY_REFUSED_REWORDED : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design

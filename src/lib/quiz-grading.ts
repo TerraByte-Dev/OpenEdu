@@ -899,7 +899,8 @@ const NOT_PLURALS = new Set(["news", "means", "goods", "series", "species", "alw
 const IE_PLURALS = new Set(["movies", "cookies", "calories", "brownies", "zombies", "prairies", "rookies", "smoothies", "selfies", "goalies"]);
 
 /**
- * A word's singular, folded only where that is safe (isRewordedRepeat, sameAnswer): "ies" to "y" in a
+ * A word's singular, folded only where that is safe (isRewordedRepeat, sameAnswer, answerCheck.ts
+ * rewordsQuestion): "ies" to "y" in a
  * word of 5 or more letters ("bodies" -> "body"), else a final "s" off a word of 4 or more letters that
  * does not end in "ss", "us", "is" or "ics" ("arcs" -> "arc", "cells" -> "cell", "plates" -> "plate"). So
  * "gas", "glass", "is", "its", "was", "process", "nucleus", "basis" and "physics" stay as they are. "gases"
