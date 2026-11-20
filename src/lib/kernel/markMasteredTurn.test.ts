@@ -535,6 +535,41 @@ describe("the mark code makes after a correct check answer", () => {
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 
+  // TerraTutor #267's review: on the turn that opens the check, "help" typed into the check's question card
+  // got no check, and the model's easier card after it, picked right, marked (5 of 7 phrasings). Code marks
+  // on cards only when the first model card answered is the one checked.
+  const HELP_TYPED = ["help", "I don't know", "idk", "Give me a hint", "can you explain?", "I'm stuck", "?"];
+  const easierAfter = (first: string) => {
+    keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "4 + 4 + 4 = 12", answer: "12" } });
+    script = [askCall(Q, ["10", "12"]), askCall("What is 4 + 4 + 4?", ["8", "12"]), reply("Yes, 4 + 4 + 4 is 12.")];
+    return [first, "12"];
+  };
+  it.each(HELP_TYPED)("makes none for a right pick on an easier card after %j typed into the check's card", async (first) => {
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], OPENED_WITH, true, ["Equal Groups", ...easierAfter(first)]);
+    expect(result.cardChecks.slice(-1)[0]).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it.each(HELP_TYPED)("makes none on a one-skill level with no picker, after %j typed into the check's card", async (first) => {
+    const oneLeft = { ...OPENED_WITH, subtopics: SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s)) };
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(oneLeft.subtopics));
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], oneLeft, true, easierAfter(first));
+    expect(result.cardChecks.slice(-1)[0]).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("still marks on a one-skill level with no picker when the check's card is answered right first", async () => {
+    const oneLeft = { ...OPENED_WITH, subtopics: SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s)) };
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(oneLeft.subtopics));
+    script = [askCall(Q, ["10", "12"]), reply("Yes, 12.")];
+    const result = await assessRun([{ role: "user", content: "Check if I've got this." }], oneLeft, true, ["12"]);
+    expect(result.toolCalls.slice(-1)).toEqual([appMark]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
   it("still marks when the model's own mark failed on a wrong id", async () => {
     script = [markCall("mastered", "Nonsense Topic"), reply("Yes, 12.")];
     const result = await assessTurn(OPENED_WITH, picked("12"));
