@@ -171,15 +171,25 @@ The section for each release is also what the app shows when you press Check for
   for "What is 8 + 8?"), counted right for that one, but never as passing the check: nothing is marked
   mastered, and the app asks the check's question again. Typing "hint" or "I need a hint" in a check asks for
   a hint instead of being marked as a wrong answer.
+- **After a hint that asks its own question, an answer is checked against the check's question first.** A
+  right answer to the check, in the learner's own words, now counts and can mark the skill learned; before,
+  it was checked against the hint's question first and never counted ("the whole is the complete thing,
+  like a whole pizza" after "What is that complete object called?"). Only an answer that is not right for
+  the check's question is checked against the hint's; one right for neither now gets the check's verdict.
+  A hint that ends on a question with no one right answer ("What did you notice?") does not get its answer
+  marked wrong: the app says no verdict and asks the check's question again. When the hint has another
+  line after that question ("... What did you notice? You can do it!"), the answer can still be marked
+  wrong for now. A hint that only asks the check's question again, with
+  a line after it ("What is a noun? You can do it!"), no longer turns a right answer to the check into
+  the hint's. And when the app asks the check's question again after the hint's answer, the tutor's own
+  question at the end of its reply is left out, so only one question is waiting on screen.
 - **A check stays open while the learner asks for hints.** In "Check if I've got this", asking for a hint,
   answering the hint's question or typing something that answers nothing no longer uses up the check, so
   the right answer after them is still checked and can mark the skill learned. A check still ends after
   four other messages (answers, or requests such as "can you explain that again?") or twelve messages. An
-  answer to a hint's own question ("break it into equal pieces" for "How could you share a chocolate bar
-  equally?") is now checked against the hint's question, never the check's, and the app then asks the
-  check's question again; an answer that is right for the check's question, by the app's own match ("48"
-  after the hint "What is 8 + 8?") or by the grader when it is not right for the hint's ("A fraction is a
-  part of a whole, like one slice of a pizza."), still counts for the check. When the app asks a question
+  answer to a hint's own question that is not right for the check's question ("16" for "What is 8 + 8?"
+  in a check on 6 x 8) never counts for the check, and the app then asks the check's question again; an
+  answer that is right for the check's question still counts for the check. When the app asks a question
   again that points back ("what the "whole" is in this example?"), it keeps the example.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
@@ -189,7 +199,18 @@ The section for each release is also what the app shows when you press Check for
   stay apart, as do ones whose answers share no word ("numerator" and "denominator") and ones that ask
   something else at the end ("what does the numerator tell you?" and "the denominator", the job of the
   roots and of the leaves). Number, fraction, time, money, multiple-choice and word-problem answers still
-  count as a repeat only when they are the same.
+  count as a repeat only when they are the same. Keys that share only a pronoun, a reflexive one included
+  ("she herself is kind" and "she herself is rude"), stay apart.
+- **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
+  now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
+  one), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
+  times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
+  enough others for the quiz's or test's minimum (10 questions for a quiz, 30 for a level test) are the
+  set-aside ones used, and then before any question an earlier quiz on the level already asked.
+  True/false answers, numbers, fractions, times and money are not counted, nor is a pick the question
+  names itself or offers from 3 or fewer choices ("Is 8 even or odd?", noun or verb, solid, liquid or
+  gas), so an "Even and odd" quiz stays full. Answers that differ only in an apostrophe ("its" and "it's",
+  "well" and "we'll") stay different answers.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an
   English question asks about ("an eighth" and "a eighth"), and so do a hyphen or a space in a question

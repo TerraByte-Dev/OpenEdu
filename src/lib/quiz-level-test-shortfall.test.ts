@@ -13,7 +13,8 @@ vi.mock("./llm", () => ({
 }));
 
 import { callLLMStructured } from "./llm";
-import { generatePromotionTestQuestions, levelTestReviewLevels, levelTestShortfall, levelTestTarget, TEST_FLOOR } from "./quiz";
+import { generatePromotionTestQuestions, levelTestReviewLevels, levelTestShortfall, levelTestTarget, TEST_FLOOR, SAME_KEY_CAP } from "./quiz";
+import { dedupeByQuestionText, keyForm } from "./quiz-grading";
 import type { LLMConfig, Syllabus } from "../types";
 
 const GEN = { provider: "ollama", model: "gemma4:e4b", modelTier: "small" } as LLMConfig;
@@ -106,6 +107,109 @@ describe("levelTestShortfall on generatePromotionTestQuestions' output", () => {
     model(TEST_FLOOR - 10, true);
     const t = await generatePromotionTestQuestions(syllabus(2), [syllabus(1)], { ...GEN });
     expect(t.current.length + t.review.length).toBe(TEST_FLOOR);
+    expect(levelTestShortfall(t)).toBeNull();
+  }, 30_000);
+});
+
+// TerraTutor live test part 7 issue 3: a level test keyed "Lava" about 9 times in 31, each stem unlike the others.
+// One level-test section asks at most SAME_KEY_CAP questions with one key; more are set aside, and fill
+// back only to keep the test at its minimum (TEST_FLOOR).
+const LAVA_STEMS = [
+  "What flows out of an erupting volcano?",
+  "What is molten rock called once it reaches the surface?",
+  "What glows red as it pours down a mountainside in Hawaii?",
+  "Basalt forms when which material cools?",
+  "Which hot liquid can bury roads near Kilauea?",
+  "Pahoehoe and aa are two kinds of what?",
+  "What do volcanologists sample with long metal poles?",
+  "Obsidian is glass made from what?",
+  "What hardens into new land on a growing island?",
+];
+const lava = (i: number, sub: string) => i % 2
+  ? {
+    question_text: LAVA_STEMS[i], question_type: "multiple_choice", options: ["A) Ash", "B) Lava", "C) Steam", "D) Sand"],
+    correct_answer: "B) Lava", difficulty_level: 2, explanation: "Molten rock above ground is lava. Therefore the answer is B) Lava",
+    subtopic_id: sub, blank_position: "", matching_pairs: [],
+  }
+  : {
+    question_text: LAVA_STEMS[i], question_type: "short_answer", options: [],
+    correct_answer: "the lava", difficulty_level: 2, explanation: "Molten rock above ground is lava. Therefore the answer is the lava",
+    subtopic_id: sub, blank_position: "", matching_pairs: [],
+  };
+const isLava = (q: { correct_answer: string }) => keyForm(q.correct_answer) === "lava";
+// The model's first 31 current-level questions, 9 of them keyed "Lava"; after that it writes `more`
+// others, then fails. Review questions `review` times.
+function lavaModel(more: number, review: number, sub = "1.1") {
+  n = 0;
+  const at = new Set([2, 5, 7, 11, 14, 19, 23, 26, 30]);
+  let current = 0, l = 0, reviews = 0;
+  vi.mocked(callLLMStructured).mockReset();
+  vi.mocked(callLLMStructured).mockImplementation(async (messages, _config, opts) => {
+    const content = messages.map((m) => m.content).join("\n");
+    if (opts.toolName === "emit_verdicts") return { verdicts: [] } as never;
+    if (content.includes("review of earlier material")) {
+      if (++reviews > review) throw new Error("Structured output failed after 3 attempts.");
+      return question("1.1") as never;
+    }
+    const c = ++current;
+    if (c > 31 + more) throw new Error("Structured output failed after 3 attempts.");
+    return (at.has(c) ? lava(l++, sub) : question(sub)) as never;
+  });
+}
+
+describe("one key many times in a level test (TerraTutor live test part 7 issue 3)", () => {
+  it("the nine Lava stems are not near-duplicates of each other, so only the cap catches them", () => {
+    expect(dedupeByQuestionText(LAVA_STEMS.map((_, i) => lava(i, "1.1")))).toHaveLength(9);
+  });
+
+  it(`asks for others past ${SAME_KEY_CAP} Lava questions, and the test is full without them`, async () => {
+    lavaModel(1000, 0);
+    const t = await generatePromotionTestQuestions(syllabus(1), [], { ...GEN });
+    expect(t.current).toHaveLength(35);
+    expect(t.current.filter(isLava)).toHaveLength(SAME_KEY_CAP);
+    expect(levelTestShortfall(t)).toBeNull();
+  }, 30_000);
+
+  it("fills back from the set-aside ones to the test's minimum when the model can write no others", async () => {
+    lavaModel(0, 0);
+    const t = await generatePromotionTestQuestions(syllabus(1), [], { ...GEN });
+    // 22 others + 2 Lava, then 6 of the 7 set aside: 30, the minimum, not 35.
+    expect(t.current).toHaveLength(TEST_FLOOR);
+    expect(t.current.filter(isLava)).toHaveLength(8);
+    expect(levelTestShortfall(t)).toBeNull();
+  }, 30_000);
+
+  it("with a review section, fills the current one back only as far as a short review section needs", async () => {
+    lavaModel(0, 5, "2.1");
+    const t = await generatePromotionTestQuestions(syllabus(2), [syllabus(1)], { ...GEN });
+    // Current: 24 (2 Lava), over its own minimum of 20; review: 5 of 10. One set-aside Lava makes 30.
+    expect(t.review).toHaveLength(5);
+    expect(t.current).toHaveLength(25);
+    expect(t.current.filter(isLava)).toHaveLength(3);
+    expect(levelTestShortfall(t)).toBeNull();
+  }, 30_000);
+});
+
+// Review of TerraTutor #263 (the same-key fix): "Is 8 even or odd?" keyed "Even" is a classification's pick, as routine as
+// true/false, so an "Even and odd" level test is not capped down below its minimum.
+describe("a classification key many times in a level test", () => {
+  it("an even/odd test, 7 of every 10 questions keyed Even or Odd, is full", async () => {
+    n = 0;
+    let c = 0;
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (_messages, _config, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] } as never;
+      const k = ++c + 1;
+      if (k % 10 >= 7) return question("1.1") as never;
+      const key = k % 2 ? "Odd" : "Even";
+      return {
+        question_text: `Is ${k} even or odd?`, question_type: "short_answer", options: [], correct_answer: key, difficulty_level: 1,
+        explanation: `Count by twos to check. Therefore the answer is ${key}`, subtopic_id: "1.1", blank_position: "", matching_pairs: [],
+      } as never;
+    });
+    const t = await generatePromotionTestQuestions(syllabus(1), [], { ...GEN });
+    expect(t.current).toHaveLength(35);
+    expect(t.current.filter((q) => /even or odd/.test(q.question_text)).length).toBeGreaterThan(20);
     expect(levelTestShortfall(t)).toBeNull();
   }, 30_000);
 });
