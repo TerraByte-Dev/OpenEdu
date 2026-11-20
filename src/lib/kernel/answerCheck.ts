@@ -569,9 +569,12 @@ const CHOICE_OFFER = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|a
 // An offer asks nothing of its own (TerraTutor #273's review, MUST-FIX 3). A sentence with an embedded question
 // ("Do you want to tell me what the nucleus does, or would you like a hint?", "whether a tomato is a fruit"), a ":"
 // ("Would you like to try this one: what gas do plants take in, ...?") or a verb that asks for an answer ("... or
-// check the picture again to find the numerator?") asks for a fact, and is keyed as before. So does one with a digit in
-// it, which poses a problem ("Do you want to try 6 × 7, or would you like an easier one?", review of this port, NIT 1).
-const ASKS_INSIDE = /:|\d|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
+// check the picture again to find the numerator?") asks for a fact, and is keyed as before. So does one that poses a
+// problem in numbers: an operation between two numbers, or "3 of the 4" ("Do you want to try 6 × 7, or would you like
+// an easier one?", review of this port, NIT 1). A number alone poses none ("Do you want to do 3 more, or would you like
+// to stop?", "... try question 2, or go back to question 1?"; TerraTutor take-back 2026-11-20-1623, item 1, ported
+// from TerraTutor 87577a00).
+const ASKS_INSIDE = /:|\d\s*[×x*÷/+\-−=<>]\s*\d|\b\d+\s+of\s+(?:the\s+)?\d+\b|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
 
 /** True when every question asked in `question` asks for the learner's opinion (OPINION) or offers a choice of what to
  *  do next (CHOICE_OFFER), with no fact to key. */
@@ -924,9 +927,10 @@ function yesNo(key: string): "yes" | "no" | null {
 
 const normKey = (s: string) => s.toLowerCase().replace(/[*_`"“”'’.,!?;:()]/g, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|a|an) /, "");
 
-/** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."). */
+/** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."),
+ *  but not a feet, inch or factorial mark after a number (numberMarks: "5'" / "5\"", "5!" / "5"). */
 function sameKey(a: string, b: string): boolean {
-  return !!normKey(a) && normKey(a) === normKey(b);
+  return !!normKey(a) && normKey(a) === normKey(b) && numberMarks(a) === numberMarks(b);
 }
 
 /**
@@ -939,12 +943,19 @@ function sameKey(a: string, b: string): boolean {
  * 4"). A word only one key has can still change what its number means ("4 cm" / "4 square cm"): checkAnswer merges
  * two questions on such keys only when the newest question counts that word (countsKeyWords). TerraTutor live test
  * 2026-11-20 part 12, issue 1: the move-on question's key "4 pieces" was not the first question's "4", and the move-on
- * question the learner had just answered was asked again. Exact on purpose: keys in other words are two answers here.
+ * question the learner had just answered was asked again. Keys are read as plainKey reads them ("$4$" / "4 pieces",
+ * "x = 4" / "4", "50%" / "50 percent", "4 > 3" / "4 is greater than 3"; not "x > 3" / "x is greater than or equal to
+ * 3", "x = 4" / "y = 4"), and a feet, inch or factorial mark after a number is part of the answer (numberMarks: not
+ * "5'" / "5\"", "5!" / "5"; TerraTutor take-back 2026-11-20-1623, items 2-4, ported from TerraTutor #276). Exact on
+ * purpose: keys in other words are two answers here.
  */
 export function keysAgree(a: string, b: string): boolean {
+  if (numberMarks(a) !== numberMarks(b)) return false;
+  const [ua, ub] = [unknownIn(a), unknownIn(b)];
+  if (ua && ub && ua !== ub) return false;
   if (sameKey(a, b) || (!!normKey(a) && sameAnswer(normKey(a), normKey(b)))) return true;
-  const na = numbersIn(a).map((n) => n.value);
-  const nb = numbersIn(b).map((n) => n.value);
+  const na = numbersIn(plainKey(a)).map((n) => n.value);
+  const nb = numbersIn(plainKey(b)).map((n) => n.value);
   if (!na.length || na.length !== nb.length || na.some((v, i) => Math.abs(v - nb[i]) > 1e-9)) return false;
   const negations = (k: string) => (k.toLowerCase().match(NEGATION) ?? []).sort().join(" ");
   if (negations(a) !== negations(b) || yesNo(a) !== yesNo(b) || keySymbols(a) !== keySymbols(b)) return false;
@@ -953,13 +964,40 @@ export function keysAgree(a: string, b: string): boolean {
   return [...fewer].every((w) => more.has(w));
 }
 
-/** A key read as plain text: LaTeX math as written out ("$\frac{3}{8}$" is "3/8", "\times" and "\cdot" "×", "\div"
- *  "÷"), and an "x", "*" or "·" between two numbers is "×" ("3 x 4" is "3 × 4"). */
+/** A key read as plain text: LaTeX math as written out ("$\frac{3}{8}$" is "3/8", "$4$" "4", "\times" and "\cdot"
+ *  "×", "\div" "÷"; money stays money: "$4 and $5", "$4.50"), an "x", "*" or "·" between two numbers is "×" ("3 x 4"
+ *  is "3 × 4", a "**" between two numbers is "^": "2 ** 3" is "2^3"), formatting left out ("**4**" is "4", "x = 4"
+ *  and "n = 4" are "4", the en dash and the minus sign are "-", "′" and "″" are "'" and '"'), and a closed set of
+ *  words read as their symbols: "50 percent" is "50%", "90 degrees" "90°", "4.50 dollars" "$4.50", "is greater than"
+ *  ">", "is less than" "<" (not "is greater than or equal to": those words stay words, another answer than ">" and
+ *  "≥"). No other word is a symbol. */
 function plainKey(k: string): string {
   return k.replace(/\$([^$]*\\[^$]*)\$/g, "$1")
+    .replace(/\$(?=\S)([^$]*?\S)\$(?!\d)/g, "$1")
     .replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2")
     .replace(/\\(?:times|cdot)\b/g, "×").replace(/\\div\b/g, "÷")
-    .replace(/(?<=\d\s*)[x*·](?=\s*\d)/gi, "×");
+    .replace(/(?<=\d\s*)\*\*(?=\s*\d)/g, "^").replace(/(?<=\d\s*)[x*·](?=\s*\d)/gi, "×")
+    .replace(/[*_]/g, " ").replace(/[–−]/g, "-").replace(/′/g, "'").replace(/″/g, '"')
+    .replace(/^\s*[a-z]\s*=\s*(?=\S)/i, "")
+    .replace(/(\d)\s*per\s?cent\b/gi, "$1%").replace(/(\d)\s*degrees?\b/gi, "$1°")
+    .replace(/(\d[\d,]*(?:\.\d+)?)\s*dollars?\b/gi, "$$$1")
+    .replace(/\s*\bis greater than\b(?!\s+or\s+equal)\s*/gi, " > ")
+    .replace(/\s*\bis less than\b(?!\s+or\s+equal)\s*/gi, " < ");
+}
+
+/** The letter a key assigns to ("x" in "x = 4", "$x = 4$", "**x** = 4"), or "". Keys for two unknowns ("x = 4" /
+ *  "y = 4", "$x = 4$" / "$y = 4$") are two answers. Read with math dollars and formatting gone, since plainKey drops
+ *  both and then the "x = " too. */
+function unknownIn(k: string): string {
+  return /^\s*([a-z])\s*=/i.exec(k.replace(/[$*_]/g, ""))?.[1].toLowerCase() ?? "";
+}
+
+/** A key's feet, inch and factorial marks straight after a number ("5'", "5″", "5!", "5'6\""), in order. Each is
+ *  another answer ("5'" / "5\"", "5!" / "5"), and normKey and keySymbols drop them, so keysAgree checks them first.
+ *  A quote around a word or number ("'four'", "\"4\"") is not a mark. */
+function numberMarks(k: string): string {
+  const unquoted = k.replace(/(^|[\s(\[:=])(['"“‘])([^'"“”‘’]*)(?:\2|[”’])(?=$|[\s.,;:!?)\]])/g, "$1$3");
+  return [...unquoted.matchAll(/\d(['′"″!])(?!\p{L})/gu)].map((m) => (m[1] === "′" ? "'" : m[1] === "″" ? '"' : m[1])).join("");
 }
 
 /** A key's text, as plainKey reads it, with its numbers (numbersIn) taken out. */
