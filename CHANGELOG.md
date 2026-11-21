@@ -292,7 +292,10 @@ The section for each release is also what the app shows when you press Check for
   that only named a skill, or mark a different skill than the one being checked: a sweep of 1,733 check
   turns found 246 such marks, now 31 (after a hint, the tutor's mark still counts, as before). A plain
   "Yes" to "Does that make sense?" or "Are you ready?" after picking the next skill no longer stops a right
-  first answer on it from being saved. Only with a model OpenEdu rates tiny or small, as for OpenEdu's own mark.
+  first answer on it from being saved. If the tutor moves to another skill after that pick ("Actually, let's do
+  Sharing Fairly first."), OpenEdu no longer saves the picked skill for the answer, and the tutor's own mark of
+  the skill it asked about is kept. Only with a model OpenEdu rates tiny or small, as for OpenEdu's own mark; with
+  such a model the tutor's own "learned" mark now needs an answer OpenEdu checked on that turn.
 - **Fewer wrong verdicts in a check** (ported from TerraTutor #281). A range in an offer ("Do you want to
   try 2 - 3 more questions, or would you like to stop?") is no longer checked as a subtraction, so "4 more
   please" is not told it is wrong; "let me try 3 x 4" after "Do you want to try 6 × 7, or ...?" is a

@@ -1487,7 +1487,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   it fires no tool event. Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
-  keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
+  keeps its rule (an eval's `answerCheck: "off"` baseline included), except on a `tiny` or `small` model: there
+  the gate above refuses a `mastered` mark on every turn with no answer checked (`markTarget` gives no subtopic
+  without one), a non-answer turn of a check and the `"off"` baseline included, where master let it run. The model
+  is then told `MASTERY_REFUSED_NOT_FIRST_TRY`, whose words (help or another try first) do not fit that case.
+  `practiced` still runs.
 - **The mark after a correct check answer is code's when the model makes none** (`TutorEngine.ts appMark`;
   ported from TerraTutor #266). gemma4:e2b, the default below 16 GB, never called `progress.mark_mastered`
   after a check answer graded correct (TerraTutor live tests 2026-11-19 parts 7 and 8, 2026-11-20 part 9:
@@ -1528,7 +1532,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   graded is in that message after the pick. Only a plain yes to "Does that make sense?" or "Are you ready?"
   (`usedNoTry`, the same test the check's first try uses) may come between, with the tutor's reply to it, and the
   question graded is then the one in that reply (ported from TerraTutor #289: after such a yes, nothing in the
-  check could mark the skill). The app shows that card only on a turn the learner answered
+  check could mark the skill). When the tutor's words after the pick, up to the answer, name another subtopic not
+  mastered (its title from the saved syllabus; the picked title's own words do not count), code does not know which
+  skill the question was on (`pickedNextSkill` gives `"switched"`, `markTarget` `null`): the app marks nothing and
+  the model's own mark stands (OpenEdu review of the #289 port, 2026-11-21: after a pick of "Equal Groups with
+  Arrays" the tutor said "Actually, let's do Sharing Fairly first." and asked its question; the picked skill was
+  saved, and the model's right mark of the other refused). The app shows that card only on a turn the learner answered
   right (above), so the turn it was picked on was not a hint, help or a wrong try. A pick on a card of the
   model's own never counts (code knows the app's card only by its text and where it sits, so a model card
   that opens its reply with those exact words would pass for it): code cannot

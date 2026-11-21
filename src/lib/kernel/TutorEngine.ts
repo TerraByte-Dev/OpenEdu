@@ -177,6 +177,8 @@ function markTarget(input: MarkInput, conversation: ReadonlyArray<{ role: string
   // the card just before it (assessPicker.ts pickedNextSkill): its first try, under the same rules.
   const next = input.answerCheck && !firstAttempt(conversation, free) ? pickedNextSkill(conversation, saved, input.answerCheck, (j) => usedNoTry(conversation.slice(0, j + 1))) : undefined;
   if (next === null) return undefined;
+  // The tutor named another skill not mastered after the pick: code does not know which one the question was on.
+  if (next === "switched") return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
   // before that card.
@@ -199,6 +201,8 @@ function modelMarkAllowed(input: MarkInput, conversation: ReadonlyArray<{ role: 
   if (target === undefined) return false;
   if (target === null) return true;
   const named = saved ? resolveSubtopic(saved.subtopics, ref) : null;
+  // A ref that names no one subtopic saves nothing: the tool itself tells the model the valid ids.
+  if (named && named.kind !== "match") return true;
   return named?.kind === "match" && named.sub.id === target.id;
 }
 

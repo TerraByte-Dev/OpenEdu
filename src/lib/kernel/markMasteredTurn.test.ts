@@ -574,7 +574,8 @@ describe("the mark code makes after a correct check answer", () => {
   it("still marks when the model's own mark failed on a wrong id", async () => {
     script = [markCall("mastered", "Nonsense Topic"), reply("Yes, 12.")];
     const result = await assessTurn(OPENED_WITH, picked("12"));
-    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Nonsense Topic", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }, appMark]);
+    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Nonsense Topic", status: "mastered" }, ok: false }, appMark]);
+    expect(toolResultSeen()).toMatch(/^ERROR: No subtopic matched "Nonsense Topic"/);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
   });
 
@@ -603,6 +604,13 @@ describe("the mark code makes after a correct check answer", () => {
     const result = await assessTurn(OPENED_WITH, picked("12"));
     expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Sharing Fairly", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }, appMark]);
     expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+  });
+
+  it("holds a small model's own mark to the same gate", async () => {
+    script = [markCall("mastered"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, afterFirst("I don't know"), "small");
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 
   it("leaves a medium model's own mark to it, as before", async () => {

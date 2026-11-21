@@ -89,8 +89,29 @@ the same numbers as TerraTutor master `056f0fa0` on every path.
 | model's prose copy of a card | 8 | 0 | 0 | 0 | 0 |
 | **All** | **1733** | **116** | **110** | **31** | **37** |
 
-**Wrong marks: 246 to 31. Missed marks: 55 to 37.** No row is wrong on the branch that was right on master. The
-branch numbers are TerraTutor's after #289, row for row.
+**Wrong marks: 246 to 31. Missed marks: 55 to 37.** No row of this matrix is wrong on the branch that was right on
+master. The branch numbers are TerraTutor's after #289, row for row.
+
+### Outside the matrix: the tutor switches skills in prose after the which-next pick
+
+The matrix never has the tutor move to another skill in prose after the app's "which next?" pick. OpenEdu's review
+of this port (2026-11-21) did: "Equal Groups" mastered, the app's card picked "Equal Groups with Arrays" (1.2), the
+tutor said "Actually, let's do Sharing Fairly first." and asked the cookies question (1.3), the learner answered "3"
+first try. By the rule, 1.3 is marked.
+
+| Probe | What happens | master | port as first written | branch |
+|---|---|---|---|---|
+| D | Switch in the same message, the model marks "Sharing Fairly" | 1.3 | 1.2 (wrong) | 1.3 |
+| C | Switch, "Are you ready for a question?", "Yes", then the question; the model marks "Sharing Fairly" | 1.3 | 1.2 (wrong) | 1.3 |
+| A | Same as C, no call from the model (app's mark only) | none | 1.2 (wrong) | none |
+| B | Same as D, no call from the model (app's mark only) | 1.2 (wrong) | 1.2 (wrong) | none |
+
+The gate trusted the card's pick and never asked which skill the graded question was about, so it refused the
+model's right mark and the app then marked 1.2. Now `pickedNextSkill` gives `"switched"` when the tutor's words after
+the pick name another subtopic not mastered (a course title, not a phrase list), and `markTarget` treats that as no
+exact subtopic: the app marks nothing and the model's choice stands. With the picked skill's question after a ready
+"Yes" and no switch, the app still marks 1.2. All five are pinned at the end of the sweep file. The matrix numbers
+above did not change with this fix.
 
 ### New missed marks (right on master, missed on the branch): 9, all the model's own call
 

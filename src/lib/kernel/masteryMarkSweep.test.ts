@@ -499,6 +499,29 @@ describe("mastery mark sweep: every path that can mark a skill in chat", () => {
       expect(three.marked).toEqual([C.id]);
     }, 30_000);
   }
+
+  // The app's which-next card picks 1.2, then the tutor moves to 1.3 in prose and asks its question (OpenEdu review of
+  // this port, 2026-11-21, MUST-FIX 1). Code no longer knows which skill the question was on, so the app marks
+  // nothing and the model's own mark stands. Before: 1.2 saved by the app, and the model's right mark of 1.3 refused.
+  const pickB = (tail: string): Sent => [...FIRST_SKILL_DONE, { role: "assistant", content: `${VERDICT_FALLBACK.correct}\n\n${picked(NEXT_PICKER_QUESTION, B.title)}${tail}` }];
+  const switchSame: Sent = [...pickB(`Actually, let's do ${C.title} first. ${Q[C.id].q}`), { role: "user", content: Q[C.id].code }];
+  const switchReady: Sent = [...pickB(`Actually, let's do ${C.title} first. ${Q[C.id].explain} Are you ready for a question?`), { role: "user", content: "Yes" }, { role: "assistant", content: `Here it is. ${Q[C.id].q}` }, { role: "user", content: Q[C.id].code }];
+  for (const [name, conversation] of [["in the same message", switchSame], ["then a ready yes", switchReady]] as const) {
+    it(`which-next pick of 1.2, the tutor switches to 1.3 ${name}: the app marks nothing`, async () => {
+      const got = await runCase({ id: "switch app", path: "p", prior: "p", answer: "p", marker: "app", conversation, mastered: [A.id], script: [reply("Yes, that's it.")], verdict: "correct", expected: [] });
+      expect(got.verdict).toBe("correct");
+      expect(got.marked).toEqual([]);
+    }, 30_000);
+    it(`which-next pick of 1.2, the tutor switches to 1.3 ${name}: the model's mark of 1.3 stands`, async () => {
+      const got = await runCase({ id: "switch model", path: "p", prior: "p", answer: "p", marker: "model's call", conversation, mastered: [A.id], script: [markCall(C.title), reply("Yes, that's it.")], verdict: "correct", expected: [C.id] });
+      expect(got.marked).toEqual([C.id]);
+    }, 30_000);
+  }
+  it("which-next pick of 1.2, a ready yes, then 1.2's question: the app marks 1.2", async () => {
+    const conversation: Sent = [...pickB(`${Q[B.id].explain} Are you ready for a question?`), { role: "user", content: "Yes" }, { role: "assistant", content: `Here it is. ${Q[B.id].q}` }, { role: "user", content: Q[B.id].code }];
+    const got = await runCase({ id: "ready app", path: "p", prior: "p", answer: "p", marker: "app", conversation, mastered: [A.id], script: [reply("Yes, that's it.")], verdict: "correct", expected: [B.id] });
+    expect(got.marked).toEqual([B.id]);
+  }, 30_000);
 });
 
 // The results table (SWEEP_OUT=<path> npx vitest run src/lib/kernel/masteryMarkSweep.test.ts).
