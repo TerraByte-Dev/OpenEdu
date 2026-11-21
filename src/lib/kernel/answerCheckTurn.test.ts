@@ -2994,3 +2994,343 @@ describe("a reply in a mastery check that says a skill is learned when no mark w
     expect(result.removedClaims.map((c) => c.kind)).toEqual(["mastery", "mastery"]);
   });
 });
+
+// ── TerraTutor live test part 13 ───────────────────────────────────────────────────────────────────────
+
+// TerraTutor live test 2026-11-20 part 13 (ported from TerraTutor #279; gemma4:e2b, fractions L3, threads A-D, the offer in step 3 and the second skill in step
+// 6): the tutor's own words, as the test saved them.
+describe("TerraTutor live test 2026-11-20 part 13", () => {
+  const keyCalls = () => structured.filter((c) => c.tool === "AnswerKey").length;
+  const graded = () => structured.filter((c) => c.tool === "AnswerGrade").length;
+  const picked = (topic: string) => answeredCard("", PICKER_QUESTION, { text: topic, typed: false });
+
+  // Issue 1, thread D: the model's reply ended its question with a plain sentence after it, which let the question out,
+  // and code then asked the same question again under "Now back to the question:". One copy, code's, and one lead-in.
+  describe("thread D: the question code asks again is never shown twice", () => {
+    const D_FIRST = "What are the multiples of 2? What are the multiples of 4?";
+    const D_SMALLEST = "What is the smallest number that appears in both lists?";
+    const D_AGAIN = `${D_SMALLEST} That number is the Least Common Multiple (LCM).`;
+    const THREAD_D = [
+      student(ASSESS_MESSAGE),
+      tutor(`${picked("Ordering Fractions (Ascending and Descending)")}That is a good starting point. We are working on comparing fractions with unlike denominators.\n\nTo compare $\\frac{1}{2}$ and $\\frac{1}{4}$, we need a common denominator. ${D_FIRST}`),
+      student("help"),
+      tutor(`I can help you find the common denominator. Let's list the multiples of each denominator.\n\nMultiples of 2 are: 2, 4, 6, 8, 10, ...\nMultiples of 4 are: 4, 8, 12, 16, ...\n\n${D_AGAIN}`),
+    ];
+    const D_ANSWER = "2, 4, 6, 8 for 2 and 4, 8, 12, 16 for 4";
+    beforeEach(() => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("smallest number")
+        ? { question: D_SMALLEST, working: "", answer: "4" }
+        : { question: D_FIRST, working: "", answer: "Multiples of 2: 2, 4, 6, 8... Multiples of 4: 4, 8, 12, 16..." });
+      gradeOut = (sent: Sent) => ({
+        student_answer: D_ANSWER,
+        verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${D_FIRST}\n`) ? "correct" : "incorrect",
+      });
+    });
+    const times = (text: string, part: string) => text.split(part).length - 1;
+
+    it("the live reply: the model's copy and the sentence after it are held, code's copy is the only one", async () => {
+      script = [reply(`You found the correct multiples. Now, look at both lists. ${D_SMALLEST} That number is the Least Common Multiple, or LCM.`)];
+      const { result, shown } = await answer(THREAD_D, D_ANSWER);
+      expect(result.answerCheck).toMatchObject({ question: D_FIRST, verdict: "correct", on: "earlier", checkQuestion: D_SMALLEST });
+      expect(result.text).toBe(`You found the correct multiples. Now, look at both lists.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+      expect(times(result.text, D_SMALLEST)).toBe(1);
+      expect(times(result.text, HINT_ANSWER_BACK)).toBe(1);
+      for (const s of shown) expect(times(s, D_SMALLEST), s).toBeLessThanOrEqual(1);
+    }, 30_000);
+
+    it("the model's copy with a lead word, and its own lead-in before it: held too", async () => {
+      script = [reply("You found the correct multiples. Here it is again: so, what is the smallest number that appears in both lists? Take your time!")];
+      const { result } = await answer(THREAD_D, D_ANSWER);
+      expect(result.text).toBe(`You found the correct multiples.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+    }, 30_000);
+
+    it("feedback after the model's copy is let out without it", async () => {
+      script = [reply(`You found the correct multiples. ${D_SMALLEST} Look for a number you wrote twice.`)];
+      const { result } = await answer(THREAD_D, D_ANSWER);
+      expect(result.text).toBe(`You found the correct multiples. Look for a number you wrote twice.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+      expect(times(result.text, D_SMALLEST)).toBe(1);
+    }, 30_000);
+
+    it("another question of the model's, with feedback after it, is let out as before", async () => {
+      script = [reply("You found the correct multiples. Is 8 in both lists? Look again at the second list.")];
+      const { result } = await answer(THREAD_D, D_ANSWER);
+      expect(result.text).toBe(`You found the correct multiples. Is 8 in both lists? Look again at the second list.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+    }, 30_000);
+
+    // Review of part 13, MUST-FIX 4 (rows 6 and 7): the model's copy is not always word for word.
+    it.each([
+      ["with two words added", "What is the smallest number that appears in both of the lists?"],
+      ["in other words", "What's the smallest number in both lists?"],
+    ])("the model's copy %s, then a plain sentence: held, code's copy is the only one", async (_how, copy) => {
+      script = [reply(`You found the correct multiples. ${copy} You listed them well.`)];
+      const { result, shown } = await answer(THREAD_D, D_ANSWER);
+      expect(result.text).toBe(`You found the correct multiples. You listed them well.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+      for (const s of shown) expect(s, s).not.toContain(copy);
+    }, 30_000);
+
+    // Review of part 13, MUST-FIX 3 (row 8): a question that ends the text before a tool call was let out by the tool
+    // round unread, and code then asked it again.
+    const copyThenCall = (copy: string): TurnEvent[][] => [
+      [...reply(`You found the correct multiples. ${copy}`).slice(0, -1),
+        { type: "tool_call", id: "call_0", name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "learning" } },
+        { type: "done", finishReason: "tool_calls" }],
+      reply("Keep going."),
+    ];
+    it.each([D_SMALLEST, `${D_SMALLEST} `])("the model's copy %j, then a tool call, then more text: shown once", async (copy) => {
+      script = copyThenCall(copy);
+      const { result, shown } = await answer(THREAD_D, D_ANSWER);
+      expect(times(result.text, D_SMALLEST)).toBe(1);
+      expect(result.text).toContain("You found the correct multiples.");
+      expect(result.text).toContain("Keep going.");
+      expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${D_AGAIN}`)).toBe(true);
+      for (const s of shown) expect(times(s, D_SMALLEST), s).toBeLessThanOrEqual(1);
+    }, 30_000);
+
+    it("stopped after that tool round: code's copy is added, so the saved reply still asks it once", async () => {
+      script = copyThenCall(D_SMALLEST);
+      const stop = new AbortController();
+      const history = [...THREAD_D, student(D_ANSWER)];
+      const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, history), "Arithmetic", "tiny", true);
+      let streamed = "";
+      const result = await tutorEngine.run(
+        { messages: [{ role: "system", content: SYSTEM }, ...history], config: CONFIG, retrieval: "off",
+          onText: (chunk) => { streamed += chunk; if (streamed.includes("You found")) stop.abort(); } },
+        { courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+          abort: stop.signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true, askUser: async (_q, c) => c[0].value },
+      );
+      expect(result.stopReason).toBe("aborted");
+      expect(times(result.text, D_SMALLEST)).toBe(1);
+      expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${D_AGAIN}`)).toBe(true);
+    }, 30_000);
+  });
+
+  // Issue 2, thread C: "Do you remember how we find a common denominator?" was keyed "4". A yes/no question about
+  // whether the learner remembers, knows how, is ready or follows has no one right answer: no key, no verdict.
+  describe("thread C: a question about whether the learner remembers is not keyed", () => {
+    const C_OPENING = `${picked("Comparing Fractions with Unlike Denominators")}That is a great area to focus on. Comparing fractions with different bottom numbers (denominators) is a key skill.\n\nTo compare fractions like $\\frac{1}{2}$ and $\\frac{1}{4}$, we need them to have the same bottom number. This is called finding a common denominator.\n\nDo you remember how we find a common denominator?`;
+    const C_NEWEST_Q = "What numbers can you think of that both 2 and 4 can divide into evenly? These numbers are called multiples.";
+    const C_ANSWER = "You find a common multiple of the two denominators";
+
+    it("answered straight after it: no key call, no verdict, no mark", async () => {
+      keyOut = { question: "Do you remember how we find a common denominator?", working: "", answer: "4" };
+      gradeOut = { student_answer: C_ANSWER, verdict: "incorrect" };
+      script = [markCall("mastered"), reply("Yes, that is how we do it.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(C_OPENING)], C_ANSWER);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(keyCalls()).toBe(0);
+      expect(graded()).toBe(0);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it("the live thread: the opening is never keyed, so its \"4\" no longer grades the answer", async () => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("divide into evenly")
+        ? { question: C_NEWEST_Q, working: "", answer: "4, 8, 12, etc." }
+        : { question: "Do you remember how we find a common denominator?", working: "", answer: "4" });
+      gradeOut = { student_answer: C_ANSWER, verdict: "incorrect" };
+      const { result } = await answer([
+        student(ASSESS_MESSAGE), tutor(C_OPENING),
+        student("I don't know"), tutor(`That is okay. We will learn how to find a common denominator.\n\nThink about the fractions $\\frac{1}{2}$ and $\\frac{1}{4}$.\n\n${C_NEWEST_Q}`),
+      ], C_ANSWER);
+      expect(keyCalls()).toBe(1);
+      expect(structured.filter((c) => c.tool === "AnswerKey").every((c) => !lastUser(c.messages).includes("Do you remember"))).toBe(true);
+      expect(result.answerCheck).toMatchObject({ question: C_NEWEST_Q, key: "4, 8, 12, etc." });
+      expect(result.answerCheck?.on).toBeUndefined();
+    }, 30_000);
+
+    it.each([
+      ["Do you remember how we find a common denominator?", true],
+      ["Do you know how to add fractions?", true],
+      ["Can you remember how we write a fraction?", true],
+      ["Are you ready for the next one?", true],
+      ["Are you ready to try another?", true],
+      ["Does that make sense?", true],
+      ["Great work. Does that all make sense?", true],
+      // A content question that starts the same way: keyed.
+      ["Do you know what 3 × 4 is?", false],
+      ["Do you remember what we call the top number?", false],
+      ["Do you know how many legs a spider has?", false],
+      ["Do you know why the sky is blue?", false],
+      ["Do you remember how we find 3 × 4?", false],
+      ["Do you remember the rule for adding fractions?", false],
+      // A bare "Do you know?" points back at a setup ("Let's see if you know which planet is closest to the sun.").
+      ["Okay, do you remember?", false],
+      ["Let's see if you know which planet is closest to the sun. Do you know?", false],
+      ["Are you ready to tell me which planet is closest to the Sun?", false],
+      ["Are you ready for 3 × 4?", false],
+      ["Does that make sense? What is 3 × 4?", false],
+      // Review of part 13, MUST-FIX 2: a command after it asks what comes next (rows 4 and 10).
+      ["Are you ready for a tricky one? Name the planet closest to the Sun.", false],
+      ["Do you remember how we find the area of a rectangle? Show me with a rectangle that is 3 cm by 4 cm.", false],
+      ["Do you remember how we find a common denominator? Take your time!", true],
+      ["Are you ready for the next one?\n\n😊", true],
+    ])("asksOpinion(%j) is %s", (question, none) => {
+      expect(asksOpinion(question)).toBe(none);
+    });
+  });
+
+  // Issue 3: an offer about the learner's preference ("Which one sounds better to you right now?") was keyed "Choice 1
+  // or 2" and graded; "What do you already know about life during the Elizabethan Era?" was keyed "Student's prior
+  // knowledge" and graded "correct".
+  describe("offers and keys that are no keys", () => {
+    const OFFER = "I can give you two choices.\n\nWe can either:\n\n1. Try another example with multiplication and division to find equivalent fractions.\n2. Move on to finding a common denominator using multiples and the Least Common Multiple (LCM).\n\nWhich one sounds better to you right now?";
+    const ASKS_NOTHING = "Tell me one thing you remember about cells.";
+
+    it("step 3's offer: no key call, no verdict", async () => {
+      keyOut = { question: OFFER, working: "", answer: "Choice 1 or 2" };
+      gradeOut = { student_answer: "Move on to common denominators", verdict: "partly" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(OFFER)], "Move on to common denominators");
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(keyCalls()).toBe(0);
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it("step 6's question about what the learner already knows, keyed \"Student's prior knowledge\": no verdict, no mark", async () => {
+      const asked = "You are correct. Romeo and Juliet fall in love at first sight at a party. That shows you have a good grasp of their initial connection.\n\nNow, let's move on to the next area we need to check for this level. We still need to solidify our understanding of The Elizabethan World: Context and Setting. This means learning a little bit about what life was like in the 16th century, which helps us understand why Shakespeare wrote the play the way he did.\n\nWhat do you already know about life during the Elizabethan Era?";
+      keyOut = { question: "What do you already know about life during the Elizabethan Era?", working: "", answer: "Student's prior knowledge" };
+      gradeOut = { student_answer: "Queen Elizabeth I ruled England", verdict: "correct" };
+      script = [markCall("mastered"), reply("Those are very important parts of the historical backdrop.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "Queen Elizabeth I ruled England, and people watched plays at the Globe Theatre.");
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(graded()).toBe(0);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it.each([
+      "Choice 1 or 2", "Choice depends on student preference", "Student's prior knowledge", "Depends on the student",
+      "Answers will vary", "Option A or B", "The student's preference", "Choices 1 or 2.",
+    ])("the key %j is no key", async (junk) => {
+      keyOut = { question: ASKS_NOTHING, working: "", answer: junk };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(ASKS_NOTHING)], "cells make up living things");
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it.each(["Choice B", "Option 2", "Students' notebooks", "The choice of the right tool"])("the key %j is still a key", async (key) => {
+      keyOut = { question: ASKS_NOTHING, working: "", answer: key };
+      gradeOut = { student_answer: "cells make up living things", verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(ASKS_NOTHING)], "cells make up living things");
+      expect(result.answerCheck).toMatchObject({ key, verdict: "incorrect" });
+    }, 30_000);
+
+    it.each([
+      ["Which one sounds better to you right now?", true],
+      ["Which sounds more fun to you?", true],
+      ["Which one sounds good to you?", true],
+      ["Would you prefer the pizza example or the chocolate bar?", true],
+      ["Do you prefer to draw it or write it?", true],
+      ["Which one do you want to do first?", true],
+      ["Which would you like to try next?", true],
+      // About the content: keyed.
+      ["Which word sounds like \"cat\"?", false],
+      ["Which one sounds the same as \"two\"?", false],
+      ["Which sound for you is the /k/ sound?", false],
+      ["Which fraction do you think is bigger?", false],
+    ])("asksOpinion(%j) is %s", (question, none) => {
+      expect(asksOpinion(question)).toBe(none);
+    });
+  });
+
+  // Issue 4: a numeric offer went to the key call, which returned the offer itself ("6 × 7 or an easier one").
+  describe("an offer that poses a problem in numbers", () => {
+    const NUMERIC_OFFER = "Nice work. Do you want to try 6 × 7, or would you like an easier one?";
+    const NUCLEUS_OFFER = "Great job! Are you having fun? Do you want to tell me what the nucleus does, or would you like a hint?";
+
+    it("is keyed by code: \"42\" is right with no model call", async () => {
+      keyOut = { question: "Do you want to try 6 × 7, or would you like an easier one?", working: "", answer: "6 × 7 or an easier one" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUMERIC_OFFER)], "42");
+      expect(result.answerCheck).toMatchObject({ key: "42", verdict: "correct", by: "code" });
+      expect(result.answerCheck).not.toHaveProperty("offer");
+      expect(structured).toHaveLength(0);
+    }, 30_000);
+
+    it.each(["it's 42", "um, 42!", "6 × 7 = 42", "forty-two"])("%j is graded against 42", async (said) => {
+      gradeOut = { student_answer: said, verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUMERIC_OFFER)], said);
+      expect(result.answerCheck).toMatchObject({ key: "42", verdict: "correct" });
+    }, 30_000);
+
+    it("a wrong number is graded against 42", async () => {
+      gradeOut = { student_answer: "48", verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUMERIC_OFFER)], "48");
+      expect(result.answerCheck).toMatchObject({ key: "42", verdict: "incorrect" });
+      expect(keyCalls()).toBe(0);
+    }, 30_000);
+
+    it.each(["an easier one", "yes", "6 × 7 please", "the easier one", "something with 5s please"])("the pick %j gets no verdict", async (said) => {
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUMERIC_OFFER)], said);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(structured).toHaveLength(0);
+    }, 30_000);
+
+    it("a model key that only echoes the offer is no key", async () => {
+      keyOut = { question: NUCLEUS_OFFER, working: "", answer: "Tell me what the nucleus does or a hint" };
+      gradeOut = { student_answer: "the hint one", verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUCLEUS_OFFER)], "the hint one");
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it("a model key with a fact for the same offer is still a key", async () => {
+      keyOut = { question: NUCLEUS_OFFER, working: "", answer: "It controls the cell" };
+      gradeOut = { student_answer: "it is the brain of the cell", verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(NUCLEUS_OFFER)], "it is the brain of the cell");
+      expect(result.answerCheck).toMatchObject({ key: "It controls the cell", verdict: "correct" });
+    }, 30_000);
+
+    it.each([
+      ["Do you want to do 3-4 more, or would you like to stop?", "a range"],
+      ["Would you like to try 1/2 of a pizza, or another one?", "a fraction"],
+    ])("%j is not keyed by code (%s poses no problem)", async (asked) => {
+      keyOut = { question: asked, working: "", answer: "Stop" };
+      gradeOut = { student_answer: "stop", verdict: "incorrect" };
+      await answer([student(ASSESS_MESSAGE), tutor(asked)], "stop");
+      expect(keyCalls()).toBe(1);
+    }, 30_000);
+  });
+
+  // Review of part 13: checks master keyed and graded, which the first fix lost.
+  describe("review of TerraTutor #279: real checks keep their verdict", () => {
+    // MUST-FIX 1 (rows 1 and 2): an offer that holds its own answer. A key from the offer that names one side is a key.
+    it.each([
+      ["Do you want to tell me whether a whale is a fish or a mammal, or would you like a hint?", "mammal", "a mammal"],
+      ["Do you want to tell me which is bigger, 3/4 or 2/3, or would you like a hint?", "3/4", "3/4"],
+    ])("%j keyed %j: %j is right by code", async (asked, key, said) => {
+      keyOut = { question: asked, working: "", answer: key };
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(`Good thinking. ${asked}`)], said);
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck).toMatchObject({ key, verdict: "correct", by: "code" });
+    }, 30_000);
+
+    it("a key that names both sides of that offer's choice is still no key", async () => {
+      const asked = "Do you want to tell me whether a whale is a fish or a mammal, or would you like a hint?";
+      keyOut = { question: asked, working: "", answer: "whale is a fish or a mammal or a hint" };
+      gradeOut = { student_answer: "a hint please", verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "a hint please");
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    // MUST-FIX 2 (rows 4 and 10): a recall or ready question with a command after it is a real check. Row 10's key
+    // call copies only the first sentence, so the check after the call is read against the whole message too.
+    it("\"Are you ready for a tricky one? Name the planet closest to the Sun.\": keyed, \"Venus\" is not right", async () => {
+      const asked = "Great job! Are you ready for a tricky one? Name the planet closest to the Sun.";
+      keyOut = { question: "Are you ready for a tricky one?", working: "", answer: "Mercury" };
+      gradeOut = { student_answer: "Venus", verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "Venus");
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck).toMatchObject({ key: "Mercury", verdict: "incorrect" });
+    }, 30_000);
+
+    it("\"Do you remember how we find the area of a rectangle? Show me ...\": keyed and graded", async () => {
+      const asked = "Do you remember how we find the area of a rectangle? Show me with a rectangle that is 3 cm by 4 cm.";
+      keyOut = { question: asked, working: "3 x 4 = 12", answer: "12 square cm" };
+      gradeOut = { student_answer: "7", verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "you add them, 7");
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck).toMatchObject({ key: "12 square cm", verdict: "incorrect" });
+    }, 30_000);
+  });
+});

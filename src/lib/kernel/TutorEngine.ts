@@ -754,8 +754,9 @@ ${lastUser.content}` };
     const keepsShown = () => !ctx.abort.aborted && !!streamedText.slice(appCardEnd).trim();
     // When code asks the check's question again after the reply (hintBack), the reply's own trailing
     // question is held back and dropped (answerCheck.ts TrailingQuestionHold, TerraTutor click test 2026-11-19 part 8,
-    // issue 4). Text still held counts as said for the empty-reply retries below; a tool round lets it out.
-    const hold = prepared.hintBack ? new TrailingQuestionHold() : null;
+    // issue 4), and so is the model's own copy of that question (TerraTutor live test 2026-11-20 part 13, thread D). Text still
+    // held counts as said for the empty-reply retries below; a tool round lets it out.
+    const hold = prepared.hintBack ? new TrailingQuestionHold(prepared.hintBack) : null;
     const held = (text: string) => (hold ? hold.push(text) : text);
     // Before each later model call: a question the last call's text ended on, held across a refused mark, is
     // dropped as at the reply's end, and the new call's text starts after a break. Glued on ("What is 16 + 8?Keep
@@ -821,7 +822,8 @@ ${lastUser.content}` };
       // after it can still end on the held question.
       const refusedOnly = pendingCalls.length > 0 && pendingCalls.every((c) => c.name === MARK_MASTERED_TOOL && marksMastered(c.args));
       if (hold && (pendingCalls.length > 0 || filter.stoppedAtCall) && !refusedOnly) {
-        const released = hold.flush();
+        // The model's copy of the question code asks after the reply stays out (TrailingQuestionHold).
+        const released = hold.flush(false);
         iterationText += released;
         show(released);
       }
@@ -1046,8 +1048,9 @@ ${lastUser.content}` };
     // again at the end, so the next try is checked against it (answerCheck.ts checkedMessage reads only what
     // follows HINT_ANSWER_BACK) and nothing the reply asked can stand in for it. On a stalled turn too: it is
     // code's text, and the question is still owed (else the next turn keys the fragment's own question). Not
-    // on a turn the student stopped.
-    if (prepared.hintBack && stopReason !== "aborted") {
+    // on a turn the student stopped, unless the model's own copy of that question was left out of what the turn
+    // showed (TrailingQuestionHold.droppedRepeat): the saved message would ask nothing (review of TerraTutor #279, nits).
+    if (prepared.hintBack && (stopReason !== "aborted" || hold?.droppedRepeat)) {
       show(`${gapBefore()}${prepared.hintBack}`);
     }
 

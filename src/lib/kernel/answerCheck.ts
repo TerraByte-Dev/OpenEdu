@@ -363,13 +363,34 @@ const MOVES_ON = /^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|and)\
  * question inside the feedback stays. What is still held when the reply ends is dropped (end). The
  * praise and feedback before it are kept as they came; a reply that was only a question shows nothing
  * here, and the turn's verdict line takes its place (TutorEngine).
+ * `again` is what code adds after the reply (hintAnswerBack). A question of the model's that code asks there is never
+ * let out, nor the lead-in held before it, nor what follows it that code's copy holds too: live test 2026-11-20 part
+ * 13, thread D, "What is the smallest number that appears in both lists? That number is the Least Common Multiple, or
+ * LCM." was let out by its second sentence, and code then asked the same question again. Feedback after it is let out
+ * without it, and so is a tool round (flush). The model's copy is code's question when each holds most of the other's
+ * meaning words (sameQuestion): word for word, with words added ("... in both of the lists?") or a paraphrase
+ * ("What's the smallest number in both lists?"); dropping a near copy costs nothing, as code asks its own after it.
  */
 export class TrailingQuestionHold {
   private buf = "";
-  // Everything after the last sentence let out: the spaces before the held sentences, and those sentences.
-  private kept = "";
+  // Everything after the last sentence let out: the spaces before the held sentences, and those sentences, each
+  // marked `repeat` when it is the model's copy of code's question or goes with it (dropped when the rest is let out).
+  private kept: Array<{ text: string; repeat: boolean; asks: boolean }> = [];
   // A question is held: what follows it with no feedback in it is held with it.
   private asked = false;
+  // The question held last is one code asks again after the reply.
+  private repeatHeld = false;
+  // Code's text after HINT_ANSWER_BACK, and its questions.
+  private readonly again: string;
+  private readonly againAsks: string[];
+  /** The model's copy of code's question was dropped from a tool round's text (flush): it was never shown. */
+  droppedRepeat = false;
+
+  constructor(again: string | null = null) {
+    const back = again ? again.lastIndexOf(HINT_ANSWER_BACK) : -1;
+    this.again = again ? (back < 0 ? again : again.slice(back + HINT_ANSWER_BACK.length)).trim() : "";
+    this.againAsks = this.again.split(/(?<=[.!?])\s+|\n+/).filter((q) => q.includes("?"));
+  }
 
   /** The text that may be shown now. */
   push(text: string): string {
@@ -388,15 +409,27 @@ export class TrailingQuestionHold {
 
   /** What is held back or not yet read, as it would be shown. */
   get held(): string {
-    return this.kept + this.buf;
+    return this.kept.map((p) => p.text).join("") + this.buf;
   }
 
-  /** Lets out everything held: something follows it (a tool round), or nothing will be added after it. */
-  flush(): string {
-    const out = this.held;
+  /** Lets out everything held: something follows it (a tool round), or nothing will be added after it. With
+   *  `repeats` false the model's copy of code's question stays out: code still asks it after the reply. */
+  flush(repeats = true): string {
+    let out = "";
+    // The sentence not yet read (the text's last, waiting for more) is read first, as at the end: a question that ends
+    // the text before a tool call is still here (review of TerraTutor #279, MUST-FIX 3).
+    if (!repeats) {
+      const last = this.buf.replace(/\s+$/, "");
+      const spaces = this.buf.slice(last.length);
+      this.buf = last ? "" : spaces;
+      if (last) out = this.sentence(last, spaces);
+    }
+    if (!repeats && this.kept.some((p) => p.repeat && p.asks)) this.droppedRepeat = true;
+    out += (repeats ? this.kept : this.kept.filter((p) => !p.repeat)).map((p) => p.text).join("") + this.buf;
     this.buf = "";
-    this.kept = "";
+    this.kept = [];
     this.asked = false;
+    this.repeatHeld = false;
     return out;
   }
 
@@ -405,25 +438,56 @@ export class TrailingQuestionHold {
     const last = this.buf.replace(/\s+$/, "");
     this.buf = "";
     const out = last ? this.sentence(last, "") : "";
-    this.kept = "";
+    this.kept = [];
     this.asked = false;
+    this.repeatHeld = false;
     return out;
   }
 
   private sentence(text: string, spaces: string): string {
     const s = text.trim();
-    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s) || (!this.asked && (GOES_BACK.test(s) || MOVES_ON.test(s)))
+    const asks = s.includes("?");
+    const repeat = asks && this.againAsks.some((q) => sameQuestion(s, q));
+    // After the model's copy of code's question, a sentence code's copy holds too ("That number is the Least Common
+    // Multiple, or LCM." beside code's "... (LCM).") goes with it.
+    const withRepeat = !asks && this.repeatHeld && /[\p{L}\p{N}]/u.test(s) && questionInMessage(s, this.again);
+    const held = !s || asks || withRepeat || /:[*_"”')\]]*$/.test(s) || (!this.asked && (GOES_BACK.test(s) || MOVES_ON.test(s)))
       || (this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s)));
     if (held) {
-      if (s.includes("?")) this.asked = true;
-      this.kept += text + spaces;
+      if (asks) { this.asked = true; this.repeatHeld = repeat; }
+      // The lead-in held before the model's copy of code's question goes with it ("Here it is again:").
+      if (repeat) for (let i = this.kept.length - 1; i >= 0 && !this.kept[i].asks; i--) if (/[\p{L}\p{N}]/u.test(this.kept[i].text)) this.kept[i].repeat = true;
+      this.kept.push({ text: text + spaces, repeat: repeat || (!asks && this.repeatHeld), asks });
       return "";
     }
-    const out = this.kept + text;
-    this.kept = spaces;
+    if (this.kept.some((p) => p.repeat && p.asks)) this.droppedRepeat = true;
+    const out = this.kept.filter((p) => !p.repeat).map((p) => p.text).join("") + text;
+    this.kept = [{ text: spaces, repeat: false, asks: false }];
     this.asked = false;
+    this.repeatHeld = false;
     return out;
   }
+}
+
+// The words a question is framed with, which say nothing of what it asks: question words, "is", "the", "that", and
+// the "s" of "what's". Closed and small.
+const QUESTION_FRAME = new Set("what which who whom whose where when why how is are was were s the a an that this these those it of in on to do does did can could you".split(" "));
+
+/** A question's meaning words, as TrailingQuestionHold compares it with code's: lower case, with lead words before it
+ *  ("So, what is ...", "Now, ...") and QUESTION_FRAME left out. All its words when every one is a frame word. */
+function meaningWords(question: string): string[] {
+  const all = words(question.replace(/^[\W_]+/, "").replace(LEAD_FILLER, ""));
+  const meant = all.filter((w) => !QUESTION_FRAME.has(w));
+  return meant.length ? meant : all;
+}
+
+/** Two questions are one when each holds at least four in five of the other's meaning words (meaningWords): "What is
+ *  the smallest number that appears in both of the lists?" and "What's the smallest number in both lists?" are code's
+ *  "What is the smallest number that appears in both lists?"; "Is 8 in both lists?" is not (review of TerraTutor #279,
+ *  MUST-FIX 4). */
+function sameQuestion(a: string, b: string): boolean {
+  const x = meaningWords(a), y = meaningWords(b);
+  return x.length > 0 && y.length > 0 && questionInMessage(x.join(" "), y.join(" ")) && questionInMessage(y.join(" "), x.join(" "));
 }
 
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
@@ -545,6 +609,12 @@ const META_KEY = new RegExp(String.raw`^[\W_]*(?:${[
   String.raw`any\s+(?:answer|opinion|choice|response)\s*(?:(?:is|will be)\s+(?:fine|ok|okay|correct|acceptable|right|good)\b|works\b|will do\b|[\W_]*$)`,
   String.raw`the\s+student(?:'|’)s?(?:\s+own)?\s+(?:answer|opinion|choice|response)\b`,
   String.raw`(?:(?:this|it)\s+is\s+)?(?:an?\s+)?(?:opinion|open[- ]ended|subjective|personal)\s+(?:question|answer|response)\b`,
+  // TerraTutor live test 2026-11-20 part 13, issue 3: an offer keyed "Choice 1 or 2" and "Choice depends on student preference",
+  // and "What do you already know about life during the Elizabethan Era?" keyed "Student's prior knowledge". Only a
+  // choice of two numbered or lettered options as the whole key: "Choice B" and "Option 2" stay keys.
+  String.raw`(?:choice|option)s?\s+(?:\d+|[a-d]|one|two)\s+or\s+(?:(?:choice|option)\s+)?(?:\d+|[a-d]|one|two|both)[\W_]*$`,
+  String.raw`(?:the\s+)?(?:choice|option|answer)s?\s+(?:depends|depend|varies|vary|is\s+up\s+to)\b`,
+  String.raw`(?:the\s+)?(?:student|learner)(?:'|’)?s?(?:\s+own)?\s+(?:preference|choice|opinion|(?:prior|previous|existing|background|own)\s+knowledge)\b`,
 ].join("|")})`, "i");
 
 /** True when the key call's answer is no answer key at all (META_KEY). */
@@ -556,7 +626,10 @@ export function isMetaKey(answer: string): boolean {
 // idea you think is the most important one?" (TerraTutor live test part 11, thread E: keyed "Cells are the basic
 // unit of life" and graded on it), "What is your favorite planet?", "Would you rather be a bird or a fish?". Narrow:
 // "What do you think 7 x 8 is?" and "What do you think is the first part?" ask for a fact, and are keyed.
-const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:like|prefer|agree|enjoy)|would\s+you\s+(?:rather|prefer)|how\s+do(?:es)?\s+(?:you|it\s+make\s+you)\s+feel|you\s+(?:think|feel|believe)\s+(?:is|was|are|were)\s+(?:the\s+)?(?:most|best|least|more|less)\s+(?:important|interesting|fun|useful|exciting|surprising|cool|beautiful)|(?:most|more)\s+(?:interesting|fun|exciting|surprising)\s+to\s+you|which\s+(?:one|idea|part|of\s+these|of\s+them)\s+(?:do\s+you|you)\s+(?:like|prefer|enjoy)|you\s+(?:like|enjoy)\s+(?:the\s+)?(?:most|best))\b/i;
+// What sounds better or more fun to the learner, and which one they want or would like to do, is their preference
+// (TerraTutor live test 2026-11-20 part 13, issue 3: "Which one sounds better to you right now?" after two choices was keyed
+// "Choice 1 or 2" and graded).
+const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:like|prefer|agree|enjoy)|would\s+you\s+(?:rather|prefer)|sounds?\s+(?:better|best|good|great|fun|interesting|more\s+fun|like\s+more\s+fun)\s+(?:to|for)\s+you|which\s+(?:one\s+|of\s+these\s+|of\s+them\s+)?(?:do|would)\s+you\s+(?:want|like)\s+to\b|how\s+do(?:es)?\s+(?:you|it\s+make\s+you)\s+feel|you\s+(?:think|feel|believe)\s+(?:is|was|are|were)\s+(?:the\s+)?(?:most|best|least|more|less)\s+(?:important|interesting|fun|useful|exciting|surprising|cool|beautiful)|(?:most|more)\s+(?:interesting|fun|exciting|surprising)\s+to\s+you|which\s+(?:one|idea|part|of\s+these|of\s+them)\s+(?:do\s+you|you)\s+(?:like|prefer|enjoy)|you\s+(?:like|enjoy)\s+(?:the\s+)?(?:most|best))\b/i;
 
 // A question that offers the learner a choice of what to do next: "Do you want to try another example, or would you
 // like to check another part of translating diagrams to fraction notation?" (TerraTutor live test 2026-11-20 part 12, step 3:
@@ -565,7 +638,11 @@ const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:lik
 // do or another one, never a thing to name: "Is a whale a fish or a mammal?", "Is 3/4 bigger or smaller than 1/2?" and
 // "Do you want to add or subtract?" are asked for a fact and keyed.
 const OFFER = String.raw`(?:do\s+you\s+(?:want|wanna)|would\s+you\s+(?:like|want)|shall\s+we|want\s+to|are\s+you\s+ready)`;
-const CHOICE_OFFER = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|then|and)\b[\s,!.]*)*${OFFER}\b[^?]*?\bor\s+(?:${OFFER}|(?:do|would|shall|should|can|could)\s+(?:you|we|i)\b|(?:to\s+)?(?:try|check|do|go|move|keep|practi[cs]e|look|review|stop|start|learn|work|play)\b|(?:an?\s+)?(?:new|different|another)\b)`, "i");
+const OFFER_HEAD = String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|then|and)\b[\s,!.]*)*${OFFER}\b[^?]*?`;
+const OFFER_OTHER = String.raw`(?:${OFFER}|(?:do|would|shall|should|can|could)\s+(?:you|we|i)\b|(?:to\s+)?(?:try|check|do|go|move|keep|practi[cs]e|look|review|stop|start|learn|work|play)\b|(?:an?\s+)?(?:new|different|another)\b)`;
+const CHOICE_OFFER = new RegExp(String.raw`${OFFER_HEAD}\bor\s+${OFFER_OTHER}`, "i");
+// The same, split at the choice's "or": the first choice ends with group 1, the other starts where the match ends.
+const CHOICE_SPLIT = new RegExp(String.raw`(${OFFER_HEAD})\bor\s+(?=${OFFER_OTHER})`, "i");
 // An offer asks nothing of its own (TerraTutor #273's review, MUST-FIX 3). A sentence with an embedded question
 // ("Do you want to tell me what the nucleus does, or would you like a hint?", "whether a tomato is a fruit"), a ":"
 // ("Would you like to try this one: what gas do plants take in, ...?") or a verb that asks for an answer ("... or
@@ -576,28 +653,95 @@ const CHOICE_OFFER = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|a
 // from TerraTutor 87577a00).
 const ASKS_INSIDE = /:|\d\s*[×x*÷/+\-−=<>]\s*\d|\b\d+\s+of\s+(?:the\s+)?\d+\b|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
 
-/** True when every question asked in `question` asks for the learner's opinion (OPINION) or offers a choice of what to
- *  do next (CHOICE_OFFER), with no fact to key. */
-export function asksOpinion(question: string): boolean {
+// A problem posed in numbers: an operation between two numbers, or "3 of the 4" (ASKS_INSIDE's number half).
+const POSES_PROBLEM = /\d\s*[×x*÷/+\-−=<>]\s*\d|\b\d+\s+of\s+(?:the\s+)?\d+\b/i;
+
+// A yes/no question about whether the learner remembers, knows how, is ready, or follows: "Do you remember how we find
+// a common denominator?" (TerraTutor live test 2026-11-20 part 13, thread C: keyed "4", and the right method told "not quite right
+// yet"), "Do you know how to add fractions?", "Are you ready for the next one?", "Does that make sense?". It asks
+// nothing with one right answer. Closed and structural: it opens the sentence (lead words aside), and "remember",
+// "recall" or "know" is followed by "how" and who does it ("how we", "how to"). "Do you know what 3 × 4 is?", "Do you
+// remember what we call the top number?" and "Do you know how many legs a spider has?" ask for a fact, and are keyed;
+// so does a bare "Do you know?" after a setup ("Let's see if you know which planet is closest to the sun. Do you
+// know?"), and a recall question that poses a problem in numbers ("Do you remember how we find 3 × 4?", POSES_PROBLEM).
+const ASK_START = String.raw`^[\W_]*(?:(?:${LEAD_WORDS})\b[\s,!.]*)*`;
+const RECALL = new RegExp(String.raw`${ASK_START}(?:do|did|can)\s+you\s+(?:still\s+)?(?:remember|recall|know)\s+how\s+(?:to|we|you|i|they)\b`, "i");
+// Whether the learner is ready or follows, only when nothing is asked inside it (ASKS_INSIDE): "Are you ready to tell
+// me which planet is closest to the Sun?" and "Are you ready for 3 × 4?" ask for a fact, and are keyed.
+const READY = new RegExp(String.raw`${ASK_START}(?:are\s+you\s+ready\b|(?:does|did)\s+(?:that|this|it)\s+(?:all\s+)?make\s+sense\b)`, "i");
+
+/** True when the tutor's `message` says nothing after `question` but lines that ask nothing new (AFTER_QUESTION) or
+ *  have no letters or digits. A question the message does not hold word for word is placed by its words
+ *  (sameQuestion); one that cannot be placed is not last. */
+function endsMessage(question: string, message: string): boolean {
+  let end = message.lastIndexOf(question);
+  if (end >= 0) end += question.length;
+  else {
+    const parts = [...message.matchAll(/[^\n.!?]*[.!?]+|[^\n.!?]+/g)].reverse();
+    const hit = parts.find((m) => m[0].includes("?") && sameQuestion(m[0], question));
+    if (!hit) return false;
+    end = hit.index! + hit[0].length;
+  }
+  return message.slice(end).split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).every((s) => !/[\p{L}\p{N}]/u.test(s) || AFTER_QUESTION.test(s));
+}
+
+/** True when every question asked in `question` asks for the learner's opinion (OPINION), offers a choice of what to
+ *  do next (CHOICE_OFFER), or asks whether they remember, know how, are ready or follow (RECALL, READY), with no fact
+ *  to key. RECALL and READY count only when nothing follows them in the tutor's `message` (endsMessage): "Are you
+ *  ready for a tricky one? Name the planet closest to the Sun." and "Do you remember how we find the area of a
+ *  rectangle? Show me with a rectangle that is 3 cm by 4 cm." ask what comes after (review of TerraTutor #279, MUST-FIX 2). */
+export function asksOpinion(question: string, message: string = question): boolean {
   const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
-  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
+  const last = (s: string) => endsMessage(s, message);
+  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (RECALL.test(s) && !POSES_PROBLEM.test(s) && last(s)) || (READY.test(s) && !ASKS_INSIDE.test(s) && last(s)) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
+}
+
+/** The one plain operation a choice offer poses ("Do you want to try 6 × 7, or would you like an easier one?"),
+ *  worked by code (keyFromArithmetic), or null: the offer is not one, or poses no single operation. A "-" counts only
+ *  with spaces round it and a "/" not at all: "3-4 more" is a range, "1/2" a fraction. */
+function offeredArithmetic(question: string): string | null {
+  const offer = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).find((s) => s.includes("?") && CHOICE_OFFER.test(s));
+  const posed = offer ? [...offer.matchAll(/(\d+(?:\.\d+)?)(\s*[+−×xX*·÷]\s*|\s+-\s+)(\d+(?:\.\d+)?)/g)] : [];
+  return posed.length === 1 ? keyFromArithmetic(`What is ${posed[0][1]} ${posed[0][2].trim()} ${posed[0][3]}?`) : null;
+}
+
+/** True when the key only echoes a choice offer in `question`, the choice itself: every word of it is in the offer, it
+ *  has an "or", and it names both sides of the offer's "or" (a word only the first choice has, and one only the other
+ *  has): "6 × 7 or an easier one" for "Do you want to try 6 × 7, or would you like an easier one?". A key from the
+ *  offer that names one side is a key: "mammal" for "... whether a whale is a fish or a mammal, or would you like a
+ *  hint?", "3/4" for "... which is bigger, 3/4 or 2/3, or would you like a hint?" (review of TerraTutor #279, MUST-FIX 1). */
+function echoesOffer(key: string, question: string): boolean {
+  const offer = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).find((s) => s.includes("?") && CHOICE_OFFER.test(s));
+  const split = offer ? CHOICE_SPLIT.exec(offer) : null;
+  if (!offer || !split) return false;
+  const k = words(key);
+  const first = new Set(words(split[1]));
+  const other = new Set(words(offer.slice(split[0].length)));
+  const said = new Set(words(offer));
+  return k.some((w) => w === "or") && k.every((w) => said.has(w))
+    && k.some((w) => first.has(w) && !other.has(w)) && k.some((w) => other.has(w) && !first.has(w));
 }
 
 /**
  * The key for the tutor's question; "none" when the message asks nothing with one right answer (also when its
  * questions only ask the learner's opinion, asksOpinion, or the key call's answer is no key, isMetaKey); null
  * when the call failed. A message whose one question asks for one plain operation is keyed by code,
- * with no call. (Two questions in one message go to the model, which keys both.)
+ * with no call. (Two questions in one message go to the model, which keys both.) So is a choice offer that poses one
+ * ("Do you want to try 6 × 7, or would you like an easier one?" is keyed 42, `offer` set: TerraTutor live test 2026-11-20 part 13,
+ * issue 4, where the key call returned the offer itself, "6 × 7 or an easier one"); a model key that only echoes an
+ * offer (echoesOffer) is no key.
  */
 export async function answerKey(
   tutorMessage: string,
   config: LLMConfig,
   opts: CallOpts,
-): Promise<{ question: string; key: string } | "none" | null> {
+): Promise<{ question: string; key: string; offer?: true } | "none" | null> {
   const asked = onlyQuestion(tutorMessage);
   const byCode = asked ? keyFromArithmetic(asked) : null;
   if (byCode !== null) return { question: asked, key: byCode };
-  if (asked && asksOpinion(asked)) return "none";
+  const offered = asked ? offeredArithmetic(asked) : null;
+  if (offered !== null) return { question: asked, key: offered, offer: true };
+  if (asked && asksOpinion(asked, tutorMessage)) return "none";
   const out = await withDeadline(opts, (signal) => callLLMStructured<KeyOut>(keyMessages(tutorMessage), config, {
     schema: KEY_SCHEMA,
     toolName: "AnswerKey",
@@ -612,7 +756,7 @@ export async function answerKey(
   if (!answer || isMetaKey(answer)) return "none";
   if (validateKey(out, tutorMessage).length) return null;
   const question = out.question.trim();
-  if (asksOpinion(question)) return "none";
+  if (asksOpinion(question, tutorMessage) || echoesOffer(answer, question)) return "none";
   // A plain operation is worked by code; the model's key stands only when its number agrees.
   const coded = keyFromArithmetic(question);
   if (coded !== null && !numbersIn(answer).some((n) => Math.abs(n.value - Number(coded)) < 1e-9)) return { question, key: coded };
@@ -700,10 +844,20 @@ export async function checkAnswer(
   hintReply: string | null = null,
   opening: string | null = null,
 ): Promise<AnswerCheck | null> {
-  const keyed = await answerKey(tutorMessage, config, opts);
-  if (keyed === "none") return null;
+  const found = await answerKey(tutorMessage, config, opts);
+  if (found === "none") return null;
   // A failed key call on a message with no question mark at all: most likely nothing was asked.
-  if (keyed === null) return tutorMessage.includes("?") ? { question: "", key: "", verdict: "unsure", by: "failed" } : null;
+  if (found === null) return tutorMessage.includes("?") ? { question: "", key: "", verdict: "unsure", by: "failed" } : null;
+  const { offer, ...keyed } = found;
+  // An offer that poses a problem ("Do you want to try 6 × 7, or would you like an easier one?") is answered with a
+  // number, or picked: a pick ("an easier one", "yes", "6 x 7 please") states no number but the offer's own, and gets
+  // no verdict. So does one whose number sits inside other words ("something with 5s please", review of TerraTutor #279): an
+  // answer leads with its number (lead words aside) or ends on it ("42", "it's 42", "6 × 7 = 42").
+  const posed = offer ? numbersIn(keyed.question).map((n) => n.value) : [];
+  const bare = (t: string) => !/[\p{L}\p{N}]/u.test(t);
+  const answers = (n: { from: number; to: number }) =>
+    bare(studentMessage.slice(0, n.from).trim().replace(LEAD_FILLER, "")) || bare(studentMessage.slice(n.to));
+  if (offer && !numbersIn(studentMessage).some((n) => !n.loneOne && !posed.includes(n.value) && answers(n))) return null;
   const ctx = { question: keyed.question, options: optionsIn(tutorMessage) };
   const raw = compareToKey(keyed.key, studentMessage, ctx);
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
@@ -733,7 +887,7 @@ export async function checkAnswer(
   // (review of TerraTutor #262, 2026-11-20: "the pieces were the same size" was "not right yet" for the
   // check's question). At most two grader calls: the check's, then the hint's.
   if (hintReply?.includes("?")) {
-    const hinted = await answerKey(hintReply, config, opts);
+    const hinted = keyOnly(await answerKey(hintReply, config, opts));
     const hintKey = hinted && hinted !== "none" && !sameKey(hinted.key, keyed.key) && !asksSameQuestion(hinted, keyed) ? hinted : null;
     if (hintKey) {
       const onHint = { on: "hint" as const, checkQuestion: keyed.question };
@@ -768,7 +922,7 @@ export async function checkAnswer(
   // Otherwise the newest's verdict stands. "partly" on the newest is tried too (TerraTutor live test part 11,
   // threads A and C: a whole three-part answer to "what are the three main ideas of the cell theory?" was
   // "partly" right for the move-on question and told to give "the other two").
-  const earlier = await answerKey(opening, config, opts);
+  const earlier = keyOnly(await answerKey(opening, config, opts));
   if (!earlier || earlier === "none" || sameKey(earlier.key, keyed.key) || asksSameQuestion(earlier, keyed)) return onTheNewest;
   const earlierCtx = { question: earlier.question, options: optionsIn(opening) };
   const earlierRaw = compareToKey(earlier.key, studentMessage, earlierCtx);
@@ -805,6 +959,9 @@ export async function checkAnswer(
   if (reworded || answersBoth) return { ...onTheEarlier, question: keyed.question, key: keyed.key, reworded: true };
   return { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question };
 }
+
+// A key without answerKey's `offer` flag, which only the check's own question reads.
+const keyOnly = (k: Awaited<ReturnType<typeof answerKey>>) => (k && k !== "none" ? { question: k.question, key: k.key } : k);
 
 // The order checkAnswer prefers verdicts in when an answer is graded on two questions. "unsure" (a failed call)
 // is never preferred.
