@@ -906,6 +906,22 @@ Three things do not wait for the model to choose a tool, because small models ra
   it is not something the turn keeps on its own: a model call that fails after the pick (Ollama stopped)
   fails the turn as one with nothing shown, and the chat shows the plain error (`friendlyError`), saves
   no reply and never says `STALLED_TURN`.
+- **The "which next?" picker** (`assessPicker.ts nextPickerCard`, ported from TerraTutor #278). TerraTutor
+  live test 2026-11-20 part 13, issue 6: after the app marked the first skill, `gemma4:e2b` named the next
+  subtopic in prose and showed no card, so the answer on it could not be tied to a skill and nothing was
+  saved. Now, on a later turn of the same check, when the skill the check is on (`checkedSubtopic`) is
+  mastered in the saved syllabus and two or more are not, the app shows "Which one should we check next?"
+  with their titles, in the same place and the same way as the first picker. Only where `appMark` runs (a
+  `tiny` or `small` chat model, the mark tool offered), not on a turn whose newest message opens a check
+  (the first picker's), only on a turn whose typed answer the check graded `correct` on the tutor's own
+  question (not `on` a hint's or the opening's, which also gets code's "Now back to the question:", not
+  `reworded`, not one that answers nothing), only while the check stays open for the answer after it
+  (`ASSESS_LOOKBACK`), and once per picked skill (not again after the learner typed into it). So a hint or
+  help request, "I don't know", a meaning question, a flashcard request or a wrong try never brings it up:
+  TerraTutor's review 2026-11-20 had a hint, a wrong answer then the answer given away, "can you explain
+  it?" and "I don't know" each show the card, and the right answer after the pick mark the skill though it
+  was no first try. The learner's message on that turn (often the answer to the tutor's follow-up on the
+  mastered skill) is graded as before and marks nothing.
 
 **Question cards** (`kernel/askCard.ts`, `tools/ask_user/QuestionTool.ts`). Click test 2026-11-14 on
 `gemma4:e4b` (fractions L1, "Check if I've got this."): the card asked "Think about the fraction 1/5.
@@ -1108,8 +1124,16 @@ So the verdict on the child's answer is the app's, not the reply's:
   Two questions in one message are keyed together by the model ("63; 72"). A message that asks nothing
   with one right answer ("which topic next?") gets no check, and the turn is as before. So does one whose
   questions only ask what the learner thinks, likes or feels (`asksOpinion`: "which idea you think is the
-  most important one?", "your favorite", "would you rather"; "What do you think 7 x 8 is?" still asks for
-  a fact), or offer a choice of what to do next (an offer, "do you want", "would you like", "shall we",
+  most important one?", "your favorite", "would you rather", what "sounds better to you", "which one do you
+  want to do"; TerraTutor live test 2026-11-20 part 13, issue 3: "Which one sounds better to you right now?"
+  was keyed "Choice 1 or 2"; "What do you think 7 x 8 is?" still asks for a fact), or whether they
+  remember, know how, are ready or follow ("Do you remember how we find a common denominator?", part 13,
+  thread C, keyed "4"; "Do you know how to ...?", "Are you ready for the next one?", "Does that make
+  sense?"; not "Do you know what 3 × 4 is?", "Do you know how many ...?", a bare "Do you know?" after a
+  setup, one that poses a problem in numbers, a ready question with a question inside it, or one the
+  tutor's message goes on after with anything but a "Take your time!" line: "Are you ready for a tricky
+  one? Name the planet closest to the Sun." is checked, read against the whole message before and after
+  the key call; ported from TerraTutor #279), or offer a choice of what to do next (an offer, "do you want", "would you like", "shall we",
   "want to" or "are you ready", with another offer, another thing to do or another one after its "or": "Do
   you want to try another example, or would you like to check another part of ...?", TerraTutor live test
   2026-11-20 part 12, step 3, keyed "2/6", a statement before it; "Is a whale a fish or a mammal?", "Is 3/4
@@ -1118,11 +1142,18 @@ So the verdict on the child's answer is the app's, not the reply's:
   the 4", or "tell", "name", "find", "guess" or "answer", as in "Do you want to tell me what the nucleus does,
   or would you like a hint?" or "Do you want to try 6 × 7, or would you like an easier one?"; ported from
   TerraTutor #273, the numbers from this repo's review of that port; a number alone, "Do you want to do 3
-  more, or would you like to stop?", leaves an offer an offer, TerraTutor take-back 2026-11-20-1623, item 1),
+  more, or would you like to stop?", leaves an offer an offer, TerraTutor take-back 2026-11-20-1623, item 1;
+  an offer that poses one plain operation is keyed by code, "6 × 7" as 42 with no call, and an answer to it
+  that states no number but the offer's own, a pick such as "an easier one", gets no verdict, and so does
+  one whose number sits inside other words ("something with 5s please"): the number must lead the answer or
+  end it; a model key that only echoes an offer's choice, "6 × 7 or an easier one", with an "or" and a word
+  from each side of the offer's "or", is no key: part 13, issue 4; one that names a side, "mammal" for "...
+  whether a whale is a fish or a mammal, or would you like a hint?", is a key; ported from TerraTutor #279),
   with no key call when it is the message's one question, and a key whose answer is no
   answer: a
   request for input, a refusal or a note about the message (`isMetaKey`: "Please provide a topic", "There
-  is no question in this message.", "Answers will vary."; it must open the answer, so "No", "None" and
+  is no question in this message.", "Answers will vary.", "Choice 1 or 2", "Choice depends on student
+  preference", "Student's prior knowledge"; it must open the answer, so "No", "None" and
   "Not enough water" stay keys, and "please" needs a request for input after it, "I cannot" a refusal to
   answer and "any answer" nothing more than "is fine", so "Please give me the ball.", "We cannot see air
   because it is invisible." and "Any answer that is a mammal" stay keys too). TerraTutor live test
@@ -1185,7 +1216,15 @@ So the verdict on the child's answer is the app's, not the reply's:
   feedback after it lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
   model call is dropped there, and the next call's text starts after a break), so code's question is
   usually the only open question on screen, with no second one and not the same one twice (TerraTutor
-  click test part 8, issue 4). Usually, not always: a question with feedback after it is let out on
+  click test part 8, issue 4). The model's own copy of code's question (each holds at least four in five of
+  the other's words, lead words and a short closed list of framing words such as "what", "is", "the" aside,
+  so a copy with words added or "What's the smallest number in both lists?" counts) is never let out, nor
+  the lead-in before it nor a sentence after it that code's copy holds too, when feedback follows or when a
+  tool round lets the rest out (the sentence the text ended on is read first; TerraTutor live test
+  2026-11-20 part 13, thread D: "... both lists? That number is the Least Common Multiple, or LCM." let the
+  question out, and code asked it again; ported from TerraTutor #279). A turn the learner stopped after its
+  copy was left out still gets code's question at its end, so the saved reply asks it once. Usually, not
+  always: a question with feedback after it is let out on
   purpose ("What is 16 + 8? Count by 8s."), since holding it would hold back the feedback, the part the
   learner needs, so then two questions can be open. Its praise and feedback stay; a reply that was only a
   question gets a short verdict line that asks nothing ("That's right.", "That's partly right."). On a turn the learner stopped the held text is
@@ -1319,7 +1358,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   count): **mismatch**. Fractions, percents, times, money, "half", ranges, place value ("5 tens"),
   a feet, inch or factorial mark after a number (`5'`, `5"`, "5!": part of the answer, so `5'` is not
   code's match for `5"`, nor "5!" or an excited "48!" for "5" or "48"; the same mark on both sides, `5'` /
-  `5′`, still is; TerraTutor take-back 2026-11-20-1623, item 4, ported from TerraTutor #277),
+  `5′`, still is; TerraTutor take-back 2026-11-20-1623, item 4, ported from TerraTutor #277; an apostrophe
+  straight before a letter, "'cause it's 5'", "'tis 5'", is never the pair of one after a digit, take-back
+  2026-11-20-2014),
   another unit, a rounding, a "not", algebra ("2x"), a key that is a comparison ("more than 5"), the
   key's number among others ("63 or 72"), or other words: **undecided**. Code never calls an answer
   wrong, or right, on a form it could misread: a false "wrong" is as bad as false praise.
@@ -1391,7 +1432,16 @@ So the verdict on the child's answer is the app's, not the reply's:
   since the request that opened the check (`firstAttempt`). After any other message (a hint or help
   request, "I don't know", a wrong answer) the tutor may have asked an easier question, and the answer is
   graded on that one: "help", then "What is 4 + 4 + 4?" answered "12", had marked the check's skill (review
-  of this port). So a second skill checked in the same check is left to the model's own call. A turn
+  of this port). The one other typed answer that marks is the first try at the check's next skill
+  (`assessPicker.ts pickedNextSkill`, TerraTutor live test part 13, issue 6, ported from TerraTutor #278):
+  the last card answered in the tutor's message just before it is the app's own "which next?" card (its
+  question before the pick, no other card answered between them), picked as exactly one subtopic title,
+  not mastered, that no earlier pick in the check named, after an earlier pick of another one (so nothing
+  was asked, answered or typed between the pick and the answer, and the skill was not picked before in the
+  check). The app shows that card only on a turn the learner answered right (above), so the turn it was
+  picked on was not a hint, help or a wrong try. A pick on the model's own card never counts: code cannot
+  tell from the saved text whether that turn followed a hint or a wrong try (or was a quiz card whose
+  choices happen to be titles). Nor does a skill named only in the tutor's prose. A turn
   graded only on cards marks only when its newest message opened the check (a hint request a caller ran
   in assess, answered with a card, does not) and the first model card the learner answered that turn (the
   app's topic picker aside) is one the check graded (`markInput.firstCardChecked`): "help", "idk" or "I

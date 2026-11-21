@@ -33,8 +33,8 @@ The section for each release is also what the app shows when you press Check for
   from "Which one should we check first?" before the answer (a skill picked on a "which one next?" card
   after it is not the one marked), or the level's one skill left. Only for the learner's first answer in
   the check: never after a hint, a request for help, "I don't know" or a wrong answer (the tutor may then
-  have asked an easier question), typed in the chat or into the tutor's question card, so a second skill
-  in the same check is left to the tutor. Never on a partly right, unsure or wrong answer, or after the
+  have asked an easier question), typed in the chat or into the tutor's question card (the next skill in
+  the same check: see below). Never on a partly right, unsure or wrong answer, or after the
   check has ended; never for a skill already marked learned; and never a second time when the tutor
   marked the skill itself or after a "No" on the card. One right answer is enough, as it already was for
   the tutor's own mark; moving up a level still takes the level test. Only with a small tutor model, one
@@ -43,6 +43,15 @@ The section for each release is also what the app shows when you press Check for
   model still decide for themselves, as the check's instructions ask for about 90% understanding. The
   evidence that the tutor never marks is from gemma4:e2b only (TerraTutor B9 0/20, live test 2026-11-20
   part 9: 4 of 4 turns); the others are included because they rate tiny or small, unmeasured.
+- **"Check if I've got this" goes on to the next skill, and a right answer on it is saved too.** With a
+  small tutor model, after one skill was marked the tutor moved on to another by name and a right answer
+  there was never saved (TerraTutor live test 2026-11-20 part 13). Now, once the skill being checked is
+  marked, OpenEdu asks "Which one should we check next?" with the skills still to learn, right after a
+  right answer, and the first answer to the question on the skill picked there marks it, by the same rules
+  and the same "Is that okay?" card as the first. After a hint or help request, "I don't know", a question
+  of the learner's own, a flashcard request or a wrong answer the card does not show, so the answer after
+  the tutor helped, or gave the answer away, marks nothing. A skill the tutor only names, one picked on the
+  tutor's own card, or one already tried in the check marks nothing either (ported from TerraTutor #278).
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
@@ -255,7 +264,18 @@ The section for each release is also what the app shows when you press Check for
   check another part?"), no longer get a "right" or "not right yet". An offer with a question inside it
   ("Do you want to tell me what the nucleus does, or would you like a hint?"), or with a problem in numbers in
   it ("Do you want to try 6 × 7, or would you like an easier one?"), is still checked; "Do you want to do 3
-  more, or would you like to stop?" is still an offer.
+  more, or would you like to stop?" is still an offer. "Which one sounds better to you?", "Do you remember
+  how we find a common denominator?", "Are you ready for the next one?" and "Does that make sense?" get no
+  verdict either, nor do keys such as "Choice 1 or 2" or "Student's prior knowledge". "Are you ready for a
+  tricky one? Name the planet closest to the Sun." is still checked. "Do you want to try 6 × 7, or would you
+  like an easier one?" is checked against 42, and picking "an easier one" gets no verdict. An offer with its
+  answer in it ("... whether a whale is a fish or a mammal, or would you like a hint?") is still checked
+  (ported from TerraTutor #279).
+- **The tutor's question is no longer shown twice** in a check, when the reply asked it (in the same words or
+  close to them) with a sentence or a tool step after it and OpenEdu then asked it again under "Now back to
+  the question:" (ported from TerraTutor #279).
+- **"'cause it's 5'" is no longer marked right for 5** in a check: an apostrophe at the start of a word is not
+  a quote around the answer, so the feet mark after the 5 stays part of it (take-back 2026-11-20-2014).
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number
