@@ -16,7 +16,8 @@
 // Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
 import { callLLMTurn, log, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
-import type { LLMConfig, ModelTier, Syllabus } from "../../types";
+import type { LLMConfig, ModelTier, Subtopic, Syllabus } from "../../types";
+import { resolveSubtopic } from "../mastery";
 import { getSyllabus } from "../db";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, declinedError, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
@@ -42,7 +43,7 @@ import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard"
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { answersSkillChoice, assessPickerCard, checkedSubtopic, nextPickerCard, pickedNextSkill, NEXT_PICKER_QUESTION } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, onlyQuestion, keyFromArithmetic, asksReady, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, freeInCheck, TrailingQuestionHold, onlyQuestion, keyFromArithmetic, asksReady, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -75,6 +76,11 @@ export const MASTERY_REFUSED_REWORDED =
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
+/** What the model is told when, on a "tiny" or "small" chat model, its "mastered" mark fails the gate code's own
+ *  mark uses (markTarget): the answer was not the learner's first try at the skill, it only named a skill, or the
+ *  check is on another subtopic (mastery mark sweep, ported from TerraTutor #289). */
+export const MASTERY_REFUSED_NOT_FIRST_TRY =
+  "Not saved: on this turn the app cannot tie a first-try right answer to that subtopic (the student had help or another try first, the answer only named a skill, or the check is on another subtopic), so it can't be marked mastered now.";
 /** The tools that keep what a turn said: the course's knowledge files, the notebook, a flashcard. */
 const KEEPS_WORDS = new Set([KNOWLEDGE_UPDATE_TOOL, "notebook.ingest", FLASHCARD_TOOL]);
 /** What the model is told when it calls one of KEEPS_WORDS on a turn in a thread with a safety disclosure (keepsNothing). */
@@ -129,7 +135,8 @@ const APP_MARK_CALL_ID = "app_mark";
  * read with the saved syllabus (`load`, never ctx.syllabus, the course view's snapshot), and one already
  * mastered gets none. "partly", "incorrect", "unsure", an answer that answered nothing, any answer after
  * the first and a closed check give no mark, except the first try at the next skill of the check: a typed
- * answer right after that skill was picked on the app's own "which next?" card (assessPicker.ts
+ * answer right after that skill was picked on the app's own "which next?" card, or after only a plain yes to a
+ * ready question since that pick (assessPicker.ts
  * pickedNextSkill, a new skill for the check, never one named only in prose or picked on the model's card;
  * TerraTutor live test 2026-11-20 part 13, issue 6: on e2b a second skill in one check was never saved;
  * ported from TerraTutor #278). The app shows that card itself once the check's skill is mastered, only on
@@ -141,36 +148,74 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   if (result.stopReason === "aborted" || result.stopReason === "stalled" || result.cardMessage !== null) return null;
   const { beforeCard, modelMarked, firstCardChecked } = result.markInput ?? { beforeCard: null, modelMarked: false, firstCardChecked: false };
   if (modelMarked) return null;
-  const checked = [result.answerCheck, ...result.cardChecks].filter((c): c is AnswerCheck => !!c);
+  const sub = markTarget({ answerCheck: result.answerCheck, cardChecks: result.cardChecks, beforeCard, firstCardChecked }, conversation, await load().catch(() => null));
+  return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
+}
+
+/** What a turn's answers were, as far as a mark is concerned (TutorTurnResult.markInput, or so far in the turn). */
+interface MarkInput { answerCheck: AnswerCheck | null; cardChecks: readonly AnswerCheck[]; beforeCard: string | null; firstCardChecked: boolean }
+
+/**
+ * The subtopic this turn's answers may mark (appMark's gate, above): undefined when they may mark none (an answer
+ * checked is not right on the check's own question, it is not the learner's first try, or it only named a skill),
+ * null when they may but code knows no exact subtopic (two or more not mastered and none picked), else that
+ * subtopic, mastered or not (the caller decides). `saved` is the saved syllabus (getSyllabus). Ported from
+ * TerraTutor #289.
+ */
+function markTarget(input: MarkInput, conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null, free?: (j: number) => boolean): Subtopic | null | undefined {
+  const checked = [input.answerCheck, ...input.cardChecks].filter((c): c is AnswerCheck => !!c);
   // A `reworded` verdict came from grading the opening question second: never a first try, whatever
   // firstAttempt reads (OpenEdu #410's take-back, ported from TerraTutor #272; the opening's unanswered turn
   // already makes it false today).
-  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on || c.reworded)) return null;
-  if (!result.answerCheck && !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
-  const syllabus = await load().catch(() => null);
+  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on || c.reworded)) return undefined;
+  const newest = conversation[conversation.length - 1]?.content ?? "";
+  if (!input.answerCheck && !(input.firstCardChecked && asksForMasteryCheck(newest))) return undefined;
   // A typed answer that only said which skill to check (the model's copy of a picker card, keyed with a title)
   // answered no question about one (assessPicker.ts answersSkillChoice; TerraTutor live test part 14, issue 1).
-  if (result.answerCheck && answersSkillChoice(result.answerCheck, conversation[conversation.length - 1]?.content ?? "", syllabus)) return null;
+  if (input.answerCheck && answersSkillChoice(input.answerCheck, newest, saved)) return undefined;
   // A typed answer that is not the learner's first try in the check marks only the next skill picked on
   // the card just before it (assessPicker.ts pickedNextSkill): its first try, under the same rules.
-  const next = result.answerCheck && !firstAttempt(conversation) ? pickedNextSkill(conversation, syllabus, result.answerCheck) : undefined;
-  if (next === null) return null;
+  const next = input.answerCheck && !firstAttempt(conversation, free) ? pickedNextSkill(conversation, saved, input.answerCheck, (j) => usedNoTry(conversation.slice(0, j + 1))) : undefined;
+  if (next === null) return undefined;
+  // The tutor named another skill not mastered after the pick: code does not know which one the question was on.
+  if (next === "switched") return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
   // before that card.
-  const sub = next ?? checkedSubtopic(conversation, result.answerCheck ? "" : beforeCard ?? "", syllabus);
-  return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
+  return next ?? checkedSubtopic(conversation, input.answerCheck ? "" : input.beforeCard ?? "", saved);
+}
+
+/**
+ * Whether the model's own "mastered" mark of `ref` (an id or title) may run on a "tiny" or "small" chat model: through
+ * the gate code's own mark passes (markTarget), but for the learner's messages the check counts as no try
+ * (answerCheck.ts freeInCheck: a hint request, an answer to a hint's own question, one that answered nothing), which
+ * the TerraTutor decision of click test 2026-11-19 part 8 lets the model's mark follow (answerCheckTurn.test.ts pins
+ * it). The mastery mark sweep (TerraTutor #289, rebuilt on OpenEdu in masteryMarkSweep.test.ts) found the model's
+ * call saved after help, "I don't know", a wrong try or "Yes but can you explain it again?", on an answer that only
+ * named a skill, and on a subtopic other than the one the check was on. Where code knows no exact subtopic (two or
+ * more not mastered and none picked), the model's own choice stands, as before. A "medium" or "large" model keeps
+ * its own judgement, as with appMark (assess.md asks for about 90% understanding over several answers).
+ */
+function modelMarkAllowed(input: MarkInput, conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null, ref: string): boolean {
+  const target = markTarget(input, conversation, saved, (j) => freeInCheck(conversation, j));
+  if (target === undefined) return false;
+  if (target === null) return true;
+  const named = saved ? resolveSubtopic(saved.subtopics, ref) : null;
+  // A ref that names no one subtopic saves nothing: the tool itself tells the model the valid ids.
+  if (named && named.kind !== "match") return true;
+  return named?.kind === "match" && named.sub.id === target.id;
 }
 
 /**
  * True when the newest message is the learner's first try in the check: every message of theirs between it and
- * the request that opened the check used no try (usedNoTry), which is true when there are none.
+ * the request that opened the check used no try (usedNoTry, or `free` where the caller passes it), which is true
+ * when there are none.
  */
-function firstAttempt(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
+function firstAttempt(conversation: ReadonlyArray<{ role: string; content: string }>, free?: (j: number) => boolean): boolean {
   for (let j = conversation.length - 2; j >= 0; j--) {
     if (conversation[j].role !== "user") continue;
     if (asksForMasteryCheck(conversation[j].content)) return true;
-    if (!usedNoTry(conversation.slice(0, j + 1))) return false;
+    if (!usedNoTry(conversation.slice(0, j + 1)) && !free?.(j)) return false;
   }
   return false;
 }
@@ -243,8 +288,10 @@ export interface TutorTurnResult {
   // flashcardRequest.ts, the topic picker, assessPicker.ts, and the mark after a correct check answer,
   // appMark), so an eval can tell the model's tool choice from the app's. `fromText` marks a
   // call the model wrote as reply text and the kernel parsed (textToolCalls.ts) rather than a call the
-  // provider returned.
-  toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true }>;
+  // provider returned. `refused` is the kernel's own line to the model for a call it refused without running it
+  // (a "mastered" mark, a disclosure turn's keep, a card): such a call fires no tool event, so an eval reads the
+  // reason here instead of working it out again (ported from TerraTutor #289).
+  toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true; refused?: string }>;
   // True if knowledge.update_map ran successfully this turn — the caller skips its post-turn
   // auto-reflection so there's exactly one writer to the knowledge files.
   usedKnowledgeUpdate: boolean;
@@ -659,7 +706,9 @@ ${lastUser.content}` };
       : null;
     let result: TutorTurnResult;
     try {
-      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk: appAsk ?? (nextAsk ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: nextAsk, byApp: true as const } : null), messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck, checked.back), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk: appAsk ?? (nextAsk ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: nextAsk, byApp: true as const } : null), messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck, checked.back), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", modelMarkGate: ctx.modelTier === "tiny" || ctx.modelTier === "small"
+        ? async (input, ref) => modelMarkAllowed(input, conversation, await getSyllabus(ctx.courseId, ctx.level).catch(() => null), ref)
+        : null, masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -710,6 +759,9 @@ ${lastUser.content}` };
       answerTurn: boolean;
       /** The student's newest message as they typed it. */
       answered: string;
+      /** On a "tiny" or "small" chat model, whether the model's own "mastered" mark of a subtopic (its id or title)
+       *  may run, given this turn's answers so far (modelMarkAllowed); null on any other model: no such gate. */
+      modelMarkGate: ((input: MarkInput, ref: string) => Promise<boolean>) | null;
       masteryCheck: boolean;
     },
   ): Promise<TutorTurnResult> {
@@ -942,17 +994,24 @@ ${lastUser.content}` };
         const reworded = !!answerCheck?.reworded;
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
           unchecked || hintTurn || reworded || checked.some((c) => c.verdict !== "correct"));
+        // On a "tiny" or "small" chat model the model's mark is held to the gate code's own mark uses (modelMarkGate).
+        const ref = (call.args as { subtopic_id?: unknown } | null)?.subtopic_id;
+        const offTarget = !refused && call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && !!prepared.modelMarkGate &&
+          // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
+          !(await prepared.modelMarkGate({ answerCheck, cardChecks, beforeCard, firstCardChecked: firstCardChecked === true }, typeof ref === "string" ? ref : ""));
         // On a safety-disclosure turn, and every later turn in its thread, nothing the learner said is kept:
         // the knowledge files, the notebook and a flashcard are refused the same way. Nothing runs and
         // nothing is shown; the model is told.
         const keepsWords = prepared.keepsNothing && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? (answerCheck?.on === "earlier" ? MASTERY_REFUSED_EARLIER : MASTERY_REFUSED_HINT) : reworded ? MASTERY_REFUSED_REWORDED : MASTERY_REFUSED };
+        if (offTarget) result = { name: call.name, ok: false, error: MASTERY_REFUSED_NOT_FIRST_TRY };
+        else if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : hintTurn ? (answerCheck?.on === "earlier" ? MASTERY_REFUSED_EARLIER : MASTERY_REFUSED_HINT) : reworded ? MASTERY_REFUSED_REWORDED : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         else result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
-        toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}), ...(call.byApp ? { byApp: true as const } : {}) });
+        const kernelRefused = offTarget || refused || keepsWords || refusedCards.has(call.id);
+        toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}), ...(call.byApp ? { byApp: true as const } : {}), ...(kernelRefused && result.error ? { refused: result.error } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
         if (call.name === MARK_MASTERED_TOOL && (result.ok || result.error === declinedError(call.name))) modelMarked = true;

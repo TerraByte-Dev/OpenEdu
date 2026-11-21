@@ -273,7 +273,7 @@ ${VERDICT_FALLBACK.correct}`);
     gradeOut = { student_answer: "46", verdict: "incorrect" };
     script = [markCall("mastered"), reply("I have marked Times Tables as mastered. Keep going!")];
     const { result, confirms } = await answer(CHECK, "46", "assess");
-    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED }]);
     expect(confirms).toEqual([]);
     expect(marks).toEqual([]);
     expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED}`);
@@ -991,7 +991,7 @@ describe("a safety disclosure in a mastery check", () => {
     const text = "im 14 and pregnant";
     script = [markCall("mastered"), reply(KIND)];
     const { result, confirms } = await answer(QUIZ, text, "assess", 8);
-    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_DISCLOSURE }]);
     expect(confirms).toEqual([]);
     expect(marks).toEqual([]);
     expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_DISCLOSURE}`);
@@ -1412,7 +1412,7 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(hinted.result.text).toBe(`Yes, 16 is right: 8 + 8 = 16.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
     // The model is told the check's question is still open, and the mark is refused by code: nothing is saved.
     expect(lastUser(replies[0])).toContain("The check's question is still open: What is 6 x 8?");
-    expect(hinted.result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(hinted.result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_HINT }]);
     expect(hinted.confirms).toEqual([]);
     expect(marks).toEqual([]);
     expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_HINT}`);
@@ -2115,7 +2115,7 @@ describe("an answer to the check's first question after the tutor moved on", () 
     // The model is told which question the answer was to; its mark is refused and code makes none.
     expect(lastUser(replies[0])).toContain(`The question was: ${Q_MEMBRANE}`);
     expect(lastUser(replies[0])).toContain(`Your last question is still open: ${Q_CYTOPLASM}`);
-    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_EARLIER }]);
     expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
     expect(confirms).toEqual([]);
     expect(marks).toEqual([]);
@@ -2276,7 +2276,7 @@ describe("an answer to the check's first question after the tutor moved on", () 
       const { result, confirms } = await answer(REASKED, "it lets stuff in and out");
       expect(result.answerCheck).toMatchObject({ question: Q_FIRST, verdict: "correct", on: "earlier", checkQuestion: Q_AGAIN });
       expect(result.answerCheck?.reworded).toBeUndefined();
-      expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+      expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_EARLIER }]);
       expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
       expect(result.text.startsWith(`Yes, that's right.\n\n${HINT_ANSWER_BACK}\n\n`)).toBe(true);
       expect(confirms).toEqual([]);
@@ -2314,7 +2314,7 @@ describe("an answer to the check's first question after the tutor moved on", () 
         const { result, confirms } = await answer(REASKED, "it lets stuff in and out");
         expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct", reworded: true });
         expect(result.answerCheck?.on).toBeUndefined();
-        expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+        expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_REWORDED }]);
         expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
         expect(result.text).toBe("Yes, that's right.");
         expect(confirms).toEqual([]);

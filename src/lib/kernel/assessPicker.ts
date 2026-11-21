@@ -143,23 +143,45 @@ export function answersSkillChoice(graded: { question: string; key: string }, an
  * wrong try or "I don't know", then the model's card, then the answer just given away). A skill already tried
  * in the check, a check with no pick before (one subtopic left, no picker), words typed into the card and a
  * pick of anything else give null. The skill is never read from the tutor's prose.
+ * Between the pick and the answer may come only learner messages `noTry` says used no try (TutorEngine passes
+ * usedNoTry: a plain yes to "Does that make sense?" or "Are you ready?", which firstAttempt lets through after the
+ * check's request too) and the tutor's replies to them, none with a card answered; the question graded is then the
+ * one in the tutor's message just before the answer (TerraTutor's mastery mark sweep review, 2026-11-21, #289: a
+ * ready yes after the pick left the next skill markable by nothing in that check).
+ * "switched" when all of that holds but the tutor's words after the pick, up to the answer, name another subtopic
+ * not mastered (its title, from the saved syllabus; the picked title's own words do not count): the tutor may have
+ * moved to that skill in prose ("Actually, let's do Sharing Fairly first."), so code does not know which skill the
+ * question was about, and the caller treats it as no exact subtopic (OpenEdu review of the mastery mark sweep port,
+ * 2026-11-21, MUST-FIX 1: the pick's skill was saved, and the model's right mark of the other refused).
  */
-export function pickedNextSkill(conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null, graded: { question: string }): Subtopic | null {
+export function pickedNextSkill(conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null, graded: { question: string }, noTry: (j: number) => boolean = () => false): Subtopic | "switched" | null {
   const newest = conversation.length - 1;
-  const asked = conversation[newest - 1];
+  let at = newest - 1;
+  while (at >= 2 && conversation[at].role === "assistant" && appNextPick(conversation[at].content) === null &&
+    !conversation[at].content.match(ANSWERED_LINE) && conversation[at - 1].role === "user" && noTry(at - 1)) at -= 2;
+  const asked = conversation[at];
   if (!saved || conversation[newest]?.role !== "user" || asked?.role !== "assistant") return null;
   const start = checkStart(conversation);
-  if (start < 0 || start >= newest) return null;
+  if (start < 0 || start >= at) return null;
   const label = appNextPick(asked.content);
   // The app's pick is the one card answered in the message: a card after it asked something else.
   if (label === null || [...asked.content.matchAll(ANSWERED_LINE)].length !== 1) return null;
   const sub = titled(unescaped(label), saved);
   if (!sub || sub.mastered) return null;
-  if (!questionInMessage(graded.question, afterAnsweredCard(asked.content))) return null;
+  if (!questionInMessage(graded.question, afterAnsweredCard(conversation[newest - 1].content))) return null;
   const earlier = conversation.slice(start + 1, newest).filter((m) => m.role === "assistant").flatMap((m) => picksIn(m.content));
   earlier.pop(); // the pick itself
   const tried = earlier.map((label) => titled(label, saved)).filter((s): s is Subtopic => !!s);
-  return tried.length && !tried.some((s) => s.id === sub.id) ? sub : null;
+  if (!tried.length || tried.some((s) => s.id === sub.id)) return null;
+  const said = [afterAnsweredCard(asked.content), ...conversation.slice(at + 1, newest).filter((m) => m.role === "assistant").map((m) => m.content)];
+  return said.some((text) => namesOtherSkill(text, sub, saved)) ? "switched" : sub;
+}
+
+/** True when `text` names, as whole words, the title of a subtopic not mastered other than `picked`, outside the
+ *  picked title's own words (so "Arrays" inside "Equal Groups with Arrays" is not another skill). */
+function namesOtherSkill(text: string, picked: Subtopic, saved: Syllabus): boolean {
+  const words = ` ${wordsOf(text)} `.split(` ${wordsOf(picked.title)} `).join(" | ");
+  return saved.subtopics.some((s) => s.id !== picked.id && !s.mastered && !!wordsOf(s.title) && words.includes(` ${wordsOf(s.title)} `));
 }
 
 /**

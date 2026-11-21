@@ -183,10 +183,27 @@ function openCheckAt(conversation: ReadonlyArray<Message>, noPickFrom: number = 
     if (asksForMasteryCheck(m.content)) return j;
     if (++learner >= CHECK_MAX_MESSAGES) return -1;
     if (restarted) continue;
-    const free = isHintRequest(m.content) || (j + 1 < before.length && codeRepeat(before, j + 1, memo));
-    if (!free && ++used >= ASSESS_LOOKBACK) return -1;
+    if (!usedNoTryAt(before, j, memo) && ++used >= ASSESS_LOOKBACK) return -1;
   }
   return -1;
+}
+
+/**
+ * True when the learner's message at `j` (before the newest, which `conversation` ends with) used none of the
+ * check's tries, as openCheck counts them: a hint request, or a message code answered by asking the check's
+ * question again (codeRepeat: an answer to a hint's own question, or one that answered nothing). The model's own
+ * mark reads it (TutorEngine.ts modelMarkAllowed): the TerraTutor decision of click test 2026-11-19 part 8 keeps
+ * a right answer to the check's question after hints markable by the model. No word list of its own (ported from
+ * TerraTutor #289).
+ */
+export function freeInCheck(conversation: ReadonlyArray<Message>, j: number): boolean {
+  return usedNoTryAt(conversation.slice(0, -1), j, new Map());
+}
+
+/** openCheckAt's and freeInCheck's one test: the learner's message at `j` in `before` (the conversation without its
+ *  newest message) is a hint request, or code answered it by asking the check's question again (codeRepeat). */
+function usedNoTryAt(before: ReadonlyArray<Message>, j: number, memo: Map<number, number>): boolean {
+  return isHintRequest(before[j]?.content ?? "") || (j + 1 < before.length && codeRepeat(before, j + 1, memo));
 }
 
 /**
