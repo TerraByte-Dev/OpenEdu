@@ -1468,7 +1468,23 @@ So the verdict on the child's answer is the app's, not the reply's:
   turn whose typed answer was to a hint's own question, whatever a card picked that turn
   (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258), or to the check's first question after the
   tutor moved on (`MASTERY_REFUSED_EARLIER`, above; ported from TerraTutor #268), or graded on that question
-  asked again in other words (`MASTERY_REFUSED_REWORDED`, above; ported from TerraTutor #270). Before, nothing refused
+  asked again in other words (`MASTERY_REFUSED_REWORDED`, above; ported from TerraTutor #270). On a `tiny` or
+  `small` chat model (where `appMark` runs, below) the model's own `mastered` mark must also pass the gate code's
+  own mark uses (`TutorEngine.ts markTarget`, `modelMarkAllowed`; `MASTERY_REFUSED_NOT_FIRST_TRY`; ported from
+  TerraTutor #289): the mastery mark sweep (`kernel/masteryMarkSweep.test.ts`, 1,733 generated cases through
+  `tutorEngine.run`, results in `src/lib/eval/results/2026-11-21-mastery-mark-sweep.md`) found it saved after help,
+  "I don't know", a wrong try, a meaning question or "Yes but can you explain it again?", on an answer that only
+  named a skill (the model's prose copy of a picker card), and on a subtopic other than the one the check was on
+  (`checkedSubtopic`, or the next skill picked on the app's card): 246 wrong marks on master, 31 after. The
+  learner's messages the check counts as no try (`answerCheck.ts freeInCheck`: a hint request, an answer to a
+  hint's own question, one that answered nothing) still let the model's mark follow, as TerraTutor's decision on
+  click test 2026-11-19 part 8 pins. Where code knows no exact subtopic (two or more not mastered and none picked),
+  the model's choice stands; a `medium` or `large` model is not gated. Both stay wrong by the rule in 31 of the
+  sweep's cases (TerraTutor issue #285). The gate also refuses the model's mark of the next skill after a pick on
+  the model's own card, or with one title left and that skill named only in prose, where nothing else in the check
+  can mark it until a new check (TerraTutor issue #288). A call the kernel refuses without running it (these marks,
+  a disclosure turn's keep, a card) carries the kernel's own line in `TutorTurnResult.toolCalls[].refused`, since
+  it fires no tool event. Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
@@ -1509,7 +1525,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   other card answered in that message), picked as exactly one subtopic title, not mastered, that no earlier
   pick in the check named, after an earlier pick of another one (so nothing was asked, answered or typed
   between the pick and the answer, and the skill was not picked before in the check), and the question
-  graded is in that message after the pick. The app shows that card only on a turn the learner answered
+  graded is in that message after the pick. Only a plain yes to "Does that make sense?" or "Are you ready?"
+  (`usedNoTry`, the same test the check's first try uses) may come between, with the tutor's reply to it, and the
+  question graded is then the one in that reply (ported from TerraTutor #289: after such a yes, nothing in the
+  check could mark the skill). The app shows that card only on a turn the learner answered
   right (above), so the turn it was picked on was not a hint, help or a wrong try. A pick on a card of the
   model's own never counts (code knows the app's card only by its text and where it sits, so a model card
   that opens its reply with those exact words would pass for it): code cannot

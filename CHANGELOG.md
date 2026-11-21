@@ -285,6 +285,14 @@ The section for each release is also what the app shows when you press Check for
 - **The tutor's question is no longer shown twice** in a check, when the reply asked it (in the same words or
   close to them) with a sentence or a tool step after it and OpenEdu then asked it again under "Now back to
   the question:" (ported from TerraTutor #279).
+- **With a small tutor model, the tutor can no longer mark a skill learned that the check did not earn**
+  (ported from TerraTutor #289). In "Check if I've got this" the tutor's own mark now has to pass the same
+  test OpenEdu's own mark does: the learner's first try, right, on the skill the check is on. Before, it
+  could mark a skill after "I don't know", a wrong try or "Yes but can you explain it again?", on an answer
+  that only named a skill, or mark a different skill than the one being checked: a sweep of 1,733 check
+  turns found 246 such marks, now 31 (after a hint, the tutor's mark still counts, as before). A plain
+  "Yes" to "Does that make sense?" or "Are you ready?" after picking the next skill no longer stops a right
+  first answer on it from being saved. Only with a model OpenEdu rates tiny or small, as for OpenEdu's own mark.
 - **Fewer wrong verdicts in a check** (ported from TerraTutor #281). A range in an offer ("Do you want to
   try 2 - 3 more questions, or would you like to stop?") is no longer checked as a subtraction, so "4 more
   please" is not told it is wrong; "let me try 3 x 4" after "Do you want to try 6 × 7, or ...?" is a
