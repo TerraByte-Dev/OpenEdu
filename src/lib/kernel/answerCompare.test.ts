@@ -34,6 +34,7 @@ describe("numbers in an answer", () => {
       ["5'.", "5'"], ["\"4'\"", "4'"], ["'cat'", "cat"], ["\"cat\"", "cat"], ["'5'", "5"], ["it's \"5\".", "5"], ["Paris!", "Paris"],
       ["48 !", "48"], ["is it 48?!", "48"], ["I said \"it is 48\"", "I said \"it is 48"],
       ["the door's 5'", "the door's 5'"], ["I'm sure it's 5'", "I'm sure it's 5'"], ["5''", "5\""],
+      ["'cause it's 5'", "cause it's 5'"], ["'tis 5'", "tis 5'"], ["'twas 5'", "twas 5'"],
     ]) expect(bareAnswer(t), t).toBe(bare);
   });
 
@@ -142,6 +143,11 @@ describe("anything in doubt is undecided, never a mismatch", () => {
     ["48", "48!", "a factorial, or an excited 48"],
     ["5!", "5", "a factorial key against a bare number"],
     ["5!", "120", "a factorial key against its value"],
+    // Take-back 2026-11-20-2014 (this repo's port of TerraTutor #277; TerraTutor b46fa67c): an apostrophe that starts an elided word is no quote, so the
+    // feet mark after the number stays.
+    ["5", "'cause it's 5'", "feet after an elided word"],
+    ["5 inches", "'cause it's 5'", "feet after an elided word, against inches"],
+    ["5", "'tis 5'", "feet after an elided word, \"'tis\""],
     ["", "48", "no key"],
   ])("key %j, answer %j: %s", (key, answer) => {
     expect(compareToKey(key, answer, { question: Q })).toBe("undecided");

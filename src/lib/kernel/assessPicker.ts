@@ -16,6 +16,8 @@ import { asksForMasteryCheck, openCheck } from "./answerCheck";
 
 /** The picker card's question. */
 export const PICKER_QUESTION = "Which one should we check first?";
+/** The question of the picker the app shows once the check's skill is mastered (nextPickerCard). */
+export const NEXT_PICKER_QUESTION = "Which one should we check next?";
 /** ask_user.question's own bound on choices. */
 const MAX_CHOICES = 5;
 
@@ -34,7 +36,28 @@ export function assessPickerCard(newest: string, activeSkill: string | null | un
 
 // A card's picked answer as answeredCard saves it ("*You picked: Equal Groups*"), with its escapes undone.
 const PICKED_LINE = new RegExp(String.raw`^\*${ANSWER_ECHO_WORDS.picked}: ([^\n]*)\*[ \t]*\r?$`, "gm");
+// Any card's answer as answeredCard saves it, a pick or typed words.
+const ANSWERED_LINE = new RegExp(String.raw`^\*(${ANSWER_ECHO_WORDS.typed}|${ANSWER_ECHO_WORDS.picked}): ([^\n]*)\*[ \t]*\r?$`, "gm");
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+const unescaped = (label: string) => norm(label.replace(/\\([*_`])/g, "$1"));
+/** The picks saved in `text`, in order, as normalised labels. */
+const picksIn = (text: string) => [...text.matchAll(PICKED_LINE)].map((m) => unescaped(m[1]));
+/** The one subtopic whose title is `label`, or null (none, or two with the same title). */
+function titled(label: string, syllabus: Syllabus): Subtopic | null {
+  const hit = syllabus.subtopics.filter((s) => norm(s.title) === label);
+  return hit.length === 1 ? hit[0] : null;
+}
+
+/** The index of the student's request that opened the check the newest message is in (the newest itself
+ *  when it opens one), or -1 when it is in none (openCheck). */
+function checkStart(conversation: ReadonlyArray<{ role: string; content: string }>): number {
+  const newest = conversation.length - 1;
+  const opens = conversation[newest]?.role === "user" && asksForMasteryCheck(conversation[newest].content);
+  if (!opens && openCheck(conversation) === null) return -1;
+  let start = newest;
+  while (!opens && start >= 0 && !(conversation[start].role === "user" && asksForMasteryCheck(conversation[start].content))) start--;
+  return start;
+}
 
 /**
  * The subtopic the mastery check is on, as code knows it, or null (TutorEngine's mark after a correct check
@@ -50,19 +73,75 @@ const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
  * this turn showed before the graded answer ("" for a typed answer: it was graded before the reply).
  */
 export function checkedSubtopic(conversation: ReadonlyArray<{ role: string; content: string }>, before: string, syllabus: Syllabus | null): Subtopic | null {
-  const newest = conversation.length - 1;
-  const opens = conversation[newest]?.role === "user" && asksForMasteryCheck(conversation[newest].content);
-  if (!syllabus || (!opens && openCheck(conversation) === null)) return null;
-  let start = newest;
-  while (!opens && start >= 0 && !(conversation[start].role === "user" && asksForMasteryCheck(conversation[start].content))) start--;
+  const start = checkStart(conversation);
+  if (!syllabus || start < 0) return null;
   const said = [before, ...conversation.slice(start + 1).filter((m) => m.role === "assistant").map((m) => m.content).reverse()];
   for (const text of said) {
-    const picks = [...text.matchAll(PICKED_LINE)].map((m) => norm(m[1].replace(/\\([*_`])/g, "$1")));
-    for (const label of picks.reverse()) {
-      const hit = syllabus.subtopics.filter((s) => norm(s.title) === label);
-      if (hit.length === 1) return hit[0];
+    for (const label of picksIn(text).reverse()) {
+      const hit = titled(label, syllabus);
+      if (hit) return hit;
     }
   }
   const open = syllabus.subtopics.filter((s) => !s.mastered);
   return open.length === 1 ? open[0] : null;
+}
+
+/**
+ * The next skill of a check, as code knows it, or null (TutorEngine appMark, for a typed answer that is not
+ * the learner's first message in the check: live test part 13, issue 6, a second skill in one check was
+ * never saved). It is the subtopic picked on the last card answered in the tutor's message just before the
+ * newest, so nothing was asked, answered or typed between that pick and the answer: a pick on the app's own
+ * "which next?" card (NEXT_PICKER_QUESTION before it, no other card answered after that question) of exactly
+ * one of the level's titles (`saved`, the saved syllabus), not mastered, in a check still open, and a new
+ * skill for that check: an earlier pick in it was of another subtopic, and none was of this one. The app
+ * shows that card only on a turn the learner answered right (TutorEngine nextAsk), so the pick is never on
+ * a turn that was helped or wrong; a pick on the model's own card is not trusted, because code cannot tell
+ * from the saved text whether that turn was (review 2026-11-20: a hint, a wrong try or "I don't know", then
+ * the model's card, then the answer just given away). A skill already tried in the check, a check with no
+ * pick before (one subtopic left, no picker), words typed into the card and a pick of anything else give
+ * null. The skill is never read from the tutor's prose.
+ */
+export function pickedNextSkill(conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null): Subtopic | null {
+  const newest = conversation.length - 1;
+  const asked = conversation[newest - 1];
+  if (!saved || conversation[newest]?.role !== "user" || asked?.role !== "assistant") return null;
+  const start = checkStart(conversation);
+  if (start < 0 || start >= newest) return null;
+  const last = [...asked.content.matchAll(ANSWERED_LINE)].pop();
+  if (!last || last[1] !== ANSWER_ECHO_WORDS.picked) return null;
+  // On the app's card: its question comes before the pick (anywhere: the claim filter can put a verdict line
+  // in front), and no other card was answered between them.
+  const q = asked.content.lastIndexOf(NEXT_PICKER_QUESTION, last.index);
+  if (q < 0 || [...asked.content.slice(q, last.index).matchAll(ANSWERED_LINE)].length) return null;
+  const sub = titled(unescaped(last[2]), saved);
+  if (!sub || sub.mastered) return null;
+  const earlier = conversation.slice(start + 1, newest).filter((m) => m.role === "assistant").flatMap((m) => picksIn(m.content));
+  earlier.pop(); // the pick itself
+  const tried = earlier.map((label) => titled(label, saved)).filter((s): s is Subtopic => !!s);
+  return tried.length && !tried.some((s) => s.id === sub.id) ? sub : null;
+}
+
+/**
+ * The picker the app shows once the check's skill is mastered and the check goes on, or null (live test
+ * part 13, issue 6: after the mark, gemma4:e2b named the next subtopic in prose and showed no card, so no
+ * answer after it could be tied to a skill). Like the first picker, it takes the turn's first model call.
+ * Shown when the turn runs in assess mode, the newest message opens no check, the check is open and is
+ * still open for the answer after this turn, the skill it is on (checkedSubtopic) is mastered in the saved
+ * syllabus (`saved`), two or more subtopics are not, and no "which next?" card was shown since that skill
+ * was picked. The choices are those subtopics' titles in syllabus order, the first five when there are more.
+ */
+export function nextPickerCard(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill: string | null | undefined, saved: Syllabus | null): AskCard | null {
+  const newest = conversation.length - 1;
+  if (activeSkill !== "assess" || !saved || conversation[newest]?.role !== "user" || asksForMasteryCheck(conversation[newest].content)) return null;
+  if (!checkedSubtopic(conversation, "", saved)?.mastered) return null;
+  // The answer to the next skill's question comes two messages on: the check must still be open for it.
+  if (openCheck([...conversation, { role: "assistant", content: "" }, { role: "user", content: "" }]) === null) return null;
+  const said = conversation.slice(checkStart(conversation) + 1, newest).filter((m) => m.role === "assistant").map((m) => m.content);
+  const pickedIn = said.map((text) => picksIn(text).some((label) => titled(label, saved))).lastIndexOf(true);
+  if (said.slice(pickedIn + 1).some((text) => text.includes(NEXT_PICKER_QUESTION))) return null;
+  const pickedText = said[pickedIn] ?? "";
+  if (pickedText.lastIndexOf(NEXT_PICKER_QUESTION) > pickedText.lastIndexOf(`*${ANSWER_ECHO_WORDS.picked}:`)) return null;
+  const titles = [...new Set(saved.subtopics.filter((s) => !s.mastered).map((s) => s.title.trim()).filter(Boolean))];
+  if (titles.length < 2) return null;
+  return { question: NEXT_PICKER_QUESTION, choices: titles.slice(0, MAX_CHOICES).map((t) => ({ label: t, value: t })) };
 }

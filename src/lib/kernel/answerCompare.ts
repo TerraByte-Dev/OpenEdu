@@ -179,7 +179,10 @@ const opensQuote = (t: string, q: string) => [...t].some((c, i) => c === q && (i
  * mark straight after a number stays ("5'", "5\"", "5!"; primes read as "'" and "\""): each is another answer
  * (TerraTutor take-back 2026-11-20-1623, item 4; ported from TerraTutor #277); two apostrophes after a number
  * read as '"'. A quote after a number that closes one opened before it (at the start, or after a space or bracket)
- * is a quote; an apostrophe in a word ("it's") opens nothing.
+ * is a quote; an apostrophe in a word ("it's") opens nothing. An apostrophe straight before a letter ("'cause",
+ * "'tis", "'twas") is never paired with one straight after a digit: "'cause it's 5'" keeps the feet mark, "5'"
+ * (take-back 2026-11-20-2014, found in this repo's port of TerraTutor #277; ported back from TerraTutor
+ * b46fa67c); "'5'" and "'cat'" are still quotes.
  */
 export function bareAnswer(text: string): string {
   let t = text.normalize("NFKC").replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"').replace(/′′|″/g, '"').replace(/′/g, "'").replace(/(\d)''/g, '$1"').trim();
@@ -188,7 +191,8 @@ export function bareAnswer(text: string): string {
   // Only take the cue off when what is left is not itself empty or a lone letter the cue ate.
   if (cue && cue[0].length < t.length) t = t.slice(cue[0].length);
   t = withoutClosing(t);
-  if (t.length > 1 && /^["'`]/.test(t) && t[t.length - 1] === t[0]) t = t.slice(1, -1);
+  const elided = /^'\p{L}/u.test(t) && /\d'$/.test(t);
+  if (t.length > 1 && /^["'`]/.test(t) && t[t.length - 1] === t[0] && !elided) t = t.slice(1, -1);
   t = t.replace(/^["'`]+/, "");
   t = t.replace(/["'`]+$/, (q, at: number) => (/\d/.test(t[at - 1] ?? "") && !opensQuote(t.slice(0, at), q[0]) ? q : ""));
   return withoutClosing(t).trim();
