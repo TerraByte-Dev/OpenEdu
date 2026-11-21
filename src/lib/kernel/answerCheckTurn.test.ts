@@ -3164,6 +3164,8 @@ describe("TerraTutor live test 2026-11-20 part 13", () => {
       ["Let's see if you know which planet is closest to the sun. Do you know?", false],
       ["Are you ready to tell me which planet is closest to the Sun?", false],
       ["Are you ready for 3 × 4?", false],
+      ["Are you ready to work out 15 - 8 in your head?", false],
+      ["Do you remember how we find 10 - 3 using a number line?", false],
       ["Does that make sense? What is 3 × 4?", false],
       // Review of part 13, MUST-FIX 2: a command after it asks what comes next (rows 4 and 10).
       ["Are you ready for a tricky one? Name the planet closest to the Sun.", false],
@@ -3372,6 +3374,19 @@ describe("TerraTutor live test 2026-11-21 part 14", () => {
       const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "the grid");
       expect(keyCalls()).toBe(1);
       expect(result.answerCheck?.key).not.toBe("9");
+    }, 30_000);
+
+    // Review of this port, NIT 1: the range rule is for offers. A recall or ready question that poses a spaced
+    // subtraction with words after it asks for a fact, and is keyed and graded as on master.
+    it.each([
+      ["Do you remember how we find 10 - 3 using a number line?"],
+      ["Are you ready to work out 15 - 8 in your head?"],
+    ])("%j: keyed and graded", async (asked) => {
+      keyOut = { question: asked, working: "", answer: "7" };
+      gradeOut = { student_answer: "7", verdict: "correct" };
+      expect(asksOpinion(asked)).toBe(false);
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(`Great job. ${asked}`)], "7");
+      expect(result.answerCheck).toMatchObject({ key: "7", verdict: "correct" });
     }, 30_000);
 
     // Guards, as master: an operation that ends the choice is still posed, and keyed by code.

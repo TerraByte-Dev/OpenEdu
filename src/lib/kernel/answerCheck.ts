@@ -738,10 +738,16 @@ const ASKS_INSIDE_WORDS = String.raw`\b(?:what|which|who|whom|whose|where|when|w
 // one word of when ("solve 12 ÷ 3 next, or ..."). "try 6 × 7, or ..." poses 6 × 7; "2 - 3 more questions", "10 - 15
 // minutes" and "a 3 × 3 grid" pose nothing (the reviewer's rule, inbox 2026-11-21-0017 item 1).
 const POSED_END = String.raw`(?=(?:\s+(?:next|now|first|instead))?\s*(?:[,?]|\.(?!\d)|or\b))`;
-// An operation between two numbers: any operator but a "-" with spaces round it, anywhere, as before; that one, a range
-// as often as a subtraction, only when the second number ends the problem (POSED_END).
-const NUMBER_OP = String.raw`\d\s*[×x*÷/+−=<>]\s*\d|\d(?:-\s*|\s+-)\d|\d\s+-\s+\d+(?:\.\d+)?${POSED_END}`;
-const ASKS_INSIDE = new RegExp(String.raw`:|${NUMBER_OP}|\b\d+\s+of\s+(?:the\s+)?\d+\b|${ASKS_INSIDE_WORDS}`, "i");
+// An operation between two numbers, any operator, anywhere.
+const NUMBER_OP = String.raw`\d\s*[×x*÷/+\-−=<>]\s*\d`;
+// In an offer: any operator but a "-" with spaces round it, anywhere, as before; that one, a range as often as a
+// subtraction, only when the second number ends the problem (POSED_END). Offers only: a recall or ready question that
+// poses a problem with words after it ("Do you remember how we find 10 - 3 using a number line?", "Are you ready to
+// work out 15 - 8 in your head?") is keyed, as before (review of this port, NIT 1).
+const OFFER_NUMBER_OP = String.raw`\d\s*[×x*÷/+−=<>]\s*\d|\d(?:-\s*|\s+-)\d|\d\s+-\s+\d+(?:\.\d+)?${POSED_END}`;
+const asksInside = (op: string) => new RegExp(String.raw`:|${op}|\b\d+\s+of\s+(?:the\s+)?\d+\b|${ASKS_INSIDE_WORDS}`, "i");
+const ASKS_INSIDE = asksInside(NUMBER_OP);
+const OFFER_ASKS_INSIDE = asksInside(OFFER_NUMBER_OP);
 
 // A problem posed in numbers: an operation between two numbers, or "3 of the 4" (ASKS_INSIDE's number half).
 const POSES_PROBLEM = new RegExp(String.raw`${NUMBER_OP}|\b\d+\s+of\s+(?:the\s+)?\d+\b`, "i");
@@ -783,7 +789,7 @@ function endsMessage(question: string, message: string): boolean {
 export function asksOpinion(question: string, message: string = question): boolean {
   const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
   const last = (s: string) => endsMessage(s, message);
-  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (WHICH_NEXT.test(s) && !POSES_PROBLEM.test(s)) || (RECALL.test(s) && !POSES_PROBLEM.test(s) && last(s)) || isReady(s, message) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
+  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (WHICH_NEXT.test(s) && !POSES_PROBLEM.test(s)) || (RECALL.test(s) && !POSES_PROBLEM.test(s) && last(s)) || isReady(s, message) || (CHOICE_OFFER.test(s) && !OFFER_ASKS_INSIDE.test(s)));
 }
 
 const isReady = (s: string, message: string) => READY.test(s) && !ASKS_INSIDE.test(s) && endsMessage(s, message);
