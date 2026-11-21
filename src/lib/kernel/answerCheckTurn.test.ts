@@ -343,9 +343,10 @@ describe("a right answer in a mastery check", () => {
     expect(result.answerCheck).toMatchObject({ key: "48", verdict: "correct", by: "code" });
   });
 
-  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277): code's exact match kept a mark after a number off both
-  // sides, so "5'" was right against the key 5" and "5!" against 5. A mark after a number is now part of the answer:
-  // the same marks are still code's match, other marks (or none against one) go to the grader.
+  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277):
+  // code's exact match kept a mark after a number off both sides, so "5'" was right against the key 5" and "5!"
+  // against 5. A mark after a number is now part of the answer: the same marks are still code's match, other marks
+  // (or none against one) go to the grader.
   it.each([
     ["feet against the key in inches", "A pencil is 5 inches long. How do you write its length with the inch mark?", "5\"", "5'", "incorrect"],
     ["a factorial against the key 5", "There are 5 apples in a bowl. How many apples are there?", "5", "5!", "incorrect"],

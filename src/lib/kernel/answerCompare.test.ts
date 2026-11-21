@@ -26,7 +26,8 @@ describe("numbers in an answer", () => {
     expect(bareAnswer("B) dolphin")).toBe("B) dolphin");
   });
 
-  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277): a mark straight after a number is part of the answer.
+  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277):
+  // a mark straight after a number is part of the answer.
   it("keeps a feet, inch or factorial mark after a number, and takes quotes around the answer off", () => {
     for (const [t, bare] of [
       ["5'", "5'"], ["5\"", "5\""], ["5′", "5'"], ["5″", "5\""], ["5'6\"", "5'6\""], ["5!", "5!"], ["the answer is 48!", "48!"],
@@ -129,7 +130,8 @@ describe("anything in doubt is undecided, never a mismatch", () => {
     ["9", "3^2", "a power"],
     ["carbon dioxide", "CO2", "other words"],
     ["3 boxes, 2 left over", "3 boxes", "a key with two parts"],
-    // TerraTutor take-back 2026-11-20-1623, item 4 (ported from TerraTutor #277): a mark after the number is another answer, or an excited one.
+    // TerraTutor take-back 2026-11-20-1623, item 4 (ported from TerraTutor #277):
+    // a mark after the number is another answer, or an excited one.
     ["5\"", "5'", "inches against feet"],
     ["5'", "5\"", "feet against inches"],
     ["5'", "5", "feet against a bare number"],
