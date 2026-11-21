@@ -24,13 +24,24 @@ import { ASSESS_MESSAGE } from "./suggestions";
  * answer to the check's question ran as "explain" and could never be marked. Every other turn is
  * "explain", as before: a typed "quiz me on fractions" or "test me" keeps the domain skill's drawing
  * tools and gets its quiz even when every subtopic is mastered (assess.md stops there), and the quiz
- * chip's message, as sent or edited, stays a quiz. `conversation` is the user and assistant messages,
- * ending with the one being sent.
+ * chip's message, as sent or edited, stays a quiz. The chip's own words typed ("check if i've got this",
+ * isAssessChipText) run in "assess" as the chip does, so they open the same topic picker (TerraTutor live test
+ * 2026-11-21 part 14, issue 10: typed, they ran in explain mode and no picker came). `conversation` is the
+ * user and assistant messages, ending with the one being sent.
  */
 export function chatTurnMode(picked: TutorModeId | null, conversation: ReadonlyArray<{ role: string; content: string }>): TutorModeId {
   if (picked) return picked;
+  const newest = conversation[conversation.length - 1];
+  if (newest?.role === "user" && isAssessChipText(newest.content)) return "assess";
   if (!isAssessAnswerTurn(conversation)) return "explain";
-  return openCheck(conversation)?.trim() === ASSESS_MESSAGE ? "assess" : "explain";
+  return isAssessChipText(openCheck(conversation) ?? "") ? "assess" : "explain";
+}
+
+const chipWords = (s: string) => s.replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim().replace(/[\s.!?]+$/, "").toLowerCase();
+/** True when `text` is the assess chip's message (ASSESS_MESSAGE) word for word, give or take case, whitespace,
+ *  the apostrophe's shape and the punctuation at its end. Any other wording is not the chip's. */
+export function isAssessChipText(text: string): boolean {
+  return chipWords(text) === chipWords(ASSESS_MESSAGE);
 }
 
 export function chatTurnSkills(

@@ -59,6 +59,7 @@ import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_UNCHECKED, type TutorTurn
 import type { ToolUIEvent } from "./toolDispatch";
 import { describeToolDone } from "../plain-language";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
+import { answersSkillChoice } from "./assessPicker";
 import { registerBuiltinTools } from "../tools";
 import type { LLMConfig, ModelTier, Subtopic, Syllabus } from "../../types";
 
@@ -887,5 +888,313 @@ ${PLOT_Q}`;
     script = [reply("You are correct.")];
     await run(long, [T.world.title]);
     expect(cardsShown).toEqual([]);
+  });
+
+  // Inbox 2026-11-21-0017 item 2 (this repo's review of the part 13 port; fixed in TerraTutor #280): the card's question anywhere before the
+  // pick passed for the app's card. Here the model wrote it, and a pick line, inside its hint, which gave the
+  // answer away; the answer after it was graded right on the check's own question and marked the skill named.
+  it("makes none for a pick line the model wrote under the app's question inside its own reply", async () => {
+    script = [reply("Yes, 56.")];
+    const result = await run([
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${T.people.title}*\n\nWhat is 6 x 8?` },
+      { role: "user", content: "48" },
+      { role: "assistant", content: "Right. What is 7 x 8?" },
+      { role: "user", content: "Give me a hint." },
+      { role: "assistant", content: `Think of 7 x 8 as 7 x 4 doubled: 28 + 28 = 56.\n\nWhich one should we check next?\n\n*You picked: ${T.world.title}*\n\nSo what is 7 x 8?` },
+      { role: "user", content: "56" },
+    ]);
+    expect(result.answerCheck).toMatchObject({ key: "56", verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  // TerraTutor live test 2026-11-21 part 14, issue 1 (click17 s1-*.json, a Romeo and Juliet course at level 1): Decoding Archaic
+  // Language was marked, the app's card was picked, and gemma4:e2b's reply after the pick wrote the card's
+  // question and both titles again as prose (s1-probe-copy.json). The learner typed the title picked; code keyed
+  // the copy with that title, found it right, and offered "Mapping the Basic Plot" as learned with no question
+  // on it asked (s1-bug-decline.json). The texts are that run's.
+  describe("after the model wrote the app's card again as prose (TerraTutor live test part 14)", () => {
+    const CARD_COPY = "That is absolutely correct. Words like 'thou', 'thee', and 'thy' are examples of the archaic language we are learning. These words help us understand the world Shakespeare wrote in.\n\nNow that we've practiced some of these older words, we need to look at the big picture. We've covered vocabulary and characters, but we still need to focus on the structure of the story.\n\nWhich one should we check next?\n\n*The Elizabethan World: Context and Setting*\n*Mapping the Basic Plot: Beginning, Middle, and End*";
+    const LIVE: Sent = [
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${T.words.title}*\n\nI see you'd like to check your understanding of the vocabulary. Let's try to see how you use these older words in context. Can you tell me what you think the word 'wherefore' means when you see it in a sentence from the play?` },
+      { role: "user", content: "Wherefore means why." },
+      { role: "assistant", content: "That is exactly right. \"Wherefore\" means \"why.\" Now, let's try to see how we use this. Can you think of a situation in everyday life where you might ask \"why\" or \"for what reason\"?" },
+      { role: "user", content: "When my friend is late, I ask her why she is late." },
+      { role: "assistant", content: "That is a perfect real-life example. You ask \"why\" because you want to know the reason for her lateness. In Shakespeare's plays, characters often use these older words to express the same things. We have covered defining these words, so now let's look at how they show up in the play itself. When you look at a passage in *Romeo and Juliet*, do you see any words that look a little different from modern English? If so, what do you see?" },
+      { role: "user", content: "Yes, words like thou, thee and thy." },
+      { role: "assistant", content: `Which one should we check next?\n\n*You picked: ${T.plot.title}*\n\n${CARD_COPY}` },
+    ];
+    it.each([
+      ["the title picked, keyed as in the live run", T.plot.title],
+      ["the other title, when the key call keys that one", T.world.title],
+    ])("makes none, and shows no card, for an answer that is %s", async (_, typed) => {
+      save([T.words.id, T.people.id]);
+      keyOut = { question: "Which one should we check next?", working: "", answer: typed };
+      script = [reply(`You are right. ${typed} is the next area we should focus on.`)];
+      const result = await run([...LIVE, { role: "user", content: typed }]);
+      // The card's copy asks no question with a key (answerCheck.ts WHICH_NEXT, TerraTutor #281), so the
+      // title typed gets no verdict at all: before that, it was keyed and graded "correct" by code, and only the mark gate
+      // (appNextPick) kept it from marking. Both hold now.
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(result.toolCalls).toEqual([]);
+      expect(cardsShown).toEqual([]);
+      expect(confirms).toEqual([]);
+      expect(masteredInDb()).toEqual([T.words.id, T.people.id]);
+    });
+  });
+});
+
+// TerraTutor live test 2026-11-21 part 14 (click17), a cells course at level 2 (ported from TerraTutor #280): the texts below are that run's, through
+// the turns as ChatTab sends them (the mode from chatTurnMode, the saved syllabus in the database).
+describe("TerraTutor live test part 14, cells", () => {
+  const C = {
+    membrane: sub("2.1", "The Plasma Membrane: Structure and Function"),
+    nucleus: sub("2.2", "The Nucleus: Control Center of the Cell"),
+    organelles: sub("2.3", "Major Organelles: Mitochondria and Endoplasmic Reticulum"),
+    cytoplasm: sub("2.4", "Cytoplasm and Organelle Roles"),
+    compare: sub("2.5", "Comparing Plant and Animal Cell Structures"),
+  };
+  const ALL = [C.membrane, C.nucleus, C.organelles, C.cytoplasm, C.compare];
+  const SNAPSHOT: Syllabus = { ...OPENED_WITH, subtopics: ALL };
+  const save = (mastered: string[]) => sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'")
+    .run(JSON.stringify(ALL.map((s) => (mastered.includes(s.id) ? { ...s, mastered: true, practiced: true } : s))));
+  const masteredInDb = () => subtopicsInDb().filter((s) => s.mastered).map((s) => s.id);
+  const appMarkOf = (id: string) => ({ name: "progress.mark_mastered", args: { subtopic_id: id, status: "mastered" }, ok: true, byApp: true });
+  const cardsShown: string[] = [];
+  const run = (conversation: Sent, picks: string[] = []) => {
+    const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, conversation), "Cells", "tiny", true);
+    return tutorEngine.run(
+      { messages: [{ role: "system", content: "You are a tutor." }, ...conversation], config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev) },
+      {
+        courseId: "c1", level: 1, syllabus: SNAPSHOT, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
+        confirmTool: async (tool) => { confirms.push(tool); return true; },
+        askUser: async (question: string) => { cardsShown.push(question); return picks.shift() ?? ""; },
+      },
+    );
+  };
+  const key = (question: string, answer: string): Key => ({ question, working: "", answer });
+  // The key call is sent the tutor's message the answer is to: the question latest in it wins.
+  const keysBy = (keys: Key[]) => (sentToKey: Sent) => {
+    const text = sentToKey.map((m) => m.content).join("\n");
+    return keys.map((k) => [text.lastIndexOf(k.question), k] as const).sort((a, b) => b[0] - a[0]).find(([at]) => at >= 0)?.[1] ?? KEY_12;
+  };
+
+  const MEMBRANE_Q = "Can you tell me what makes up the cell membrane? Think about the parts that are on the outside and the inside.";
+  const PROTEINS_Q = "What do you think the proteins in the membrane do?";
+  const POWER_Q = "Can you think of an organelle that is often called the \"powerhouse\" of the cell? What do you think that powerhouse does?";
+  const ER_Q = "What do you think the ER helps the cell do? Does it help with making food, or something else?";
+  const PROTEIN_START_Q = "If the cell needs to make a new protein, where do you think that protein starts being made?";
+  const KEYS = [
+    key(MEMBRANE_Q, "Phospholipid bilayer and proteins"),
+    key(PROTEINS_Q, "Perform various functions like transport and signaling"),
+    key(POWER_Q, "Mitochondrion; generates ATP"),
+    key(ER_Q, "Making proteins and lipids"),
+    key(PROTEIN_START_Q, "On the ribosomes"),
+    key("What do you think the nuclear envelope does?", "Regulates transport between nucleus and cytoplasm"),
+    key("Is the DNA kept inside the nucleus?", "Yes"),
+  ];
+  // s1c-*: the membrane picked and marked, the follow-up answered right.
+  const TO_FOLLOW: Sent = [
+    { role: "user", content: "Check if I've got this." },
+    { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${C.membrane.title}*\n\nThat is a good starting point. We are looking at the Plasma Membrane. ${MEMBRANE_Q}` },
+    { role: "user", content: "It is made of a phospholipid bilayer with proteins in it." },
+    { role: "assistant", content: `That is correct. The cell membrane is made of a phospholipid bilayer and proteins. The phospholipid bilayer is like a sandwich. It has heads that like water and tails that do not like water. ${PROTEINS_Q}` },
+    { role: "user", content: "The proteins act as channels and pumps that move substances in and out of the cell." },
+  ];
+  const AFTER_PICK = `You are right. The proteins in the cell membrane act as channels and pumps. They help move things in and out of the cell. Now, let's talk about energy. You know that cells need energy to do their jobs. ${POWER_Q}`;
+  const POWER_ANSWER = "The mitochondria. It makes energy for the cell by turning food into ATP.";
+  // As the live run saved the card's turn (before code's verdict line went in front of the card).
+  const PICKED_ORGANELLES = `Which one should we check next?\n\n*You picked: ${C.organelles.title}*\n\n${AFTER_PICK}`;
+  beforeEach(() => {
+    cardsShown.length = 0;
+    keyOut = keysBy(KEYS);
+    gradeOut = { student_answer: "", verdict: "correct" };
+    save([]);
+  });
+
+  it("issue 10: the chip's own words typed open the same picker as the chip, and its answers run in assess", async () => {
+    script = [reply(`That is a good starting point. ${MEMBRANE_Q}`)];
+    const typed = "check if i've got this";
+    expect(chatTurnMode(null, [{ role: "user", content: typed }])).toBe("assess");
+    const result = await run([{ role: "user", content: typed }], [C.membrane.title]);
+    expect(cardsShown).toEqual(["Which one should we check first?"]);
+    expect(result.text).toContain(`*You picked: ${C.membrane.title}*`);
+    expect(chatTurnMode(null, [{ role: "user", content: typed }, { role: "assistant", content: result.text }, { role: "user", content: "A phospholipid bilayer with proteins." }])).toBe("assess");
+  });
+
+  it("issue 1: still marks the second skill on a first-try right answer after the app's card (s1c)", async () => {
+    save([C.membrane.id]);
+    script = [reply("You are exactly right. The mitochondria is the powerhouse of the cell.")];
+    const result = await run([...TO_FOLLOW, { role: "assistant", content: PICKED_ORGANELLES }, { role: "user", content: POWER_ANSWER }]);
+    expect(result.answerCheck).toMatchObject({ question: POWER_Q, verdict: "correct" });
+    expect(result.toolCalls).toEqual([appMarkOf(C.organelles.id)]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.organelles.id]);
+  });
+
+  it("issue 10: says the answer was right before the next card, and the answer after the pick still marks", async () => {
+    save([C.membrane.id]);
+    script = [reply(AFTER_PICK)];
+    const cardTurn = await run(TO_FOLLOW, [C.organelles.title]);
+    expect(cardsShown).toEqual(["Which one should we check next?"]);
+    expect(cardTurn.text.startsWith(`That's right.\n\nWhich one should we check next?\n\n*You picked: ${C.organelles.title}*\n\n`)).toBe(true);
+    script = [reply("You are exactly right.")];
+    const answerTurn = await run([...TO_FOLLOW, { role: "assistant", content: cardTurn.text }, { role: "user", content: POWER_ANSWER }]);
+    expect(answerTurn.toolCalls).toEqual([appMarkOf(C.organelles.id)]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.organelles.id]);
+  });
+
+  // Issue 3 (s2-*.json): after the second skill was marked, a hint request, "I don't know" and a wrong answer.
+  // The first skill's answers had used three of the check's four, so "I don't know" closed it and the wrong
+  // answer ran in explain mode, ungraded. The pick starts the count again.
+  const ER_TALK: Sent = [
+    ...TO_FOLLOW,
+    { role: "assistant", content: PICKED_ORGANELLES },
+    { role: "user", content: POWER_ANSWER },
+    { role: "assistant", content: `You are exactly right. The mitochondria is the powerhouse of the cell. It makes energy for the cell by turning food into ATP. That is a very important job. Now, let's look at the Endoplasmic Reticulum, or ER. It is a network of membranes inside the cell. ${ER_Q}` },
+    { role: "user", content: "Give me a hint." },
+    { role: "assistant", content: "The Endoplasmic Reticulum is involved in making and moving things inside the cell. Think about what the cell needs to build new parts, like proteins or fats. What part of the cell helps build things?" },
+    { role: "user", content: "I don't know" },
+    { role: "assistant", content: `I can give you a hint. The ER helps the cell build things. It is like the factory floor where new parts are made. ${PROTEIN_START_Q}` },
+  ];
+  it("issue 3: a check on two skills stays open after one stumble on the second, and the next answer is graded", async () => {
+    save([C.membrane.id, C.organelles.id]);
+    gradeOut = { student_answer: "In the cell wall.", verdict: "incorrect" };
+    script = [reply("That's not right yet. Proteins start on the ribosomes.")];
+    const conversation = [...ER_TALK, { role: "user", content: "In the cell wall." }];
+    expect(chatTurnMode(null, conversation)).toBe("assess");
+    const result = await run(conversation);
+    expect(result.answerCheck).toMatchObject({ question: PROTEIN_START_Q, verdict: "incorrect" });
+    expect(result.toolCalls).toEqual([]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.organelles.id]);
+  });
+
+  it("issue 3: the restarted check still closes after four answers on the new skill", async () => {
+    const more = ["Ribosomes", "The nucleus", "The cell wall"].flatMap((a) => [{ role: "assistant", content: PROTEIN_START_Q }, { role: "user", content: a }]);
+    const conversation = [...TO_FOLLOW, { role: "assistant", content: PICKED_ORGANELLES }, { role: "user", content: POWER_ANSWER }, ...more, { role: "assistant", content: PROTEIN_START_Q }, { role: "user", content: "On the ribosomes" }];
+    expect(chatTurnMode(null, conversation)).toBe("explain");
+    expect(chatTurnMode(null, conversation.slice(0, -2))).toBe("assess");
+  });
+
+  // Issue 2 (s2b-*.json): the nucleus picked, the tutor explained and asked "Does that make sense?", the learner
+  // said "Yes", and the right answer to the first real question was not marked: "Yes" had counted as the try.
+  const nucleusCheck = (tutorFirst: string, said: string): Sent => [
+    { role: "user", content: "Check if I've got this." },
+    { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${C.nucleus.title}*\n\nThat is a great topic to check. ${tutorFirst}` },
+    { role: "user", content: said },
+    { role: "assistant", content: "That is great! I think you understand that the nucleus holds the DNA, which is the cell's instruction book. Now, let's talk about the nuclear envelope. It is like a double-layered fence around the nucleus. What do you think the nuclear envelope does?" },
+    { role: "user", content: "It protects the nucleus and controls what goes in and out of it, through little pores." },
+  ];
+  const EXPLAINED = "The nucleus holds the DNA. DNA is like the instruction book for the cell. It tells the cell how to work and what to make. Does that make sense?";
+
+  it("issue 2: \"Yes\" to a \"Does that make sense?\" code keys as no question is no try, so the first real answer marks", async () => {
+    save([C.membrane.id, C.organelles.id]);
+    script = [reply("That is exactly right!")];
+    const result = await run(nucleusCheck(EXPLAINED, "Yes"));
+    expect(result.answerCheck).toMatchObject({ question: "What do you think the nuclear envelope does?", verdict: "correct" });
+    expect(result.toolCalls).toEqual([appMarkOf(C.nucleus.id)]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.nucleus.id, C.organelles.id]);
+  });
+
+  // A reply to a question the model keys used the try whatever its verdict was: code cannot read it from the text.
+  it.each([
+    ["\"I don't know\" to it", EXPLAINED, "I don't know"],
+    ["a help request after it", EXPLAINED, "can you explain it?"],
+    ["an answer to it that answers nothing", EXPLAINED, "?!"],
+    ["\"Yes\" to a yes/no question the model keys", "The nucleus holds the DNA. Is the DNA kept inside the nucleus?", "Yes"],
+    ["a wrong answer to a question the model keys", "The nucleus holds the DNA. Is the DNA kept inside the nucleus?", "No"],
+  ])("issue 2: makes none after %s", async (_, tutorFirst, said) => {
+    save([C.membrane.id, C.organelles.id]);
+    script = [reply("That is exactly right!")];
+    const result = await run(nucleusCheck(tutorFirst, said));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.organelles.id]);
+  });
+
+  // Only a plain yes to a READY question uses no try (TerraTutor's review of part 14, MUST-FIX 1). The branch before it passed
+  // any reply that read as an answer to any question asksOpinion covers: these 7 marked 2.2, master marks none.
+  // Each asks to be taught first, or may; the tutor teaches, and the next right answer is helped.
+  const SAFE_REMEMBER = "The nucleus holds the DNA. Do you remember how we said the nucleus keeps the DNA safe?";
+  it.each([
+    ["\"No\" to \"Does that make sense?\"", EXPLAINED, "No"],
+    ["\"Not really\" to \"Does that make sense?\"", EXPLAINED, "Not really"],
+    ["\"Kind of\" to \"Does that make sense?\"", EXPLAINED, "Kind of"],
+    ["\"Yes but can you explain it again?\"", EXPLAINED, "Yes but can you explain it again?"],
+    ["\"No\" to a recall question", SAFE_REMEMBER, "No"],
+    ["\"An example\" to a choice offer", "Do you want to see an example first, or would you like to try one yourself?", "An example"],
+    ["\"The hint\" to a choice offer", "Do you want a hint first, or would you like to try it on your own?", "The hint"],
+    // Live, s3b-yes.json: kept as master has it, a try used (not a plain yes).
+    ["\"Yes, ask me a question.\" (s3b)", "The nucleolus is the place where the cell makes something important. It helps make the parts of the nucleus. It helps make something called ribosomal RNA (rRNA). Ribosomes are like tiny machines that help build proteins. Does that make sense?", "Yes, ask me a question."],
+    ["\"Yes\" to a recall question", SAFE_REMEMBER, "Yes"],
+    ["\"Yes\" to an opinion question", "The nucleus holds the DNA. Do you like learning about the nucleus?", "Yes"],
+    ["an answer to \"Does that make sense?\" that answers nothing", EXPLAINED, "xyz"],
+  ])("issue 2: makes none after %s", async (_, tutorFirst, said) => {
+    save([C.membrane.id, C.organelles.id]);
+    script = [reply("That is exactly right!")];
+    const result = await run(nucleusCheck(tutorFirst, said));
+    expect(result.answerCheck).toMatchObject({ question: "What do you think the nuclear envelope does?", verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.organelles.id]);
+  });
+
+  it.each([
+    ["\"Okay.\" to \"Does that make sense?\"", EXPLAINED, "Okay."],
+    ["\"I'm ready!\" to \"Are you ready for a question?\"", "The nucleus holds the DNA. Are you ready for a question?", "I'm ready!"],
+  ])("issue 2: marks after %s, a plain yes to a READY question", async (_, tutorFirst, said) => {
+    save([C.membrane.id, C.organelles.id]);
+    script = [reply("That is exactly right!")];
+    const result = await run(nucleusCheck(tutorFirst, said));
+    expect(result.toolCalls).toEqual([appMarkOf(C.nucleus.id)]);
+    expect(masteredInDb()).toEqual([C.membrane.id, C.nucleus.id, C.organelles.id]);
+  });
+
+  // TerraTutor's review of part 14, MUST-FIX 2: a model card that opens its reply in the app card's format, after the check had
+  // closed, opened it again and the next right answer marked 2.3. The app shows its card only while the check is open
+  // for the answer after it, so the pick restarts the count only then.
+  it("issue 3: a model card worded like the app's, after the check closed, opens nothing and marks nothing", async () => {
+    save([C.membrane.id]);
+    const wrongs = ["The nucleus", "Ribosomes", "The cell wall"].flatMap((a) => [{ role: "assistant", content: PROTEIN_START_Q }, { role: "user", content: a }]);
+    const closed = [...TO_FOLLOW, ...wrongs];
+    expect(chatTurnMode(null, closed)).toBe("explain");
+    const conversation = [...closed, { role: "assistant", content: `Which one should we check next?\n\n*You picked: ${C.organelles.title}*\n\n${POWER_Q}` }, { role: "user", content: POWER_ANSWER }];
+    expect(chatTurnMode(null, conversation)).toBe("explain");
+    script = [reply("You are exactly right.")];
+    const result = await run(conversation);
+    expect(result.answerCheck).toBeNull();
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([C.membrane.id]);
+  });
+
+  it("issue 1: makes none on the first skill either, for a title typed after the model's copy of the first card", async () => {
+    keyOut = { question: "Which one should we check first?", working: "", answer: C.nucleus.title };
+    script = [reply("Okay, the nucleus.")];
+    const result = await run([
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${C.membrane.title}*\n\nThat is a good starting point. Which one should we check first?\n\n*${C.membrane.title}*\n*${C.nucleus.title}*` },
+      { role: "user", content: C.nucleus.title },
+    ]);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", by: "code" });
+    expect(result.toolCalls).toEqual([]);
+    expect(masteredInDb()).toEqual([]);
+  });
+});
+
+// TerraTutor's review of part 14, nit 1: an answer is a skill's name only when it is a title a picker card offers (not mastered).
+// A real answer equal to a mastered skill's short title is left to the marking rules.
+describe("answersSkillChoice", () => {
+  const syl = (mastered: boolean): Syllabus => ({ ...OPENED_WITH, subtopics: [{ ...sub("9.1", "Mitochondria"), mastered }, sub("9.2", "The Nucleus")] });
+  const graded = { question: "Which organelle is called the powerhouse of the cell?", key: "Mitochondria" };
+  it("leaves an answer equal to a mastered title alone, and stops one equal to a title still offered", () => {
+    expect(answersSkillChoice(graded, "mitochondria", syl(true))).toBe(false);
+    expect(answersSkillChoice(graded, "mitochondria", syl(false))).toBe(true);
+    expect(answersSkillChoice({ question: "Which one should we check next?", key: "x" }, "x", syl(true))).toBe(true);
   });
 });

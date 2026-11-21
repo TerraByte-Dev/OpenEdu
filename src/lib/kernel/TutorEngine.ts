@@ -41,8 +41,8 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
-import { assessPickerCard, checkedSubtopic, nextPickerCard, pickedNextSkill } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, type AnswerCheck } from "./answerCheck";
+import { answersSkillChoice, assessPickerCard, checkedSubtopic, nextPickerCard, pickedNextSkill, NEXT_PICKER_QUESTION } from "./assessPicker";
+import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, onlyQuestion, keyFromArithmetic, asksReady, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -108,7 +108,9 @@ const APP_MARK_CALL_ID = "app_mark";
  * the mark the model's call would save, under the gate that call passes (respond): the tool is offered
  * (assess mode, tools on, not denied), the newest message is not a safety disclosure, every answer checked
  * this turn is "correct". Stricter than that gate: a typed answer marks only when it is the learner's first
- * message since the check opened (`firstAttempt`). After any other message (a hint or help request, "I
+ * try since the check opened (`firstAttempt`: a plain "Yes" to a "Does that make sense?" or "Are you ready?"
+ * that code keys "none" is no try, TerraTutor live test part 14, issue 2), and never when it only said which skill to check
+ * (assessPicker.ts answersSkillChoice, part 14, issue 1). After any other message (a hint or help request, "I
  * don't know", a wrong answer) the tutor may have asked an easier question, and the answer is graded on
  * that one (review of the TerraTutor #266 port: "help", then "What is 4 + 4 + 4?" answered "12", marked
  * the check's skill). A turn graded only on cards marks only when its newest message opened the check (a
@@ -146,9 +148,12 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on || c.reworded)) return null;
   if (!result.answerCheck && !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
   const syllabus = await load().catch(() => null);
-  // A typed answer that is not the learner's first message in the check marks only the next skill picked on
+  // A typed answer that only said which skill to check (the model's copy of a picker card, keyed with a title)
+  // answered no question about one (assessPicker.ts answersSkillChoice; TerraTutor live test part 14, issue 1).
+  if (result.answerCheck && answersSkillChoice(result.answerCheck, conversation[conversation.length - 1]?.content ?? "", syllabus)) return null;
+  // A typed answer that is not the learner's first try in the check marks only the next skill picked on
   // the card just before it (assessPicker.ts pickedNextSkill): its first try, under the same rules.
-  const next = result.answerCheck && !firstAttempt(conversation) ? pickedNextSkill(conversation, syllabus) : undefined;
+  const next = result.answerCheck && !firstAttempt(conversation) ? pickedNextSkill(conversation, syllabus, result.answerCheck) : undefined;
   if (next === null) return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
@@ -157,12 +162,40 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
 }
 
-/** True when the learner's message before the newest is the request that opened the check: the newest is their first try. */
+/**
+ * True when the newest message is the learner's first try in the check: every message of theirs between it and
+ * the request that opened the check used no try (usedNoTry), which is true when there are none.
+ */
 function firstAttempt(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
   for (let j = conversation.length - 2; j >= 0; j--) {
-    if (conversation[j].role === "user") return asksForMasteryCheck(conversation[j].content);
+    if (conversation[j].role !== "user") continue;
+    if (asksForMasteryCheck(conversation[j].content)) return true;
+    if (!usedNoTry(conversation.slice(0, j + 1))) return false;
   }
   return false;
+}
+
+// A reply that only says yes, and nothing else. Closed and small: "No", "Not really", "Kind of", "Yes but can you
+// explain it again?" and "Yes, ask me a question." are not on it (TerraTutor's review of part 14, MUST-FIX 1).
+const ONLY_YES = /^(?:yes|yeah|yep|yup|ok(?:ay)?|sure|i think so|uh[- ]?huh|got it|(?:i['’]?m )?ready)[\s.!]*$/i;
+
+/**
+ * True when the learner's newest message in `conversation` used no try at the check (live test 2026-11-21 part
+ * 14, issue 2: "Yes" to the tutor's "Does that make sense?" after the topic pick counted as the first try, and the
+ * right first answer to the first real question was not marked). Only a plain yes (ONLY_YES) to a tutor message
+ * whose one question, as the check keys it (checkedMessage), asks whether the learner follows or is ready
+ * (asksReady: "Does that make sense?", "Are you ready?", the last thing in the message, not a sum), which code keys
+ * "none" before any model call. Any other reply used one, as before: "No", "Kind of" or "Yes but can you explain
+ * it again?" asks to be taught, and so may a reply to "Do you remember how we...?", "Do you want an example first,
+ * or ...?" or an opinion ("An example", "The hint"); the tutor then teaches, and the next right answer is helped
+ * (TerraTutor's review of part 14, MUST-FIX 1). A reply to a question the model keyed used one too: code cannot tell from the
+ * saved text what that turn's verdict was.
+ */
+function usedNoTry(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
+  if (!ONLY_YES.test(conversation[conversation.length - 1].content.trim())) return false;
+  const asked = checkedMessage(conversation).message;
+  const question = onlyQuestion(asked);
+  return !!question && keyFromArithmetic(question) === null && asksReady(question, asked);
 }
 
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
@@ -626,7 +659,7 @@ ${lastUser.content}` };
       : null;
     let result: TutorTurnResult;
     try {
-      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk: appAsk ?? (nextAsk ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: nextAsk, byApp: true as const } : null), messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk: appAsk ?? (nextAsk ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: nextAsk, byApp: true as const } : null), messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck, checked.back), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -799,6 +832,10 @@ ${lastUser.content}` };
       const filter = new ReplyTextFilter(toolNames, (name) => !!toolDefs && offered.has(name));
       // The app's topic picker takes the first model call's place: it goes through the same steps as a
       // card the model made (the claim filter, the model's record of the call, dispatch, a typed disclosure).
+      // The "which next?" card comes only after an answer graded right, and in the first call's place it would be
+      // the first thing shown, with no word on that answer (TerraTutor live test part 14, issue 10): code's verdict line
+      // goes first (assessPicker.ts appNextPick reads the card after it as the app's).
+      if (iteration === 0 && prepared.appAsk && prepared.appAsk.args.question === NEXT_PICKER_QUESTION && answerCheck?.verdict === "correct") show(VERDICT_FALLBACK.correct);
       if (iteration === 0 && prepared.appAsk) pendingCalls.push({ ...prepared.appAsk });
       else try {
         for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
@@ -1032,9 +1069,9 @@ ${lastUser.content}` };
     const stopReason: TutorTurnResult["stopReason"] =
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
 
-    // The reply's end: a question still held is dropped, as code asks the check's question after it. On a
-    // turn the student stopped, code adds nothing, and what was held is let out as it came.
-    if (hold) show(stopReason === "aborted" ? hold.flush() : hold.end());
+    // The reply's end: a question still held is dropped, as code asks the check's question after it, on a turn the
+    // student stopped too (code's question is added after it there as well, below).
+    if (hold) show(hold.end());
 
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
     // model left empty, or left only a drawing) says the verdict in one plain line.
@@ -1068,10 +1105,12 @@ ${lastUser.content}` };
     // An answer to the hint's own question was right, but the check's question is still open: code asks it
     // again at the end, so the next try is checked against it (answerCheck.ts checkedMessage reads only what
     // follows HINT_ANSWER_BACK) and nothing the reply asked can stand in for it. On a stalled turn too: it is
-    // code's text, and the question is still owed (else the next turn keys the fragment's own question). Not
-    // on a turn the student stopped, unless the model's own copy of that question was left out of what the turn
-    // showed (TrailingQuestionHold.droppedRepeat): the saved message would ask nothing (review of TerraTutor #279, nits).
-    if (prepared.hintBack && (stopReason !== "aborted" || hold?.droppedRepeat)) {
+    // code's text, and the question is still owed (else the next turn keys the fragment's own question). On a
+    // turn the student stopped too: TerraTutor live test 2026-11-21 part 14, issue 4, the saved reply ended "... Are"
+    // with no back line, so the check's question was lost and the next answer was keyed against the fragment
+    // (TerraTutor's review of #279 had added it only when the model's own copy of that question was left out of what
+    // was shown; ported from TerraTutor #281).
+    if (prepared.hintBack) {
       show(`${gapBefore()}${prepared.hintBack}`);
     }
 

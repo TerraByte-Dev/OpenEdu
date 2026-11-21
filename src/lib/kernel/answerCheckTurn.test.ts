@@ -27,6 +27,9 @@ let script: TurnEvent[][] = [];
 const structured: Array<{ tool: string; messages: Sent; opts: { validate?: (o: unknown) => string[] } }> = [];
 let keyOut: unknown = null;
 let gradeOut: unknown = null;
+// When set, a key that fails the call's own checks (`validate`) every time fails the call, as callLLMStructured does after
+// its repair attempts; else the mock returns it and answerKey's own check after the call reads it.
+let strictKeys = false;
 
 vi.mock("../llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../llm")>()),
@@ -40,6 +43,7 @@ vi.mock("../llm", async (importOriginal) => ({
     // A key (or a grade) can be worked out from what the call was sent, as a model works it out.
     const out = opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(messages) : keyOut) : (typeof gradeOut === "function" ? gradeOut(messages) : gradeOut);
     if (out instanceof Error) throw out;
+    if (strictKeys && opts.validate?.(out).length) throw new Error("validation failed after repair attempts");
     return out;
   }),
 }));
@@ -162,6 +166,7 @@ beforeEach(() => {
   script = [];
   keyOut = KEY_MULT;
   gradeOut = null;
+  strictKeys = false;
   pick = (choices) => choices[0].value;
 });
 
@@ -1925,7 +1930,10 @@ What is 6 x 8?`);
     expect(partly.result.text).toBe(`That's partly right.\n\n${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`);
   }, 30_000);
 
-  it("a turn the student stops after the hint's answer keeps the reply's question as it came, with no repeat", async () => {
+  // TerraTutor live test 2026-11-21 part 14, issue 4 (ported from TerraTutor #281) overturns this row's old answer ("keeps the reply's question as it came, with no
+  // repeat"): with nothing after it, the saved reply's own question was keyed next, and the check's was lost. A stopped
+  // turn now ends as a finished one does: the reply's trailing question held back, code's question after it.
+  it("a turn the student stops after the hint's answer ends as a finished one: the reply's question held, the check's asked", async () => {
     const stop = new AbortController();
     script = [[...reply("Yes, 16 is right! What is 16 + 8?").slice(0, -1), { type: "done", finishReason: "stop" }]];
     const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, [...HINTED, student("16")]), "Arithmetic", "tiny", true);
@@ -1937,8 +1945,7 @@ What is 6 x 8?`);
         abort: stop.signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true, askUser: async (_q, c) => c[0].value },
     );
     expect(result.stopReason).toBe("aborted");
-    expect(result.text).toBe("Yes, 16 is right! What is 16 + 8?");
-    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(result.text).toBe(`Yes, 16 is right!\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
   }, 30_000);
 
   it("a check still ends: after four graded answers, or after CHECK_MAX_MESSAGES messages of anything", async () => {
@@ -3333,4 +3340,311 @@ describe("TerraTutor live test 2026-11-20 part 13", () => {
       expect(result.answerCheck).toMatchObject({ key: "12 square cm", verdict: "incorrect" });
     }, 30_000);
   });
+});
+
+// ── TerraTutor live test part 14 ───────────────────────────────────────────────────────────────────────────
+
+// TerraTutor live test 2026-11-21 part 14 (gemma4:e2b, R&J L1, cells L2, fractions L3-L4) and inbox 2026-11-21-0017 (this repo's port
+// of part 13): the tutor's own words, as the test and its probes saved them. Ported from TerraTutor #281.
+describe("TerraTutor live test 2026-11-21 part 14", () => {
+  const keyCalls = () => structured.filter((c) => c.tool === "AnswerKey").length;
+  const graded = () => structured.filter((c) => c.tool === "AnswerGrade").length;
+
+  // Issue 7 (inbox 0017 item 1): "2 - 3 more questions" was keyed -1 by code, and "4 more please" was told it was wrong.
+  describe("issue 7: a range in an offer poses no problem", () => {
+    it.each([
+      ["Do you want to try 2 - 3 more questions, or would you like to stop?", "4 more please"],
+      ["Do you want to try 2 - 3 more questions, or would you like to stop?", "5"],
+      ["Do you want to keep going for 10 - 15 minutes, or would you like a break?", "5 more minutes"],
+    ])("%j, %j: no key, no verdict", async (asked, said) => {
+      keyOut = { question: asked, working: "", answer: "2 - 3 more questions" };
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(`Great job. ${asked}`)], said);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(keyCalls()).toBe(0);
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it("\"a 3 × 3 grid\" in an offer is not keyed by code", async () => {
+      const asked = "Do you want to draw a 3 × 3 grid, or would you like to try another one?";
+      keyOut = { question: asked, working: "", answer: "A grid" };
+      gradeOut = { student_answer: "the grid", verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "the grid");
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck?.key).not.toBe("9");
+    }, 30_000);
+
+    // Guards, as master: an operation that ends the choice is still posed, and keyed by code.
+    it.each([
+      ["Do you want to try 6 × 7, or would you like an easier one?", "42", "42"],
+      ["Would you like to solve 12 ÷ 3 next, or try a different one?", "4", "4"],
+      ["Do you want to try 9 - 4 or would you like a hint?", "5", "5"],
+    ])("guard: %j is keyed %j by code", async (asked, key, said) => {
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], said);
+      expect(result.answerCheck).toMatchObject({ key, verdict: "correct", by: "code" });
+      expect(keyCalls()).toBe(0);
+    }, 30_000);
+
+    // A counter-request poses a problem of its own: it asks for it, and answers nothing (inbox 0017 item 1, "related").
+    it.each(["let me try 3 x 4", "3 x 4 please"])("on \"... 6 × 7, or ...\", %j gets no verdict", async (said) => {
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor("Nice work. Do you want to try 6 × 7, or would you like an easier one?")], said);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it("guard: \"7 × 6 = 42\" still answers it", async () => {
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor("Nice work. Do you want to try 6 × 7, or would you like an easier one?")], "7 × 6 = 42");
+      expect(result.answerCheck).toMatchObject({ key: "42", verdict: "correct" });
+    }, 30_000);
+
+    // TerraTutor's review of part 14, MUST-FIX 6 (probe P6): a right answer that shows its working is an answer: it states a number
+    // outside the problem it poses.
+    it("guard: \"42 because 6 x 5 + 12 makes it\" is graded, and right", async () => {
+      gradeOut = { student_answer: "42", verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor("Nice work. Do you want to try 6 × 7, or would you like an easier one?")], "42 because 6 x 5 + 12 makes it");
+      expect(result.answerCheck).toMatchObject({ key: "42", verdict: "correct" });
+    }, 30_000);
+  });
+
+  // Issue 8 (kp3.js probe): the offer was keyed "Tell me", and "a mammal" was "partly" right.
+  describe("issue 8: a key that only repeats an offer's lead", () => {
+    const WHALE = "Do you want to tell me whether a whale is a fish or a mammal, or would you like a hint?";
+    // The key call checks its key as production does (validate), so a key that keeps repeating the lead fails the call.
+    beforeEach(() => { strictKeys = true; });
+
+    it.each(["Tell me", "Tell me whether", "tell me whether"])("the key %j is no key: \"a mammal\" is \"unsure\", never \"partly\"", async (key) => {
+      keyOut = { question: WHALE, working: "", answer: key };
+      gradeOut = { student_answer: "a mammal", verdict: "partly" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(WHALE)], "a mammal");
+      expect(keyCalls()).toBe(1);
+      expect(result.answerCheck).toMatchObject({ verdict: "unsure", by: "failed" });
+      expect(graded()).toBe(0);
+    }, 30_000);
+
+    it("guard: \"mammal\" is a key, and \"a mammal\" is right", async () => {
+      keyOut = { question: WHALE, working: "", answer: "mammal" };
+      gradeOut = { student_answer: "a mammal", verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(WHALE)], "a mammal");
+      expect(result.answerCheck).toMatchObject({ key: "mammal", verdict: "correct" });
+    }, 30_000);
+
+    // TerraTutor's review of part 14, MUST-FIX 4 (probe P1): an offer to do something that is not reporting the answer keeps its key.
+    it.each([["Add", "add"], ["Subtract", "subtract"]])("guard: %j for \"Do you want to add or subtract ...?\" is a key", async (key, said) => {
+      const asked = "Do you want to add or subtract to find how many apples there are in all?";
+      keyOut = { question: asked, working: "", answer: key };
+      gradeOut = { student_answer: said, verdict: "correct" };
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(`There are 3 apples in one basket and 4 in another. ${asked}`)], said);
+      expect(result.answerCheck).toMatchObject({ key, verdict: "correct" });
+    }, 30_000);
+
+    it("the key call is asked again for the question inside the offer; \"mammal\" passes", async () => {
+      keyOut = { question: WHALE, working: "", answer: "Tell me" };
+      await answer([student(ASSESS_MESSAGE), tutor(WHALE)], "a mammal");
+      const validate = structured.find((c) => c.tool === "AnswerKey")!.opts.validate!;
+      expect(validate({ question: WHALE, working: "", answer: "Tell me" })).toEqual(['"answer" must answer the question inside the offer, not repeat the offer\'s words.']);
+      expect(validate({ question: WHALE, working: "", answer: "mammal" })).toEqual([]);
+    }, 30_000);
+  });
+
+  // Issue 1, the key half (s1-probe-copy.json): the model's prose copy of the app's "which next?" card was keyed with one
+  // skill title, and typing that title was graded "correct" (and marked a skill no question had been asked on).
+  describe("issue 1: the model's copy of the which-next card gets no key", () => {
+    const COPY = "That is absolutely correct. Words like 'thou', 'thee', and 'thy' are examples of the archaic language we are learning. These words help us understand the world Shakespeare wrote in.\n\nNow that we've practiced some of these older words, we need to look at the big picture. We've covered vocabulary and characters, but we still need to focus on the structure of the story.\n\nWhich one should we check next?\n\n*The Elizabethan World: Context and Setting*\n*Mapping the Basic Plot: Beginning, Middle, and End*";
+
+    it.each(["The Elizabethan World: Context and Setting", "Mapping the Basic Plot: Beginning, Middle, and End"])("%j: no key call, no verdict, no mark", async (said) => {
+      keyOut = { question: "Which one should we check next?", working: "", answer: "Mapping the Basic Plot: Beginning, Middle, and End" };
+      gradeOut = { student_answer: said, verdict: "incorrect" };
+      script = [reply("You are right. That is the next area we should focus on.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(COPY)], said);
+      expect(result.answerCheck ?? null).toBeNull();
+      expect(keyCalls()).toBe(0);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it.each([
+      ["Which one should we check next?", true],
+      ["Which skill should we study next?", true],
+      ["Which part should we look at next?", true],
+      // Guards: about the content, keyed. Order of operations (TerraTutor's review of part 14, MUST-FIX 5, probes P2 and P3).
+      ["Which planet should we visit next?", false],
+      ["Which one comes next in the water cycle?", false],
+      ["Which skill should we try first?", false],
+      ["In 3 + 4 × 2, which one should we do first?", false],
+      ["Which part should we do first: the multiplication or the addition?", false],
+      ["In 8 - 2 × 3, which one should I do first, the subtraction or the multiplication?", false],
+      ["In 3 + 4 × 2, which part should we look at next?", false],
+    ])("asksOpinion(%j) is %s", (question, none) => {
+      expect(asksOpinion(question)).toBe(none);
+    });
+  });
+
+  // Issue 6 (s2e): after a message with no key, the hint's own question was never graded: a wrong "3" was praised.
+  describe("issue 6: an answer to a hint's question after a message with no key", () => {
+    const NO_KEY = "Good work. Next, we simplify the fraction 2/12.";
+    const HINT_Q = "What is the largest number that can divide both 2 and 12?";
+    const HINT = `Remember, simplifying a fraction means finding a number that can divide both the top number (numerator) and the bottom number (denominator) evenly. ${HINT_Q}`;
+    const HISTORY = [student(ASSESS_MESSAGE), tutor(NO_KEY), student("Give me a hint."), tutor(HINT)];
+    beforeEach(() => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("largest number")
+        ? { question: HINT_Q, working: "2 divides 2 and 12", answer: "2" }
+        : { question: "", working: "", answer: "" });
+    });
+
+    it("a wrong answer to it is \"incorrect\"", async () => {
+      gradeOut = { student_answer: "3", verdict: "incorrect" };
+      const { result } = await answer(HISTORY, "3");
+      expect(result.answerCheck).toMatchObject({ question: HINT_Q, key: "2", verdict: "incorrect" });
+      expect(result.answerCheck?.on).toBeUndefined();
+    }, 30_000);
+
+    it("a right answer to it is \"correct\", on the hint: no mark, and nothing to ask again", async () => {
+      script = [markCall("mastered"), reply("Yes, 2 divides both.")];
+      const { result } = await answer(HISTORY, "2");
+      expect(result.answerCheck).toMatchObject({ key: "2", verdict: "correct", by: "code", on: "hint" });
+      expect(marks).toEqual([]);
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+      // The note names no open question, and says nothing is asked again (TerraTutor's review of part 14, nits).
+      const note = lastUser(replies[0]);
+      expect(note).toContain("That was the hint's question. Do not say the check is done.");
+      expect(note).not.toContain("The app asks it again");
+    }, 30_000);
+
+    // TerraTutor's review of part 14, MUST-FIX 2 (probe P4): a keyless message with a "?" after questions already answered right. The
+    // back line asked "What is 7 x 3?" again, answered "21" two turns before.
+    it("after a keyless message with a \"?\", a right answer to the hint's question asks nothing again", async () => {
+      script = [reply("Yes, 4 x 10 is 40!")];
+      const { result } = await answer([
+        student(ASSESS_MESSAGE), tutor("What is 6 x 8?"), student("48"), tutor("Yes! Next: what is 7 x 3?"), student("21"),
+        tutor("Great work!\n\nDo you remember how we multiply by 10?"), student("Give me a hint."),
+        tutor("Just put a zero on the end. What is 4 x 10?"),
+      ], "40");
+      expect(result.answerCheck).toMatchObject({ key: "40", verdict: "correct", on: "hint", checkQuestion: "" });
+      expect(result.text).toBe("Yes, 4 x 10 is 40!");
+    }, 30_000);
+  });
+
+  // Issue 5 (s3d-diag.json): after the opening question was answered right late (`on: "earlier"`), the key call had
+  // copied a statement as the open question, and code asked the message's keyless yes/no again under "Now back to the
+  // question:".
+  describe("issue 5: only a question with a key is asked again", () => {
+    const OPEN_Q = "Can you tell me one big difference between a plant cell and an animal cell? Think about the cell wall and chloroplasts.";
+    const OPEN = `I will check your understanding of comparing plant and animal cells first.\n\n${OPEN_Q}`;
+    const HELP_Q = "What is another big part that a plant cell has that an animal cell does not? Think about what helps plants make their own food.";
+    const HELP = `I can help you think about it.\n\nRemember what we talked about before?\n\nA plant cell has a **cell wall**. An animal cell does not have a cell wall.\n\n${HELP_Q}`;
+    const STATEMENT = "Chloroplasts are what help plant cells make their own food.";
+    const NEWEST = `That's not right yet.\n\n${STATEMENT}\n\nDoes that sound like something you remember?`;
+    const WRONG = "Plant cells are usually shaped like rectangles, and animal cells are rounder.";
+    const RIGHT_LATE = "One big difference is that plant cells have a cell wall and animal cells do not.";
+    beforeEach(() => {
+      keyOut = (sent: Sent) => {
+        const m = sent[sent.length - 1].content;
+        if (m.includes("Does that sound")) return { question: STATEMENT, working: "", answer: "Chloroplasts" };
+        if (m.includes("another big part")) return { question: HELP_Q, working: "", answer: "Chloroplast" };
+        return { question: OPEN_Q, working: "", answer: "Cell wall and chloroplasts are present in plant cells" };
+      };
+      gradeOut = (sent: Sent) => ({
+        student_answer: lastUser(sent).split("Student's answer: ").pop()!,
+        verdict: sent.map((m) => m.content).join("\n").includes("one big difference") ? "correct" : "incorrect",
+      });
+    });
+    const THREAD = [student(ASSESS_MESSAGE), tutor(OPEN), student("help"), tutor(HELP), student(WRONG), tutor(NEWEST)];
+
+    it("the live thread: the help's question is asked again, not \"Does that sound like something you remember?\"", async () => {
+      script = [reply("You are right about the cell wall! Plant cells have a cell wall.")];
+      const { result } = await answer(THREAD, RIGHT_LATE);
+      expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "earlier", checkQuestion: STATEMENT });
+      expect(result.text).toBe(`You are right about the cell wall! Plant cells have a cell wall.\n\n${HINT_ANSWER_BACK}\n\n${HELP_Q}`);
+    }, 30_000);
+
+    it("the next answer is graded on the question asked again, and the opening is not graded again", async () => {
+      const back = `You are right about the cell wall! Plant cells have a cell wall.\n\n${HINT_ANSWER_BACK}\n\n${HELP_Q}`;
+      const { result } = await answer([...THREAD, student(RIGHT_LATE), tutor(back)], RIGHT_LATE);
+      expect(result.answerCheck).toMatchObject({ question: HELP_Q, key: "Chloroplast", verdict: "incorrect" });
+      expect(result.answerCheck?.on).toBeUndefined();
+    }, 30_000);
+
+    // TerraTutor's review of part 14, MUST-FIX 3 (probe P10): the question before was answered right, so it is not asked again.
+    it("a question before it that was answered right is not asked again", async () => {
+      script = [reply("You are right about the cell wall! Plant cells have a cell wall.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(OPEN), student("I don't know"),
+        tutor("That's okay. What is the cell wall made of?"), student("cellulose"),
+        tutor(`Great!\n\n${STATEMENT}\n\nDoes that sound like something you remember?`)], RIGHT_LATE);
+      expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "earlier", checkQuestion: STATEMENT });
+      expect(result.text).toBe("You are right about the cell wall! Plant cells have a cell wall.");
+    }, 30_000);
+
+    it("with no earlier question in the check, nothing is asked again", async () => {
+      script = [reply("You are right about the cell wall! Plant cells have a cell wall.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(OPEN), student("I don't know"), tutor(NEWEST)], RIGHT_LATE);
+      expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "earlier" });
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+      expect(result.text).not.toContain("Does that sound");
+    }, 30_000);
+  });
+
+  // TerraTutor's review of part 14, MUST-FIX 1 (probe P5): an instruction keyed with no "?" in a message that also asks "Can you do
+  // it?" is the open question, and is asked again after a right answer to the hint's question.
+  it("an instruction keyed in a message with a \"?\" is asked again after the hint's answer", async () => {
+    const ASKED = "Name the planet closest to the Sun. Can you do it?";
+    const HINT_Q = "In \"My Very Educated Mother\", what does M stand for?";
+    keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("Educated Mother")
+      ? { question: HINT_Q, working: "", answer: "My" }
+      : { question: "Name the planet closest to the Sun.", working: "", answer: "Mercury" });
+    gradeOut = { student_answer: "My", verdict: "incorrect" };
+    script = [reply("Yes, M stands for My!")];
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(ASKED), student("Give me a hint."),
+      tutor(`The planets in order start with a saying. ${HINT_Q}`)], "My");
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "hint", checkQuestion: "Name the planet closest to the Sun." });
+    expect(result.text).toBe(`Yes, M stands for My!\n\n${HINT_ANSWER_BACK}\n\n${ASKED}`);
+  }, 30_000);
+
+  // Issue 4 (s3c-stop.json): Stop during the reply to a hint's answer saved "... We have talked a lot about the nucleus
+  // now. Are" with no back line: the check's question was lost, and the next answer was keyed against the fragment.
+  it("issue 4: a stopped reply to a hint's answer still saves the check's question after it", async () => {
+    const CHECK_Q = "If the nucleus is the control center, what do you think happens if the control center gets damaged?";
+    const HINT_Q = "What kind of problems do you think would happen if the cell cannot follow its instructions?";
+    const history = [student(ASSESS_MESSAGE), tutor(`Good thinking.\n\n${CHECK_Q}`), student("Give me a hint."),
+      tutor(`If the control center is damaged, the cell cannot follow its instructions. ${HINT_Q}`), student("Problems like it could not grow or make the proteins it needs.")];
+    keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("What kind of problems")
+      ? { question: HINT_Q, working: "", answer: "Cell dysfunction or death" }
+      : { question: CHECK_Q, working: "", answer: "The cell cannot work properly and may die" });
+    gradeOut = (sent: Sent) => ({ student_answer: "Problems like it could not grow", verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${HINT_Q}`) ? "correct" : "incorrect" });
+    const fragment = "You are correct. If the control center is damaged, the cell cannot follow its instructions. This can cause cell problems or even death.\n\nWe have talked a lot about the nucleus now. Are";
+    script = [[...reply(fragment).slice(0, -1), { type: "done", finishReason: "stop" }]];
+    const stop = new AbortController();
+    const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, history), "Arithmetic", "tiny", true);
+    let streamed = "";
+    const result = await tutorEngine.run(
+      { messages: [{ role: "system", content: SYSTEM }, ...history], config: CONFIG, retrieval: "off",
+        onText: (chunk) => { streamed += chunk; if (streamed.includes("You are correct")) stop.abort(); } },
+      { courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: stop.signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true, askUser: async (_q, c) => c[0].value },
+    );
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", on: "hint", checkQuestion: CHECK_Q });
+    expect(result.stopReason).toBe("aborted");
+    expect(result.text).toBe(`${fragment}\n\n${HINT_ANSWER_BACK}\n\n${CHECK_Q}`);
+  }, 30_000);
+
+  // Inbox 0017 item 3: when the model's copy of code's question was held, the choice lines held with an earlier, different
+  // question were dropped with it ("Which is bigger?" was shown without "A) 4" and "B) 6").
+  it("inbox 0017 item 3: an earlier question keeps its choice lines when the model's copy of code's question is held", async () => {
+    const D_FIRST = "What are the multiples of 2? What are the multiples of 4?";
+    const D_SMALLEST = "What is the smallest number that appears in both lists?";
+    const D_AGAIN = `${D_SMALLEST} That number is the Least Common Multiple (LCM).`;
+    const D_ANSWER = "2, 4, 6, 8 for 2 and 4, 8, 12, 16 for 4";
+    keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("smallest number")
+      ? { question: D_SMALLEST, working: "", answer: "4" }
+      : { question: D_FIRST, working: "", answer: "Multiples of 2: 2, 4, 6, 8... Multiples of 4: 4, 8, 12, 16..." });
+    gradeOut = (sent: Sent) => ({ student_answer: D_ANSWER, verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${D_FIRST}\n`) ? "correct" : "incorrect" });
+    script = [reply(`You found the correct multiples. Which is bigger?\nA) 4\nB) 6\n${D_SMALLEST} Great work on the lists, keep it up.`)];
+    const { result } = await answer([
+      student(ASSESS_MESSAGE),
+      tutor(`To compare $\\frac{1}{2}$ and $\\frac{1}{4}$, we need a common denominator. ${D_FIRST}`),
+      student("help"),
+      tutor(`I can help you find the common denominator.\n\nMultiples of 2 are: 2, 4, 6, 8, 10, ...\nMultiples of 4 are: 4, 8, 12, 16, ...\n\n${D_AGAIN}`),
+    ], D_ANSWER);
+    expect(result.answerCheck).toMatchObject({ on: "earlier", checkQuestion: D_SMALLEST });
+    expect(result.text).toBe(`You found the correct multiples. Which is bigger?\nA) 4\nB) 6\nGreat work on the lists, keep it up.\n\n${HINT_ANSWER_BACK}\n\n${D_AGAIN}`);
+  }, 30_000);
 });

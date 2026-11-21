@@ -31,7 +31,10 @@ import { ASSESS_MESSAGE } from "./suggestions";
 import { compareToKey, numbersIn, optionsIn, type CompareContext, type KeyMatch } from "./answerCompare";
 import { isNonAnswer } from "../non-answer";
 import { afterAnsweredCard } from "./askCard";
+// assessPicker.ts imports this file too; appNextPick is only called inside openCheckAt, never at load.
+import { appNextPick } from "./assessPicker";
 import { replyFromPersisted } from "./persistedReply";
+import { VERDICT_FALLBACK } from "./replyClaims";
 import { STOPWORDS as CONTENT_STOPWORDS } from "./contentWords";
 import { foldPlural, sameAnswer } from "../quiz-grading";
 
@@ -143,6 +146,14 @@ const NON_ANSWER_RETRY = `${NON_ANSWER_LEAD} Want to try again?`;
  * wrote to them, codeRepeat) use none of it: TerraTutor click test 2026-11-19 part 7, issue 1, counted every message,
  * so "hint", the hint's answer, "xyz", "hint" and then the right answer was never graded. Any other message
  * uses one, a request ("can you explain it again?") too, so a check left open for a chat ends as before.
+ * ASSESS_LOOKBACK counts from the latest pick on the app's own "which next?" card (assessPicker.ts appNextPick)
+ * when there is one: the pick starts the check again for the new skill (TerraTutor live test 2026-11-21 part 14, issue
+ * 3: the first skill's answers had used three of four, and one "I don't know" on the second skill closed the
+ * check, so its next answer got no check and could not be marked). The app shows that card only while the check
+ * is still open for the answer after it (nextPickerCard), so a pick counts only when the check, counted without
+ * it, was open for that answer: the first skill's window is what it was, and a model card worded like the app's
+ * after the check closed opens nothing (TerraTutor's review of part 14, MUST-FIX 2).
+ * CHECK_MAX_MESSAGES still counts from the request.
  * A new thread is a new conversation. The newest message itself is not read: `conversation` ends with it.
  */
 export function openCheck(conversation: ReadonlyArray<Message>): string | null {
@@ -150,17 +161,28 @@ export function openCheck(conversation: ReadonlyArray<Message>): string | null {
   return at < 0 ? null : conversation[at].content;
 }
 
-/** The index of the message openCheck returns, or -1 when no check is open. */
-function openCheckAt(conversation: ReadonlyArray<Message>): number {
+/**
+ * The index of the message openCheck returns, or -1 when no check is open. A pick at or after `noPickFrom` does
+ * not start the count again (the gate below asks what the check was without that pick).
+ */
+function openCheckAt(conversation: ReadonlyArray<Message>, noPickFrom: number = Infinity): number {
   const before = conversation.slice(0, -1);
   const memo = new Map<number, number>();
   let learner = 0;
   let used = 0;
+  let restarted = false;
   for (let j = before.length - 1; j >= 0; j--) {
     const m = before[j];
-    if (m.role !== "user") continue;
+    if (m.role !== "user") {
+      // Only where the app could have shown that card: the check was open, without this pick, for the answer right
+      // after it (nextPickerCard's gate). A model card that opens its reply the same way passes appNextPick, and
+      // after a closed check it would open it again (TerraTutor's review of part 14, MUST-FIX 2).
+      if (!restarted && j < noPickFrom && m.role === "assistant" && appNextPick(m.content) !== null && openCheckAt(conversation.slice(0, j + 2), j) >= 0) restarted = true;
+      continue;
+    }
     if (asksForMasteryCheck(m.content)) return j;
     if (++learner >= CHECK_MAX_MESSAGES) return -1;
+    if (restarted) continue;
     const free = isHintRequest(m.content) || (j + 1 < before.length && codeRepeat(before, j + 1, memo));
     if (!free && ++used >= ASSESS_LOOKBACK) return -1;
   }
@@ -225,9 +247,12 @@ const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnsw
  * HINT_ANSWER_BACK (without a stalled reply's saved marker, persistedReply.ts).
  * `opening` is the check's own first question when the tutor has since moved on from it unanswered
  * (openingQuestion), else null: an answer not right for the message keyed may be its (checkAnswer).
+ * `back` is the question of the tutor's message before the message keyed, still open after a not-right answer, as code
+ * would ask it again (laterQuestion), else null: hintAnswerBack asks it on `on: "earlier"` when the open question the key
+ * call copied is a statement.
  * `conversation` ends with the newest message.
  */
-export function checkedMessage(conversation: ReadonlyArray<Message>): { message: string; hint: string | null; opening: string | null } {
+export function checkedMessage(conversation: ReadonlyArray<Message>): { message: string; hint: string | null; opening: string | null; back: string | null } {
   const last = conversation.length - 2;
   const hinted = last >= 2 && conversation[last - 1].role === "user" && isHintRequest(conversation[last - 1].content) && tutorAt(conversation, last - 2);
   const memo = new Map<number, number>();
@@ -236,7 +261,35 @@ export function checkedMessage(conversation: ReadonlyArray<Message>): { message:
     message: keyedText(conversation, at),
     hint: hinted ? afterAnsweredCard(conversation[last].content) : null,
     opening: openingQuestion(conversation, at, memo),
+    back: laterQuestion(conversation, at),
   };
+}
+
+// The first sentence of the not-right verdict lines ("That's not right yet.", "That's partly right."), as a reply opens.
+const NOT_RIGHT_OPENS = [VERDICT_FALLBACK.incorrect, VERDICT_FALLBACK.partly].map((v) => v.split(/(?<=[.!?])\s/)[0]);
+
+/**
+ * The question of the tutor's message just before the message at `checked` (the one two back), as questionAgain gives
+ * it from that question's paragraph, or null. Only when the learner's answer to it was not right: the message at
+ * `checked` opens with a not-right verdict line (NOT_RIGHT_OPENS), and that question is still open. Its question is its
+ * last sentence with a "?", and only one code would key (not asksOpinion). Not the check's first message: its question
+ * is the one an `on: "earlier"` answer has just answered. TerraTutor live test 2026-11-21 part 14, thread D: after the opening
+ * question was answered right late, the open question was the help's "What is another big part that a plant cell has
+ * that an animal cell does not? ...", answered wrong. One answered right is not asked again, nor one further back
+ * (TerraTutor's review of part 14, MUST-FIX 3: "That's okay. What is the cell wall made of?", answered "cellulose", was asked again).
+ */
+function laterQuestion(conversation: ReadonlyArray<Message>, checked: number): string | null {
+  const first = openCheckAt(conversation) + 1;
+  const k = checked - 2;
+  if (first <= 0 || k <= first || !tutorAt(conversation, k) || conversation[k + 1]?.role !== "user") return null;
+  const opens = keyedText(conversation, checked).replace(/[‘’]/g, "'").trimStart();
+  if (!NOT_RIGHT_OPENS.some((v) => opens.startsWith(v))) return null;
+  const text = keyedText(conversation, k);
+  const asks = text.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
+  const q = asks[asks.length - 1];
+  if (!q || asksOpinion(q, text)) return null;
+  const from = text.lastIndexOf("\n\n", text.lastIndexOf(q));
+  return questionAgain(from < 0 ? text : text.slice(from), q) || null;
 }
 
 /**
@@ -260,8 +313,10 @@ function openingQuestion(conversation: ReadonlyArray<Message>, checked: number, 
   const left = !readsAsAnswer(conversation[q + 1].content) || codeRepeat(conversation, q + 2, memo);
   if (!left) return null;
   for (let k = q + 2; k < conversation.length - 1; k++) {
+    // Code's question asked again after HINT_ANSWER_BACK that is not a repeat of the message keyed before it (a later
+    // question of the check's, hintAnswerBack's `earlier`) stops it too.
     if (conversation[k].role === "assistant" && afterAnsweredCard(conversation[k].content).includes(HINT_ANSWER_BACK)
-      && codeRepeat(conversation, k, memo) && checkedAt(conversation, k - 2, memo) !== q) return null;
+      && (!codeRepeat(conversation, k, memo) || checkedAt(conversation, k - 2, memo) !== q)) return null;
   }
   return keyedText(conversation, q);
 }
@@ -323,11 +378,22 @@ export const HINT_ANSWER_BACK = "Now back to the question:";
  * check's opening question after the tutor moved on (`on: "earlier"`), or null on any other turn: the
  * question still open again (`tutorMessage`'s, the message the answer was keyed against), so the next try is
  * checked against it (checkedMessage). Neither answer passes the check (TutorEngine's mastery gate).
+ * Only a question with an answer key is asked again. On `on: "earlier"`, when the key call copied a statement as the
+ * open question ("Chloroplasts are what help plant cells make their own food.") from a message that asks something
+ * else, the question questionAgain finds there is not the keyed one, and asking it again asked a yes/no with no key
+ * ("Does that sound like something you remember?", TerraTutor live test 2026-11-21 part 14, issue 5). A statement there is an
+ * open question with no "?" that the question found does not hold (questionInMessage): an instruction keyed in its
+ * own paragraph ("Name the planet closest to the Sun. Can you do it?") is asked again as before (TerraTutor's review of part 14,
+ * MUST-FIX 1). The question asked then is `earlier` (checkedMessage's `back`), or none. An `on: "hint"` answer with no
+ * open question (the hint's question was the only one, hintOnly) gets none (MUST-FIX 2).
  */
-export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null): string | null {
-  if (!check?.on) return null;
-  const again = questionAgain(tutorMessage, check.checkQuestion ?? "");
-  return again ? `${HINT_ANSWER_BACK}\n\n${again}` : null;
+export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null, earlier: string | null = null): string | null {
+  if (!check?.on || (check.on === "hint" && !check.checkQuestion)) return null;
+  const open = check.checkQuestion ?? "";
+  const again = questionAgain(tutorMessage, open);
+  const statement = check.on === "earlier" && !open.includes("?") && tutorMessage.includes("?") && !questionInMessage(open, again);
+  const asked = statement ? earlier : again;
+  return asked ? `${HINT_ANSWER_BACK}\n\n${asked}` : null;
 }
 
 // A line after a question that asks nothing new and gives no feedback: "Take your time!", "You can do it.".
@@ -374,8 +440,9 @@ const MOVES_ON = /^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|and)\
 export class TrailingQuestionHold {
   private buf = "";
   // Everything after the last sentence let out: the spaces before the held sentences, and those sentences, each
-  // marked `repeat` when it is the model's copy of code's question or goes with it (dropped when the rest is let out).
-  private kept: Array<{ text: string; repeat: boolean; asks: boolean }> = [];
+  // marked `repeat` when it is the model's copy of code's question or goes with it (dropped when the rest is let out),
+  // `leadIn` when it was held as a lead-in, `afterAsk` when it was held because a question came before it.
+  private kept: Array<{ text: string; repeat: boolean; asks: boolean; leadIn: boolean; afterAsk: boolean }> = [];
   // A question is held: what follows it with no feedback in it is held with it.
   private asked = false;
   // The question held last is one code asks again after the reply.
@@ -383,8 +450,6 @@ export class TrailingQuestionHold {
   // Code's text after HINT_ANSWER_BACK, and its questions.
   private readonly again: string;
   private readonly againAsks: string[];
-  /** The model's copy of code's question was dropped from a tool round's text (flush): it was never shown. */
-  droppedRepeat = false;
 
   constructor(again: string | null = null) {
     const back = again ? again.lastIndexOf(HINT_ANSWER_BACK) : -1;
@@ -424,7 +489,6 @@ export class TrailingQuestionHold {
       this.buf = last ? "" : spaces;
       if (last) out = this.sentence(last, spaces);
     }
-    if (!repeats && this.kept.some((p) => p.repeat && p.asks)) this.droppedRepeat = true;
     out += (repeats ? this.kept : this.kept.filter((p) => !p.repeat)).map((p) => p.text).join("") + this.buf;
     this.buf = "";
     this.kept = [];
@@ -451,18 +515,24 @@ export class TrailingQuestionHold {
     // After the model's copy of code's question, a sentence code's copy holds too ("That number is the Least Common
     // Multiple, or LCM." beside code's "... (LCM).") goes with it.
     const withRepeat = !asks && this.repeatHeld && /[\p{L}\p{N}]/u.test(s) && questionInMessage(s, this.again);
-    const held = !s || asks || withRepeat || /:[*_"”')\]]*$/.test(s) || (!this.asked && (GOES_BACK.test(s) || MOVES_ON.test(s)))
-      || (this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s)));
+    const leadIn = /:[*_"”')\]]*$/.test(s) || (!this.asked && (GOES_BACK.test(s) || MOVES_ON.test(s)));
+    const afterAsk = !leadIn && !asks && !withRepeat && this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s));
+    const held = !s || asks || withRepeat || leadIn || afterAsk;
     if (held) {
       if (asks) { this.asked = true; this.repeatHeld = repeat; }
-      // The lead-in held before the model's copy of code's question goes with it ("Here it is again:").
-      if (repeat) for (let i = this.kept.length - 1; i >= 0 && !this.kept[i].asks; i--) if (/[\p{L}\p{N}]/u.test(this.kept[i].text)) this.kept[i].repeat = true;
-      this.kept.push({ text: text + spaces, repeat: repeat || (!asks && this.repeatHeld), asks });
+      // The lead-in held before the model's copy of code's question goes with it ("Here it is again:"). Only a lead-in:
+      // what was held because an earlier question came before it (its choice lines, "Take your time!") stays with that
+      // question (inbox 2026-11-21-0017 item 3: "Which is bigger?" lost its "A) 4" and "B) 6").
+      if (repeat) {
+        for (let i = this.kept.length - 1; i >= 0 && !this.kept[i].asks && !this.kept[i].afterAsk; i--) {
+          if (this.kept[i].leadIn && /[\p{L}\p{N}]/u.test(this.kept[i].text)) this.kept[i].repeat = true;
+        }
+      }
+      this.kept.push({ text: text + spaces, repeat: repeat || (!asks && this.repeatHeld), asks, leadIn, afterAsk });
       return "";
     }
-    if (this.kept.some((p) => p.repeat && p.asks)) this.droppedRepeat = true;
     const out = this.kept.filter((p) => !p.repeat).map((p) => p.text).join("") + text;
-    this.kept = [{ text: spaces, repeat: false, asks: false }];
+    this.kept = [{ text: spaces, repeat: false, asks: false, leadIn: false, afterAsk: false }];
     this.asked = false;
     this.repeatHeld = false;
     return out;
@@ -538,6 +608,7 @@ export function validateKey(out: KeyOut, tutorMessage: string): string[] {
   if (!out.answer.trim()) return [];
   const issues: string[] = [];
   if (!questionInMessage(out.question, tutorMessage)) issues.push('"question" must be copied word for word from the tutor\'s message.');
+  if (echoesOfferLead(out.answer, out.question)) issues.push('"answer" must answer the question inside the offer, not repeat the offer\'s words.');
   for (const c of arithmeticClaims(`${out.working}\n${out.answer}`)) {
     if (!c.holds) issues.push(`Your working says "${c.text}", but ${c.truth} Work the question out again and fix "answer".`);
   }
@@ -631,6 +702,14 @@ export function isMetaKey(answer: string): boolean {
 // "Choice 1 or 2" and graded).
 const OPINION = /\b(?:your\s+(?:own\s+)?(?:favou?rite|opinion)|do\s+you\s+(?:like|prefer|agree|enjoy)|would\s+you\s+(?:rather|prefer)|sounds?\s+(?:better|best|good|great|fun|interesting|more\s+fun|like\s+more\s+fun)\s+(?:to|for)\s+you|which\s+(?:one\s+|of\s+these\s+|of\s+them\s+)?(?:do|would)\s+you\s+(?:want|like)\s+to\b|how\s+do(?:es)?\s+(?:you|it\s+make\s+you)\s+feel|you\s+(?:think|feel|believe)\s+(?:is|was|are|were)\s+(?:the\s+)?(?:most|best|least|more|less)\s+(?:important|interesting|fun|useful|exciting|surprising|cool|beautiful)|(?:most|more)\s+(?:interesting|fun|exciting|surprising)\s+to\s+you|which\s+(?:one|idea|part|of\s+these|of\s+them)\s+(?:do\s+you|you)\s+(?:like|prefer|enjoy)|you\s+(?:like|enjoy)\s+(?:the\s+)?(?:most|best))\b/i;
 
+// Which skill or part to check or study next (WHICH_NEXT): the model's copy of the app's "Which one should we check
+// next?" card, with the skill titles as its choices, was keyed with one title, and typing it was graded "correct" (TerraTutor live
+// test 2026-11-21 part 14, issue 1). Closed and small: one, a skill, topic, part, area or lesson, or one of these, then a
+// study verb, then "next". Not "do", "try" or "first", and not in a sentence that poses a problem (POSES_PROBLEM): "In 3 +
+// 4 × 2, which one should we do first?" asks for a fact, and is keyed (TerraTutor's review of part 14, MUST-FIX 5). "Which planet
+// should we visit next?" is keyed too.
+const WHICH_NEXT = /\bwhich\s+(?:one|skill|topic|part|area|lesson|of\s+these|of\s+them)\s+(?:should|shall|will|can)\s+(?:we|i)\s+(?:check|learn|study|review|practi[cs]e|look\s+at|work\s+on|cover)\s+next\b/i;
+
 // A question that offers the learner a choice of what to do next: "Do you want to try another example, or would you
 // like to check another part of translating diagrams to fraction notation?" (TerraTutor live test 2026-11-20 part 12, step 3:
 // keyed "2/6", a statement before it, so a pick would have been graded wrong). It opens with the offer ("do you want",
@@ -650,11 +729,22 @@ const CHOICE_SPLIT = new RegExp(String.raw`(${OFFER_HEAD})\bor\s+(?=${OFFER_OTHE
 // problem in numbers: an operation between two numbers, or "3 of the 4" ("Do you want to try 6 × 7, or would you like
 // an easier one?", review of this port, NIT 1). A number alone poses none ("Do you want to do 3 more, or would you like
 // to stop?", "... try question 2, or go back to question 1?"; TerraTutor take-back 2026-11-20-1623, item 1, ported
-// from TerraTutor 87577a00).
-const ASKS_INSIDE = /:|\d\s*[×x*÷/+\-−=<>]\s*\d|\b\d+\s+of\s+(?:the\s+)?\d+\b|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
+// from TerraTutor 87577a00). Nor does a range with a spaced dash ("Do you want to try 2 - 3 more questions, or would
+// you like to stop?", "... for 10 - 15 minutes, or ...": TerraTutor live test 2026-11-21 part 14, issue 7, inbox
+// 2026-11-21-0017 item 1; ported from TerraTutor #281).
+const ASKS_INSIDE_WORDS = String.raw`\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b`;
+
+// What may follow the second number of an operation an offer poses: nothing but ",", "?", "." or " or", after at most
+// one word of when ("solve 12 ÷ 3 next, or ..."). "try 6 × 7, or ..." poses 6 × 7; "2 - 3 more questions", "10 - 15
+// minutes" and "a 3 × 3 grid" pose nothing (the reviewer's rule, inbox 2026-11-21-0017 item 1).
+const POSED_END = String.raw`(?=(?:\s+(?:next|now|first|instead))?\s*(?:[,?]|\.(?!\d)|or\b))`;
+// An operation between two numbers: any operator but a "-" with spaces round it, anywhere, as before; that one, a range
+// as often as a subtraction, only when the second number ends the problem (POSED_END).
+const NUMBER_OP = String.raw`\d\s*[×x*÷/+−=<>]\s*\d|\d(?:-\s*|\s+-)\d|\d\s+-\s+\d+(?:\.\d+)?${POSED_END}`;
+const ASKS_INSIDE = new RegExp(String.raw`:|${NUMBER_OP}|\b\d+\s+of\s+(?:the\s+)?\d+\b|${ASKS_INSIDE_WORDS}`, "i");
 
 // A problem posed in numbers: an operation between two numbers, or "3 of the 4" (ASKS_INSIDE's number half).
-const POSES_PROBLEM = /\d\s*[×x*÷/+\-−=<>]\s*\d|\b\d+\s+of\s+(?:the\s+)?\d+\b/i;
+const POSES_PROBLEM = new RegExp(String.raw`${NUMBER_OP}|\b\d+\s+of\s+(?:the\s+)?\d+\b`, "i");
 
 // A yes/no question about whether the learner remembers, knows how, is ready, or follows: "Do you remember how we find
 // a common denominator?" (TerraTutor live test 2026-11-20 part 13, thread C: keyed "4", and the right method told "not quite right
@@ -693,15 +783,27 @@ function endsMessage(question: string, message: string): boolean {
 export function asksOpinion(question: string, message: string = question): boolean {
   const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
   const last = (s: string) => endsMessage(s, message);
-  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (RECALL.test(s) && !POSES_PROBLEM.test(s) && last(s)) || (READY.test(s) && !ASKS_INSIDE.test(s) && last(s)) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
+  return asks.length > 0 && asks.every((s) => OPINION.test(s) || (WHICH_NEXT.test(s) && !POSES_PROBLEM.test(s)) || (RECALL.test(s) && !POSES_PROBLEM.test(s) && last(s)) || isReady(s, message) || (CHOICE_OFFER.test(s) && !ASKS_INSIDE.test(s)));
+}
+
+const isReady = (s: string, message: string) => READY.test(s) && !ASKS_INSIDE.test(s) && endsMessage(s, message);
+
+/** True when every question asked in `question` only asks whether the learner is ready or follows (READY: "Does
+ *  that make sense?", "Are you ready?"), as asksOpinion reads it, and nothing follows it in `message`. A plain yes to
+ *  it uses no try at a check (TutorEngine usedNoTry); asksOpinion's other kinds are not this. */
+export function asksReady(question: string, message: string = question): boolean {
+  const asks = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
+  return asks.length > 0 && asks.every((s) => isReady(s, message));
 }
 
 /** The one plain operation a choice offer poses ("Do you want to try 6 × 7, or would you like an easier one?"),
  *  worked by code (keyFromArithmetic), or null: the offer is not one, or poses no single operation. A "-" counts only
- *  with spaces round it and a "/" not at all: "3-4 more" is a range, "1/2" a fraction. */
+ *  with spaces round it and a "/" not at all: "3-4 more" is a range, "1/2" a fraction. And only when the second number
+ *  ends the problem (POSED_END): "Do you want to try 2 - 3 more questions, or would you like to stop?" was keyed -1, and
+ *  "4 more please" was told it was wrong (TerraTutor live test 2026-11-21 part 14, issue 7). */
 function offeredArithmetic(question: string): string | null {
   const offer = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).find((s) => s.includes("?") && CHOICE_OFFER.test(s));
-  const posed = offer ? [...offer.matchAll(/(\d+(?:\.\d+)?)(\s*[+−×xX*·÷]\s*|\s+-\s+)(\d+(?:\.\d+)?)/g)] : [];
+  const posed = offer ? [...offer.matchAll(new RegExp(String.raw`(\d+(?:\.\d+)?)(\s*[+−×xX*·÷]\s*|\s+-\s+)(\d+(?:\.\d+)?)${POSED_END}`, "g"))] : [];
   return posed.length === 1 ? keyFromArithmetic(`What is ${posed[0][1]} ${posed[0][2].trim()} ${posed[0][3]}?`) : null;
 }
 
@@ -720,6 +822,31 @@ function echoesOffer(key: string, question: string): boolean {
   const said = new Set(words(offer));
   return k.some((w) => w === "or") && k.every((w) => said.has(w))
     && k.some((w) => first.has(w) && !other.has(w)) && k.some((w) => other.has(w) && !first.has(w));
+}
+
+// What an offer asks the learner to do when it only asks them to give the answer: closed and small.
+const REPORTING_VERB = /^(?:tell|say|show|explain|share|answer|guess)$/;
+
+// An offer that opens the sentence: "Do you want to ...", "Would you like to ...".
+const OFFER_START = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|all right|great|good|then|and)\b[\s,!.]*)*${OFFER}\b`, "i");
+
+/** True when the key is only the first words of what the offer in `question` asks the learner to do, up to the question
+ *  inside it: "Tell me" or "Tell me whether" for "Do you want to tell me whether a whale is a fish or a mammal, or would
+ *  you like a hint?" (TerraTutor live test 2026-11-21 part 14, issue 8: keyed "Tell me", and "a mammal" was "partly" right). Such a
+ *  key repeats the offer and answers nothing: the key call is asked once more for the question inside it (validateKey),
+ *  and a key that still repeats it fails the call (no key, verdict "unsure"). Only when what the offer asks the learner
+ *  to do is to report the answer (REPORTING_VERB: "tell me", "say", "show me", ...): "Add" for "Do you want to add or
+ *  subtract to find how many apples there are in all?" is a key (TerraTutor's review of part 14, MUST-FIX 4). "mammal" is a key; so
+ *  is "Yes" for "... tell me if ...". */
+function echoesOfferLead(key: string, question: string): boolean {
+  const offer = question.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).find((s) => s.includes("?") && OFFER_START.test(s));
+  const asked = offer ? offer.slice(OFFER_START.exec(offer)![0].length).replace(/^\s*to\b/i, "") : "";
+  const inside = /\b(?:what|which|who|whom|whose|where|when|why|how|whether|if)\b/i.exec(asked);
+  if (!inside) return false;
+  const lead = words(asked.slice(0, inside.index + inside[0].length));
+  if (!REPORTING_VERB.test(lead[0] ?? "")) return false;
+  const k = words(key);
+  return k.length > 0 && k.length <= lead.length && k.every((w, i) => w === lead[i]);
 }
 
 /**
@@ -845,9 +972,12 @@ export async function checkAnswer(
   opening: string | null = null,
 ): Promise<AnswerCheck | null> {
   const found = await answerKey(tutorMessage, config, opts);
-  if (found === "none") return null;
-  // A failed key call on a message with no question mark at all: most likely nothing was asked.
-  if (found === null) return tutorMessage.includes("?") ? { question: "", key: "", verdict: "unsure", by: "failed" } : null;
+  // A message that asks nothing with one right answer (or, with no question mark at all, whose key call failed) leaves
+  // only a hint's own question to answer, when a hint asked one: graded there (hintOnly). TerraTutor live test 2026-11-21 part 14,
+  // issue 6: the check gave up before the hint, and a wrong "3" to the hint's "What is the largest number that can
+  // divide both 2 and 12?" was praised.
+  if (found === "none" || (found === null && !tutorMessage.includes("?"))) return hintReply?.includes("?") ? hintOnly(hintReply, studentMessage, config, opts) : null;
+  if (found === null) return { question: "", key: "", verdict: "unsure", by: "failed" };
   const { offer, ...keyed } = found;
   // An offer that poses a problem ("Do you want to try 6 × 7, or would you like an easier one?") is answered with a
   // number, or picked: a pick ("an easier one", "yes", "6 x 7 please") states no number but the offer's own, and gets
@@ -858,6 +988,12 @@ export async function checkAnswer(
   const answers = (n: { from: number; to: number }) =>
     bare(studentMessage.slice(0, n.from).trim().replace(LEAD_FILLER, "")) || bare(studentMessage.slice(n.to));
   if (offer && !numbersIn(studentMessage).some((n) => !n.loneOne && !posed.includes(n.value) && answers(n))) return null;
+  // An answer that poses a problem of its own, not the offer's, with no "=" after it, and states no number outside it,
+  // asks for that problem: "let me try 3 x 4", "3 x 4 please" (inbox 2026-11-21-0017 item 1). No verdict. "6 × 7 = 42"
+  // and "7 × 6 = 42" answer, and so does "42 because 6 x 5 + 12 makes it": 42 is outside (TerraTutor's review of part 14, MUST-FIX 6).
+  const asksOwn = offer ? [...studentMessage.matchAll(/(\d+(?:\.\d+)?)\s*(?:[+−×xX*·÷]|\s-\s)\s*(\d+(?:\.\d+)?)/g)].filter((m) =>
+    !studentMessage.slice(m.index! + m[0].length).includes("=") && !(posed.includes(Number(m[1])) && posed.includes(Number(m[2])))) : [];
+  if (asksOwn.length && numbersIn(studentMessage).every((n) => asksOwn.some((m) => n.from >= m.index! && n.to <= m.index! + m[0].length))) return null;
   const ctx = { question: keyed.question, options: optionsIn(tutorMessage) };
   const raw = compareToKey(keyed.key, studentMessage, ctx);
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
@@ -958,6 +1094,27 @@ export async function checkAnswer(
     && countsKeyWords(earlier.key, keyed.key, keyed.question, studentMessage);
   if (reworded || answersBoth) return { ...onTheEarlier, question: keyed.question, key: keyed.key, reworded: true };
   return { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question };
+}
+
+/**
+ * The verdict on an answer to a hint's own question when the message the hint was asked on has no key (checkAnswer):
+ * the hint's question is the only one open. Code's match with its key is "correct"; else, when the hint ends on its
+ * question (endsOnQuestion), the grader's verdict. Right or partly right is tagged `on: "hint"`, as any answer to a
+ * hint's question is (no mark, and no question of the check's to ask again: hintAnswerBack); wrong is the hint
+ * question's "incorrect", untagged, and the reply goes on from it. A hint with no key, or feedback after its question
+ * and no match by code, gets no verdict.
+ */
+async function hintOnly(hintReply: string, studentMessage: string, config: LLMConfig, opts: CallOpts): Promise<AnswerCheck | null> {
+  const hinted = await answerKey(hintReply, config, opts);
+  if (hinted === null) return { question: "", key: "", verdict: "unsure", by: "failed" };
+  if (hinted === "none") return null;
+  const hintKey = { question: hinted.question, key: hinted.key };
+  const ctx = { question: hintKey.question, options: optionsIn(hintReply) };
+  const raw = compareToKey(hintKey.key, studentMessage, ctx);
+  const check: AnswerCheck | null = raw === "match" ? { ...hintKey, verdict: "correct", by: "code" }
+    : endsOnQuestion(hintReply) ? await graded(hintKey, ctx, raw, studentMessage, config, opts) : null;
+  if (!check || check.verdict === "incorrect" || check.verdict === "unsure") return check;
+  return { ...check, on: "hint", checkQuestion: "" };
 }
 
 // A key without answerKey's `offer` flag, which only the check's own question reads.
@@ -1469,7 +1626,10 @@ export function answerCheckNote(check: AnswerCheck): string {
   const question = check.question ? `The question was: ${check.question}\n` : "";
   // An answer to the hint's own question: right, but the check's question is still open, and the app asks it
   // again after the reply (hintAnswerBack), so the reply neither asks nor answers it.
-  const open = check.on === "hint"
+  // With no open question (the message before the hint asked nothing to check, hintOnly), nothing is asked again.
+  const open = check.on === "hint" && !check.checkQuestion
+    ? "That was the hint's question. Do not say the check is done.\n"
+    : check.on === "hint"
     ? `That was the hint's question, not the check's. The check's question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
     : check.on === "earlier"
       ? `That answers the check's first question, not the last one you asked. Your last question is still open${check.checkQuestion ? `: ${check.checkQuestion}` : ""}\nThe app asks it again after your reply. Do not ask it, do not give its answer, and do not say the check is done.\n`
