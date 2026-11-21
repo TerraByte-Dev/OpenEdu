@@ -793,6 +793,29 @@ ${NEXT_Q}`);
     expect(masteredInDb()).toEqual([T.people.id]);
   });
 
+  // Review of this port, nit 2: a right answer to a hint's own question re-asks the old question after the
+  // reply ("Now back to the question:"). The card there would let the next right answer, to that old
+  // question, mark the skill picked on it.
+  it("shows no next card after a right answer to the hint's own question, once the first skill is marked", async () => {
+    const HINT_Q = "Where do Romeo and Juliet first meet?";
+    keyOut = (sentToKey: Sent) => (sentToKey.map((m) => m.content).join("\n").includes(HINT_Q) ? { question: HINT_Q, working: "", answer: "At a party" } : keyFor(sentToKey));
+    // Not the check's answer to the grader; code's match puts it on the hint's question.
+    gradeOut = { student_answer: "At a party", verdict: "incorrect" };
+    script = [reply("Yes, at a party.")];
+    const result = await run([
+      ...UP_TO_NEXT.slice(0, -1),
+      { role: "user", content: "Give me a hint." },
+      { role: "assistant", content: `Think about the big feast at the Capulets' house. ${HINT_Q}` },
+      { role: "user", content: "At a party" },
+    ], [T.world.title]);
+    expect(result.answerCheck).toMatchObject({ question: HINT_Q, verdict: "correct", on: "hint", checkQuestion: FOLLOW_Q });
+    expect(result.text.startsWith("Yes, at a party.\n\nNow back to the question:\n\n")).toBe(true);
+    expect(result.text.endsWith(FOLLOW_Q)).toBe(true);
+    expect(cardsShown).toEqual([]);
+    expect(result.toolCalls.map((c) => c.name)).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
   it("makes none for a skill already tried in this check, picked again", async () => {
     save([]);
     script = [reply("Yes, Queen Elizabeth I.")];
