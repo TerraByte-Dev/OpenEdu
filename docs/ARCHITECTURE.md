@@ -1317,6 +1317,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   still gets the model's reply. A
   plain-number key that none of the student's own numbers equals (numbers the question holds don't
   count): **mismatch**. Fractions, percents, times, money, "half", ranges, place value ("5 tens"),
+  a feet, inch or factorial mark after a number (`5'`, `5"`, "5!": part of the answer, so `5'` is not
+  code's match for `5"`, nor "5!" or an excited "48!" for "5" or "48"; the same mark on both sides, `5'` /
+  `5′`, still is; TerraTutor take-back 2026-11-20-1623, item 4, ported from TerraTutor #277),
   another unit, a rounding, a "not", algebra ("2x"), a key that is a comparison ("more than 5"), the
   key's number among others ("63 or 72"), or other words: **undecided**. Code never calls an answer
   wrong, or right, on a form it could misread: a false "wrong" is as bad as false praise.

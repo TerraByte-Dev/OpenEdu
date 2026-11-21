@@ -243,6 +243,12 @@ The section for each release is also what the app shows when you press Check for
   eats a frog?") are checked apart, and "What are leaves for, do you think?" is no longer read as "What are
   leaves?". A question asked again in other words whose answers are written as two different sentences
   is now checked apart too, and asked again (ported from TerraTutor #273).
+- **5 feet is no longer marked right for 5 inches.** In a check, an answer of `5'` against the answer
+  `5"` was called correct with no second look, and so was "5!" against "5". A feet, inch or factorial mark
+  after a number is now part of the answer: the same answer with the same mark is still right at once, and
+  anything else is checked by the grader. An excited "48!" for 48, alone or in a sentence ("I got 48! yay"),
+  is checked by the grader too. "The 1990's" is still right at once for "1990s" (ported from TerraTutor
+  #277).
 - **No verdict against an answer key that isn't one.** In a check, a key like "Please provide a topic" or
   "Answers will vary.", a question that asks what the learner thinks is most important or likes best, and
   one that offers a choice of what to do next ("Do you want to try another example, or would you like to

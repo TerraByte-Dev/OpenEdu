@@ -296,7 +296,7 @@ ${VERDICT_FALLBACK.correct}`);
 // ── A right answer is never called wrong ────────────────────────────────────────────────────────
 
 describe("a right answer in a mastery check", () => {
-  it.each(["48", "forty-eight", "it's 48", "Is it 48?", "I think it's 48.", "6 x 8 = 48", "48!", "6 x 8 is 48 because it is 8 sixes"])(
+  it.each(["48", "forty-eight", "it's 48", "Is it 48?", "I think it's 48.", "6 x 8 = 48", "6 x 8 is 48 because it is 8 sixes"])(
     "%j: correct by code, with no model call, and the reply's doubt never reaches the child",
     async (text) => {
       script = [reply(FALSE_DOUBT)];
@@ -341,6 +341,36 @@ describe("a right answer in a mastery check", () => {
     const { result } = await answer([student(ASSESS_MESSAGE), tutor("Next one. Calculate 6 x 8.")], "48");
     expect(structured.map((c) => c.tool)).toEqual(["AnswerKey"]);
     expect(result.answerCheck).toMatchObject({ key: "48", verdict: "correct", by: "code" });
+  });
+
+  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277): code's exact match kept a mark after a number off both
+  // sides, so "5'" was right against the key 5" and "5!" against 5. A mark after a number is now part of the answer:
+  // the same marks are still code's match, other marks (or none against one) go to the grader.
+  it.each([
+    ["feet against the key in inches", "A pencil is 5 inches long. How do you write its length with the inch mark?", "5\"", "5'", "incorrect"],
+    ["a factorial against the key 5", "There are 5 apples in a bowl. How many apples are there?", "5", "5!", "incorrect"],
+    ["an excited 48 against the key 48", Q_MULT, "48", "48!", "correct"],
+    ["the factorial's value against the key 5!", "How do you write 5 × 4 × 3 × 2 × 1 as a factorial?", "5!", "120", "correct"],
+    ["inches typed as two apostrophes against the key 5", "There are 5 apples in a bowl. How many apples are there?", "5", "5''", "incorrect"],
+  ])("%s: the grader decides, not code", async (_, q, key, text, verdict) => {
+    keyOut = { question: q, working: "", answer: key };
+    gradeOut = { student_answer: text, verdict };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(q)], text);
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(1);
+    expect(result.answerCheck).toMatchObject({ key, verdict, by: "model" });
+  });
+
+  it.each([
+    ["a prime mark against the key 5'", "A door is 5 feet tall. How do you write its height with the feet mark?", "5'", "5′"],
+    ["a double prime against the key 5\"", "A pencil is 5 inches long. How do you write its length with the inch mark?", "5\"", "5″"],
+    ["quotes around the word", "Which animal says meow?", "cat", "'cat'"],
+    ["an exclamation after a word", "What is the capital of France?", "Paris", "Paris!"],
+    ["a plural decade with an apostrophe", "In which decade did people first walk on the Moon?", "1960s", "the 1960's"],
+  ])("%s: the same answer is still correct by code", async (_, q, key, text) => {
+    keyOut = { question: q, working: "", answer: key };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(q)], text);
+    expect(structured.map((c) => c.tool)).toEqual(["AnswerKey"]);
+    expect(result.answerCheck).toMatchObject({ key, verdict: "correct", by: "code" });
   });
 
   it("a right answer with its working shown goes to the grader, and code agrees with the grader's copy", async () => {
@@ -2526,7 +2556,7 @@ describe("an answer to the check's first question after the tutor moved on", () 
       ["multiplication, then addition", TIMES, "3 × 4", PLUS, "3 + 4", "3 × 4"],
       ["multiplication with an x, then addition", TIMES, "3 x 4", PLUS, "3 + 4", "3 x 4"],
       // TerraTutor take-back 2026-11-20-1623, item 4: feet and inches, and a factorial, are other answers. The answer is
-      // a sentence, so code's exact match (answerCompare, which reads "5'" as 5) leaves the newest question to the grader.
+      // a sentence, so code's exact match (answerCompare) leaves the newest question to the grader.
       ["feet, then inches", FEET, "5'", INCHES, "5\"", MARK_AFTER],
       ["inches, then feet (prime marks)", INCHES, "5″", FEET, "5′", MARK_AFTER],
       ["a factorial, then a count", "How do you write 5 × 4 × 3 × 2 × 1 as a factorial?", "5!", "There are 5 apples in a bowl. How many apples are there?", "5", MARK_AFTER],
