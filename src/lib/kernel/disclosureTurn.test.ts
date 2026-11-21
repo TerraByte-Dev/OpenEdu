@@ -248,7 +248,7 @@ describe("a disclosure turn keeps nothing the learner said", () => {
       expect(written()).toEqual([]);
       expect(chips.filter((c) => c.endsWith(name))).toEqual([]);
       expect(toolResult()).toBe(`ERROR: ${NOT_SAVED_DISCLOSURE}`);
-      expect(result.toolCalls).toEqual([{ name, args, ok: false }]);
+      expect(result.toolCalls).toEqual([{ name, args, ok: false, refused: NOT_SAVED_DISCLOSURE }]);
       expect(result.usedKnowledgeUpdate).toBe(false);
       expect(result.disclosure).toBe(true);
     });
@@ -332,7 +332,7 @@ describe("disclosure, then what should i do", () => {
       expect(written()).toEqual([]);
       expect(chips.filter((c) => c.endsWith(name))).toEqual([]);
       expect(toolResult()).toBe(`ERROR: ${NOT_SAVED_DISCLOSURE}`);
-      expect(result.toolCalls).toEqual([{ name, args, ok: false }]);
+      expect(result.toolCalls).toEqual([{ name, args, ok: false, refused: NOT_SAVED_DISCLOSURE }]);
     });
   }
 

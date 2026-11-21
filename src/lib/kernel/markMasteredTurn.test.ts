@@ -55,7 +55,7 @@ vi.mock("../llm", async (importOriginal) => ({
     (opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(_messages as Sent) : keyOut) : gradeOut)),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_UNCHECKED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_NOT_FIRST_TRY, MASTERY_REFUSED_UNCHECKED, type TutorTurnResult } from "./TutorEngine";
 import type { ToolUIEvent } from "./toolDispatch";
 import { describeToolDone } from "../plain-language";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
@@ -167,7 +167,7 @@ describe("a \"mastered\" mark on a check's answer turn", () => {
     script = [markCall("mastered"), reply("Saved.")];
     const result = await assessTurn();
     expect(result.answerCheck).toBeNull();
-    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false, refused: MASTERY_REFUSED_UNCHECKED }]);
     expect(toolResultSeen()).toBe(`ERROR: ${MASTERY_REFUSED_UNCHECKED}`);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
@@ -177,7 +177,7 @@ describe("a \"mastered\" mark on a check's answer turn", () => {
     script = [markCall("mastered"), reply("Saved.")];
     const result = await assessTurn(null, meaning);
     expect(result.answerCheck).toBeNull();
-    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false, refused: MASTERY_REFUSED_UNCHECKED }]);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 
@@ -203,7 +203,7 @@ describe("a \"mastered\" mark on a check's answer turn", () => {
     script = [markCall("mastered"), reply("Saved.")];
     const result = await assessTurn(null, wrong);
     expect(result.answerCheck).toMatchObject({ key: "12", verdict: "incorrect" });
-    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false, refused: MASTERY_REFUSED }]);
     expect(toolResultSeen()).toBe(`ERROR: ${MASTERY_REFUSED}`);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
@@ -574,7 +574,41 @@ describe("the mark code makes after a correct check answer", () => {
   it("still marks when the model's own mark failed on a wrong id", async () => {
     script = [markCall("mastered", "Nonsense Topic"), reply("Yes, 12.")];
     const result = await assessTurn(OPENED_WITH, picked("12"));
-    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Nonsense Topic", status: "mastered" }, ok: false }, appMark]);
+    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Nonsense Topic", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }, appMark]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
+  // The mastery mark sweep (ported from TerraTutor #289, masteryMarkSweep.test.ts): on a tiny or small chat model the
+  // model's own "mastered" mark is held to the gate code's own mark uses. It saved the skill after "I don't know"
+  // or a wrong try, and saved a skill the check was not on.
+  const afterFirst = (first: string) => [
+    { role: "user", content: "Check if I've got this." },
+    { role: "assistant", content: PICKED },
+    { role: "user", content: first },
+    { role: "assistant", content: `That's okay. ${Q}` },
+    { role: "user", content: "12" },
+  ];
+  it.each(["I don't know", "10"])("refuses the model's own mark of a right answer after %j: not the first try", async (first) => {
+    script = [markCall("mastered"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, afterFirst(first));
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }]);
+    expect(toolResultSeen()).toBe(`ERROR: ${MASTERY_REFUSED_NOT_FIRST_TRY}`);
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("refuses the model's own mark of a skill the check is not on, and code marks the picked one", async () => {
+    script = [markCall("mastered", "Sharing Fairly"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, picked("12"));
+    expect(result.toolCalls).toEqual([{ ...modelMark, args: { subtopic_id: "Sharing Fairly", status: "mastered" }, ok: false, refused: MASTERY_REFUSED_NOT_FIRST_TRY }, appMark]);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", false]]);
+  });
+
+  it("leaves a medium model's own mark to it, as before", async () => {
+    script = [markCall("mastered"), reply("Yes, 12.")];
+    const result = await assessTurn(OPENED_WITH, afterFirst("I don't know"), "medium");
+    expect(result.toolCalls).toEqual([{ ...modelMark, ok: true }]);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
   });
 
