@@ -1439,7 +1439,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   not mastered, that no earlier pick in the check named, after an earlier pick of another one (so nothing
   was asked, answered or typed between the pick and the answer, and the skill was not picked before in the
   check). The app shows that card only on a turn the learner answered right (above), so the turn it was
-  picked on was not a hint, help or a wrong try. A pick on the model's own card never counts: code cannot
+  picked on was not a hint, help or a wrong try. A pick on a card of the model's own never counts (code
+  knows the app's card only by its question text before the pick, so a model card with those exact words
+  would pass for it): code cannot
   tell from the saved text whether that turn followed a hint or a wrong try (or was a quiz card whose
   choices happen to be titles). Nor does a skill named only in the tutor's prose. A turn
   graded only on cards marks only when its newest message opened the check (a hint request a caller ran

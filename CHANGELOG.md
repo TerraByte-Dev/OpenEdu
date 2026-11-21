@@ -51,7 +51,8 @@ The section for each release is also what the app shows when you press Check for
   and the same "Is that okay?" card as the first. After a hint or help request, "I don't know", a question
   of the learner's own, a flashcard request or a wrong answer the card does not show, so the answer after
   the tutor helped, or gave the answer away, marks nothing. A skill the tutor only names, one picked on the
-  tutor's own card, or one already tried in the check marks nothing either (ported from TerraTutor #278).
+  tutor's own card (code tells the cards apart by the app's question, "Which one should we check next?",
+  before the pick), or one already tried in the check marks nothing either (ported from TerraTutor #278).
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
