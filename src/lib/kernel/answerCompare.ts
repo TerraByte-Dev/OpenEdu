@@ -11,6 +11,7 @@
 //     the key or a rounding of it, with no unit that could be a conversion; a different lettered
 //     option; the opposite yes/no.
 //   - undecided: fractions, percents, times, money, "half", ranges, powers, place value ("5 tens"), a
+//     feet, inch or factorial mark after a number on one side or the other ("5'", "5\"", "5!"), a
 //     different unit, a "not", algebra ("2x"), a comparison or estimate as the key ("more than 5"), the
 //     key's number among others ("63 or 72"), a text answer in other words.
 // Numbers the question itself holds ("7 x 9") are not read as the student's answer.
@@ -119,8 +120,9 @@ const approximates = (x: FoundNumber, k: FoundNumber) =>
 
 // A form a plain number compare could misread: fractions, percents, times and ratios, money, ranges,
 // powers and roots, decimal commas, pi, the words for parts, place value and scale after digits
-// ("5 tens", "3 hundred", "2 dozen"), and thousands grouped with a space or a dot ("1 000", "1.000").
-const NOT_PLAIN = /\d\s*\/\s*\d|%|\bpercent\b|\d\s*:\s*\d|[$£€¢]|\bcents?\b|\bdollars?\b|\d\s*(?:[–—]|-\s*\d|\bto\b\s*\d)|\^|[²³√]|\bsquare root\b|\d,\d{1,2}(?!\d)|\bpi\b|π|\b(?:half|halves|quarters?|thirds?|fourths?|fifths?|sixths?|eighths?|tenths?|hundredths?|point)\b|\be\d|\d\s*(?:ones|tens|hundreds?|thousands?|millions?|dozens?)\b|\b(?:ones|tens|hundreds|thousands|millions|dozens?)\b|\d \d{3}(?!\d)|\d\.\d{3}(?!\d)/i;
+// ("5 tens", "3 hundred", "2 dozen"), thousands grouped with a space or a dot ("1 000", "1.000"), and a feet,
+// inch or factorial mark after a number ("5'", "5\"", "5!", which bareAnswer keeps; not the "'s" of "1990's").
+const NOT_PLAIN = /\d\s*\/\s*\d|%|\bpercent\b|\d\s*:\s*\d|[$£€¢]|\bcents?\b|\bdollars?\b|\d\s*(?:[–—]|-\s*\d|\bto\b\s*\d)|\^|[²³√]|\bsquare root\b|\d,\d{1,2}(?!\d)|\bpi\b|π|\b(?:half|halves|quarters?|thirds?|fourths?|fifths?|sixths?|eighths?|tenths?|hundredths?|point)\b|\be\d|\d\s*(?:ones|tens|hundreds?|thousands?|millions?|dozens?)\b|\b(?:ones|tens|hundreds|thousands|millions|dozens?)\b|\d \d{3}(?!\d)|\d\.\d{3}(?!\d)|\d(?:'(?![a-z])|["!])/i;
 // A key that is a comparison or an estimate, not one value: "more than 5", "about 30", "at least 4".
 const NOT_ONE_VALUE = /\b(?:more|less|greater|fewer|smaller|bigger|larger|than|least|most|between|about|around|approximately|roughly|nearly|almost|over|under|above|below|up to|or)\b|[<>≤≥≈~]/i;
 
@@ -165,14 +167,31 @@ export function unitAfter(text: string, at: number): string | null {
 // Words around an answer that are not the answer: "I think it's 72", "the answer is B", "is it 9?".
 const CUE = /^(?:(?:um+|uh+|hmm+|well|so|ok(?:ay)?|oh|i think|i guess|i believe|i'?m pretty sure|maybe|probably|is it|it'?s|it is|the answer is|my answer is|answer|i got|i get|i'?d say|that'?s|that is|that would be|it would be|it equals|equals)\b[\s,:=]*)+(?=\S)/i;
 
-/** The answer with leading cue words, surrounding quotes and closing punctuation taken off. */
+/** Closing punctuation off, except a "!" straight after a number: "5!" is a factorial ("Paris!" is Paris). */
+const withoutClosing = (t: string) =>
+  t.replace(/[\s.!?,;:]+$/, (run, at: number) => (run[0] === "!" && /\d/.test(t[at - 1] ?? "") ? "!" : ""));
+
+/** A quote mark `q` opens a quote in `t`: at the start, or after a space or bracket. */
+const opensQuote = (t: string, q: string) => [...t].some((c, i) => c === q && (i === 0 || /[\s(\[]/.test(t[i - 1])));
+
+/**
+ * The answer with leading cue words, surrounding quotes and closing punctuation taken off. A feet, inch or factorial
+ * mark straight after a number stays ("5'", "5\"", "5!"; primes read as "'" and "\""): each is another answer
+ * (TerraTutor take-back 2026-11-20-1623, item 4; ported from TerraTutor #277); two apostrophes after a number
+ * read as '"'. A quote after a number that closes one opened before it (at the start, or after a space or bracket)
+ * is a quote; an apostrophe in a word ("it's") opens nothing.
+ */
 export function bareAnswer(text: string): string {
-  let t = text.normalize("NFKC").replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"').trim();
+  let t = text.normalize("NFKC").replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"').replace(/′′|″/g, '"').replace(/′/g, "'").replace(/(\d)''/g, '$1"').trim();
   t = t.replace(/^[a-z]\s*=\s*/i, "");
   const cue = CUE.exec(t);
   // Only take the cue off when what is left is not itself empty or a lone letter the cue ate.
   if (cue && cue[0].length < t.length) t = t.slice(cue[0].length);
-  return t.replace(/^["'`]+|["'`]+$/g, "").replace(/[\s.!?,;:]+$/, "").trim();
+  t = withoutClosing(t);
+  if (t.length > 1 && /^["'`]/.test(t) && t[t.length - 1] === t[0]) t = t.slice(1, -1);
+  t = t.replace(/^["'`]+/, "");
+  t = t.replace(/["'`]+$/, (q, at: number) => (/\d/.test(t[at - 1] ?? "") && !opensQuote(t.slice(0, at), q[0]) ? q : ""));
+  return withoutClosing(t).trim();
 }
 
 const normText = (s: string) =>

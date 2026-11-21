@@ -22,8 +22,19 @@ describe("numbers in an answer", () => {
   });
 
   it("takes cue words off an answer", () => {
-    for (const t of ["48", "it's 48", "Is it 48?", "I think it's 48.", "the answer is 48!", "um, 48", "x = 48", "My answer is 48"]) expect(bareAnswer(t), t).toBe("48");
+    for (const t of ["48", "it's 48", "Is it 48?", "I think it's 48.", "the answer is 48.", "um, 48", "x = 48", "My answer is 48"]) expect(bareAnswer(t), t).toBe("48");
     expect(bareAnswer("B) dolphin")).toBe("B) dolphin");
+  });
+
+  // TerraTutor take-back 2026-11-20-1623, item 4 (and 1802's note; ported from TerraTutor #277):
+  // a mark straight after a number is part of the answer.
+  it("keeps a feet, inch or factorial mark after a number, and takes quotes around the answer off", () => {
+    for (const [t, bare] of [
+      ["5'", "5'"], ["5\"", "5\""], ["5′", "5'"], ["5″", "5\""], ["5'6\"", "5'6\""], ["5!", "5!"], ["the answer is 48!", "48!"],
+      ["5'.", "5'"], ["\"4'\"", "4'"], ["'cat'", "cat"], ["\"cat\"", "cat"], ["'5'", "5"], ["it's \"5\".", "5"], ["Paris!", "Paris"],
+      ["48 !", "48"], ["is it 48?!", "48"], ["I said \"it is 48\"", "I said \"it is 48"],
+      ["the door's 5'", "the door's 5'"], ["I'm sure it's 5'", "I'm sure it's 5'"], ["5''", "5\""],
+    ]) expect(bareAnswer(t), t).toBe(bare);
   });
 
   it("reads units after a number", () => {
@@ -38,7 +49,7 @@ describe("numbers in an answer", () => {
 
 describe("a right answer is a match, in any plain form", () => {
   it.each([
-    "48", "forty-eight", "Forty eight", "it's 48", "Is it 48?", "I think it's 48.", "48!", "  48  ",
+    "48", "forty-eight", "Forty eight", "it's 48", "Is it 48?", "I think it's 48.", "  48  ",
     "6 x 8 = 48", "6 x 8 is 48", "48 cm",
   ])("%j against 48", (answer) => {
     expect(compareToKey("48", answer, { question: Q })).toBe("match");
@@ -47,6 +58,8 @@ describe("a right answer is a match, in any plain form", () => {
   it.each([
     ["48 cm", "48 cm"], ["48 cm", "48 centimeters"], ["48 cm", "48"], ["31.4 cm", "31.4"], ["0.5", "0.5"],
     ["-2", "negative two"], ["-2", "-2"], ["-5", "negative 5"], ["-5", "minus 5"], ["negative 5", "-5"], ["300", "three hundred"],
+    ["5'", "5'"], ["5'", "5′"], ["5\"", "5″"], ["5!", "5!"], ["5", "'5'"], ["cat", "'cat'"], ["Paris", "Paris!"],
+    ["5\"", "5''"], ["1990s", "the 1990's"], ["4", "the 4's"],
   ])(
     "key %j, answer %j", (key, answer) => { expect(compareToKey(key, answer)).toBe("match"); },
   );
@@ -117,6 +130,18 @@ describe("anything in doubt is undecided, never a mismatch", () => {
     ["9", "3^2", "a power"],
     ["carbon dioxide", "CO2", "other words"],
     ["3 boxes, 2 left over", "3 boxes", "a key with two parts"],
+    // TerraTutor take-back 2026-11-20-1623, item 4 (ported from TerraTutor #277):
+    // a mark after the number is another answer, or an excited one.
+    ["5\"", "5'", "inches against feet"],
+    ["5'", "5\"", "feet against inches"],
+    ["5'", "5", "feet against a bare number"],
+    ["5", "5'", "a bare number key against feet"],
+    ["5", "the door's 5'", "feet after a word's apostrophe"],
+    ["5", "5''", "inches typed as two apostrophes"],
+    ["5", "5!", "a factorial, or an excited 5"],
+    ["48", "48!", "a factorial, or an excited 48"],
+    ["5!", "5", "a factorial key against a bare number"],
+    ["5!", "120", "a factorial key against its value"],
     ["", "48", "no key"],
   ])("key %j, answer %j: %s", (key, answer) => {
     expect(compareToKey(key, answer, { question: Q })).toBe("undecided");
