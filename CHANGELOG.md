@@ -34,8 +34,10 @@ The section for each release is also what the app shows when you press Check for
   after it is not the one marked), or the level's one skill left. Only for the learner's first answer in
   the check: never after a hint, a request for help, "I don't know" or a wrong answer (the tutor may then
   have asked an easier question), typed in the chat or into the tutor's question card (the next skill in
-  the same check: see below). Never on a partly right, unsure or wrong answer, or after the
-  check has ended; never for a skill already marked learned; and never a second time when the tutor
+  the same check: see below). A plain "Yes" (or "Okay", "Sure", "I'm ready") to the tutor's "Does that
+  make sense?" or "Are you ready?" is not an answer and does not use up the first one; "No", "Kind of",
+  "Yes but can you explain it again?" or any other reply still does (ported from TerraTutor #280). Never on
+  a partly right, unsure or wrong answer, or after the check has ended; never for a skill already marked learned; and never a second time when the tutor
   marked the skill itself or after a "No" on the card. One right answer is enough, as it already was for
   the tutor's own mark; moving up a level still takes the level test. Only with a small tutor model, one
   OpenEdu rates tiny or small, such as gemma4:e2b, gemma4:e4b and qwen3.5:0.8b, and any local model under
@@ -52,7 +54,15 @@ The section for each release is also what the app shows when you press Check for
   of the learner's own, a flashcard request or a wrong answer the card does not show, so the answer after
   the tutor helped, or gave the answer away, marks nothing. A skill the tutor only names, one picked on the
   tutor's own card (code tells the cards apart by the app's question, "Which one should we check next?",
-  before the pick), or one already tried in the check marks nothing either (ported from TerraTutor #278).
+  at the start of the tutor's message, with the pick right under it), or one already tried in the check marks nothing either (ported from TerraTutor #278).
+  Typing a skill's name after the tutor repeats the "which next?" question marks nothing (it answered which
+  skill, not a question on it), nor does a "which next?" question the tutor wrote into its own reply. The
+  reply says
+  "That's right." before the card, and the skill picked gets its own four answers before the check ends, so
+  one stumble on it no longer ends the check (ported from TerraTutor #280).
+- **Typing "Check if I've got this" works like tapping it.** The chip's exact words typed (any case, with
+  or without the full stop) open the same "Which one should we check first?" card (ported from TerraTutor
+  #280).
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
@@ -275,6 +285,18 @@ The section for each release is also what the app shows when you press Check for
 - **The tutor's question is no longer shown twice** in a check, when the reply asked it (in the same words or
   close to them) with a sentence or a tool step after it and OpenEdu then asked it again under "Now back to
   the question:" (ported from TerraTutor #279).
+- **Fewer wrong verdicts in a check** (ported from TerraTutor #281). A range in an offer ("Do you want to
+  try 2 - 3 more questions, or would you like to stop?") is no longer checked as a subtraction, so "4 more
+  please" is not told it is wrong; "let me try 3 x 4" after "Do you want to try 6 × 7, or ...?" is a
+  request, not a wrong answer ("42 because 6 x 5 + 12 makes it" is still an answer). A key that only
+  repeats an offer's "Tell me" is no key, so "a mammal" is no longer "partly right": the verdict is
+  "unsure", neither right nor wrong. The tutor's own copy of the "Which one should we check next?" card
+  gets no verdict when a skill's name is typed. An answer to a hint's question after a message with
+  nothing to check is checked against the hint's question (a wrong "3" was praised), and nothing is asked
+  again after it. After the learner answers the first question late, "Now back to the question:" asks
+  only a question with an answer that is still open ("Does that sound like something you remember?" is
+  not one, nor a question the learner already got right). It is saved on a reply the learner stopped too,
+  and a question the tutor asked before it keeps its A/B choices.
 - **"'cause it's 5'" is no longer marked right for 5** in a check: an apostrophe at the start of a word is not
   a quote around the answer, so the feet mark after the 5 stays part of it (take-back 2026-11-20-2014).
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.

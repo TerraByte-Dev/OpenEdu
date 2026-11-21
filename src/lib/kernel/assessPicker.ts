@@ -11,8 +11,9 @@
 // Ported from TerraTutor #244.
 
 import type { Subtopic, Syllabus } from "../../types";
-import { ANSWER_ECHO_WORDS, type AskCard } from "./askCard";
-import { asksForMasteryCheck, openCheck } from "./answerCheck";
+import { ANSWER_ECHO_WORDS, afterAnsweredCard, type AskCard } from "./askCard";
+import { asksForMasteryCheck, openCheck, questionInMessage } from "./answerCheck";
+import { VERDICT_FALLBACK } from "./replyClaims";
 
 /** The picker card's question. */
 export const PICKER_QUESTION = "Which one should we check first?";
@@ -86,35 +87,75 @@ export function checkedSubtopic(conversation: ReadonlyArray<{ role: string; cont
   return open.length === 1 ? open[0] : null;
 }
 
+// The pick line right under the app's "which next?" card's question, as answeredCard saves it.
+const APP_NEXT_PICK = new RegExp(String.raw`^[ \t]*\r?\n[ \t]*\r?\n\*${ANSWER_ECHO_WORDS.picked}: ([^\n]*)\*[ \t]*\r?(?:\n|$)`);
+
+/**
+ * The label picked on the app's own "which next?" card in the tutor's message `text`, as saved (escaped), or
+ * null when the message holds no such pick. The app's card takes the turn's first model call, so its question
+ * opens the saved reply, or follows only code's verdict line ("That's right.", shown before it: TutorEngine
+ * respond), with the pick line right under it (askCard.ts answeredCard). The same words anywhere else are the
+ * model's, a card or prose: inbox 2026-11-21-0017 item 2 (after a hint, "Which one should we check next?" and
+ * a pick line inside the model's reply marked the skill named there) and TerraTutor live test 2026-11-21 part 14, issue
+ * 1. A saved message keeps only its text (chat_messages has no column for a call's origin), so this shape is
+ * the marker: a model card that is the first thing in its reply, with the same question, still reads as the
+ * app's.
+ */
+export function appNextPick(text: string): string | null {
+  let rest = text.replace(/^\s+/, "");
+  if (rest.startsWith(VERDICT_FALLBACK.correct)) rest = rest.slice(VERDICT_FALLBACK.correct.length).replace(/^\s+/, "");
+  if (!rest.startsWith(NEXT_PICKER_QUESTION)) return null;
+  return APP_NEXT_PICK.exec(rest.slice(NEXT_PICKER_QUESTION.length))?.[1] ?? null;
+}
+
+const wordsOf = (s: string) => s.toLowerCase().replace(/[*_`#>]/g, "").match(/[\p{L}\p{N}]+/gu)?.join(" ") ?? "";
+/** True when `text` is only one of the titles a picker card offers (the level's subtopics not mastered), give or
+ *  take case and punctuation. A mastered skill's title is on no card, so an answer equal to it is left alone. */
+const namesSkill = (text: string, saved: Syllabus) => !!wordsOf(text) && saved.subtopics.some((s) => !s.mastered && wordsOf(s.title) === wordsOf(text));
+
+/**
+ * True when a typed answer graded right answered which skill to check, not a question about one (TerraTutor live test
+ * 2026-11-21 part 14, issue 1): after the app's "which next?" card, gemma4:e2b wrote the card's question and
+ * both titles again as prose, the learner typed the title picked, code keyed the copy with that title and
+ * found it right, and a skill nothing had been asked about was offered as learned. So no mark when the
+ * question graded is a picker card's own (every word of it in PICKER_QUESTION or NEXT_PICKER_QUESTION, give or
+ * take one in five: a copy, or "Which topic should we check next?"), when its key is one of the titles a card
+ * offers (`saved`, the level's not mastered), or when the learner's answer is only one of them. The titles are the saved syllabus's; no
+ * word list is read.
+ */
+export function answersSkillChoice(graded: { question: string; key: string }, answer: string, saved: Syllabus | null): boolean {
+  if ([PICKER_QUESTION, NEXT_PICKER_QUESTION].some((card) => questionInMessage(graded.question, card))) return true;
+  return !!saved && (namesSkill(graded.key, saved) || namesSkill(answer, saved));
+}
+
 /**
  * The next skill of a check, as code knows it, or null (TutorEngine appMark, for a typed answer that is not
  * the learner's first message in the check: live test part 13, issue 6, a second skill in one check was
- * never saved). It is the subtopic picked on the last card answered in the tutor's message just before the
- * newest, so nothing was asked, answered or typed between that pick and the answer: a pick on the app's own
- * "which next?" card (NEXT_PICKER_QUESTION before it, no other card answered after that question) of exactly
- * one of the level's titles (`saved`, the saved syllabus), not mastered, in a check still open, and a new
- * skill for that check: an earlier pick in it was of another subtopic, and none was of this one. The app
- * shows that card only on a turn the learner answered right (TutorEngine nextAsk), so the pick is never on
- * a turn that was helped or wrong; a pick on the model's own card is not trusted, because code cannot tell
- * from the saved text whether that turn was (review 2026-11-20: a hint, a wrong try or "I don't know", then
- * the model's card, then the answer just given away). A skill already tried in the check, a check with no
- * pick before (one subtopic left, no picker), words typed into the card and a pick of anything else give
- * null. The skill is never read from the tutor's prose.
+ * never saved). It is the subtopic picked on the app's own "which next?" card (appNextPick: its question opens
+ * the tutor's message just before the newest, and no other card was answered in that message), so nothing was
+ * asked, answered or typed between that pick and the answer, of exactly one of the level's titles (`saved`,
+ * the saved syllabus), not mastered, in a check still open, and a new skill for that check: an earlier pick in
+ * it was of another subtopic, and none was of this one. The question graded (`graded`, as its key call copied
+ * it) was asked after the pick (TerraTutor live test part 14, issue 1; appMark refuses a picker's own question too,
+ * answersSkillChoice). The app shows that card only on a turn the learner answered right (TutorEngine
+ * nextAsk), so the pick is never on a turn that was helped or wrong; a pick on the model's own card is not
+ * trusted, because code cannot tell from the saved text whether that turn was (review 2026-11-20: a hint, a
+ * wrong try or "I don't know", then the model's card, then the answer just given away). A skill already tried
+ * in the check, a check with no pick before (one subtopic left, no picker), words typed into the card and a
+ * pick of anything else give null. The skill is never read from the tutor's prose.
  */
-export function pickedNextSkill(conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null): Subtopic | null {
+export function pickedNextSkill(conversation: ReadonlyArray<{ role: string; content: string }>, saved: Syllabus | null, graded: { question: string }): Subtopic | null {
   const newest = conversation.length - 1;
   const asked = conversation[newest - 1];
   if (!saved || conversation[newest]?.role !== "user" || asked?.role !== "assistant") return null;
   const start = checkStart(conversation);
   if (start < 0 || start >= newest) return null;
-  const last = [...asked.content.matchAll(ANSWERED_LINE)].pop();
-  if (!last || last[1] !== ANSWER_ECHO_WORDS.picked) return null;
-  // On the app's card: its question comes before the pick (anywhere: the claim filter can put a verdict line
-  // in front), and no other card was answered between them.
-  const q = asked.content.lastIndexOf(NEXT_PICKER_QUESTION, last.index);
-  if (q < 0 || [...asked.content.slice(q, last.index).matchAll(ANSWERED_LINE)].length) return null;
-  const sub = titled(unescaped(last[2]), saved);
+  const label = appNextPick(asked.content);
+  // The app's pick is the one card answered in the message: a card after it asked something else.
+  if (label === null || [...asked.content.matchAll(ANSWERED_LINE)].length !== 1) return null;
+  const sub = titled(unescaped(label), saved);
   if (!sub || sub.mastered) return null;
+  if (!questionInMessage(graded.question, afterAnsweredCard(asked.content))) return null;
   const earlier = conversation.slice(start + 1, newest).filter((m) => m.role === "assistant").flatMap((m) => picksIn(m.content));
   earlier.pop(); // the pick itself
   const tried = earlier.map((label) => titled(label, saved)).filter((s): s is Subtopic => !!s);

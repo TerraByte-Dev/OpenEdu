@@ -128,6 +128,20 @@ describe("chatTurnMode", () => {
     expect(chatTurnMode(null, [u(ASK), a("What is 6 x 8?"), u("48"), a("Right."), u("quiz me on fractions"), a("What is 1/2 of 8?"), u("4")])).toBe("explain");
     expect(chatTurnMode(null, [u("quiz me"), a("What is 6 x 8?"), u("48"), a("Right."), u(ASK), a("What is 7 x 9?"), u("63")])).toBe("assess");
   });
+
+  // TerraTutor live test 2026-11-21 part 14, issue 10 (ported from TerraTutor #280): the chip's own words typed ran in explain mode, so no topic picker came.
+  it("runs the chip's own words typed in assess, as the chip, and their answers too: case, end marks and spaces aside", () => {
+    for (const typed of ["Check if I've got this", "check if i've got this", "CHECK IF I'VE GOT THIS!!", "  Check  if I’ve got this. ", "check if i've got this?"]) {
+      expect(chatTurnMode(null, [u(typed)])).toBe("assess");
+      expect(chatTurnMode(null, [u(typed), a("What is 6 x 8?"), u("48")])).toBe("assess");
+    }
+  });
+
+  it("leaves any other wording of it in the default mode", () => {
+    for (const typed of ["Check if I've got this right", "please check if I've got this", "Check if I got this", "check if ive got this"]) {
+      expect(chatTurnMode(null, [u(typed)])).toBe("explain");
+    }
+  });
 });
 
 describe("tools offered on a check's answer turn", () => {
