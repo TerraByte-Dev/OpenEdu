@@ -41,7 +41,7 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
-import { assessPickerCard, checkedSubtopic } from "./assessPicker";
+import { assessPickerCard, checkedSubtopic, nextPickerCard, pickedNextSkill } from "./assessPicker";
 import { isAssessAnswerTurn, inMasteryCheck, asksForMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
@@ -126,8 +126,12 @@ const APP_MARK_CALL_ID = "app_mark";
  * knows the check is on, from what was shown before the graded answer (assessPicker.ts checkedSubtopic),
  * read with the saved syllabus (`load`, never ctx.syllabus, the course view's snapshot), and one already
  * mastered gets none. "partly", "incorrect", "unsure", an answer that answered nothing, any answer after
- * the first (so a second skill in the same check is left to the model's own call) and a closed check give
- * no mark.
+ * the first and a closed check give no mark, except the first try at the next skill of the check: a typed
+ * answer right after that skill was picked on the app's own "which next?" card (assessPicker.ts
+ * pickedNextSkill, a new skill for the check, never one named only in prose or picked on the model's card;
+ * TerraTutor live test 2026-11-20 part 13, issue 6: on e2b a second skill in one check was never saved;
+ * ported from TerraTutor #278). The app shows that card itself once the check's skill is mastered, only on
+ * a turn answered right (nextPickerCard, nextAsk).
  */
 async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, tier: ModelTier, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
   if (tier !== "tiny" && tier !== "small") return null;
@@ -140,12 +144,16 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   // firstAttempt reads (OpenEdu #410's take-back, ported from TerraTutor #272; the opening's unanswered turn
   // already makes it false today).
   if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on || c.reworded)) return null;
-  if (result.answerCheck ? !firstAttempt(conversation) : !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
+  if (!result.answerCheck && !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
+  const syllabus = await load().catch(() => null);
+  // A typed answer that is not the learner's first message in the check marks only the next skill picked on
+  // the card just before it (assessPicker.ts pickedNextSkill): its first try, under the same rules.
+  const next = result.answerCheck && !firstAttempt(conversation) ? pickedNextSkill(conversation, syllabus) : undefined;
+  if (next === null) return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
   // before that card.
-  const syllabus = await load().catch(() => null);
-  const sub = checkedSubtopic(conversation, result.answerCheck ? "" : beforeCard ?? "", syllabus);
+  const sub = next ?? checkedSubtopic(conversation, result.answerCheck ? "" : beforeCard ?? "", syllabus);
   return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
 }
 
@@ -603,9 +611,22 @@ ${lastUser.content}` };
       turn.onText(result.text);
       return result;
     }
+    // The "which next?" picker (assessPicker.ts nextPickerCard, ported from TerraTutor #278): once the
+    // check's skill is mastered and two or more are not, the app asks which one comes next, as it asks which
+    // one comes first, so the answer after it can be tied to an exact skill (appMark). Under the first
+    // picker's gates, and only where appMark runs (a "tiny" or "small" chat model, the mark tool offered).
+    // Only on a turn whose typed answer was graded right on the tutor's own question (not a hint's or the
+    // opening's, `on`, which also gets code's "Now back to the question:", and not `reworded`): a hint or
+    // help request, "I don't know", a meaning question, a flashcard request or a wrong try never brings it
+    // up, so the next skill's answer after the pick is its first try (TerraTutor's review 2026-11-20: a hint,
+    // then the card, then the hinted answer had marked).
+    const nextAsk = !appAsk && !disclosure && answerCheck?.verdict === "correct" && !answerCheck.on && !answerCheck.reworded && ctx.askUser && offered.has(ASK_USER_TOOL) &&
+      offered.has(MARK_MASTERED_TOOL) && (ctx.modelTier === "tiny" || ctx.modelTier === "small")
+      ? nextPickerCard(conversation, ctx.activeSkill?.name, await getSyllabus(ctx.courseId, ctx.level).catch(() => null))
+      : null;
     let result: TutorTurnResult;
     try {
-      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      result = await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk: appAsk ?? (nextAsk ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: nextAsk, byApp: true as const } : null), messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, hintBack: hintAnswerBack(checked.message, answerCheck), checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }

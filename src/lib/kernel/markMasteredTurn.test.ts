@@ -597,3 +597,272 @@ describe("the mark code makes after a correct check answer", () => {
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 });
+
+// TerraTutor live test 2026-11-20 part 13, issue 6 (ported from TerraTutor #278; gemma4:e2b, a Romeo and Juliet course at level 1): the first skill was marked,
+// then the model moved the check on in prose and showed no card, and the right answer on the next skill was
+// not saved. The texts below are that run's (click16 s6-*.json), the next skill's question excepted: the live
+// one ("What do you already know about life during the Elizabethan Era?") was keyed "Student's prior
+// knowledge", which is that run's issue 3, not this one.
+describe("the next skill in the same check", () => {
+  const T = {
+    world: sub("1.1", "The Elizabethan World: Context and Setting"),
+    words: sub("1.2", "Decoding Archaic Language and Key Vocabulary"),
+    people: sub("1.3", "Introducing the Main Characters and Their Initial Roles"),
+    plot: sub("1.4", "Mapping the Basic Plot: Beginning, Middle, and End"),
+  };
+  const ALL = [T.world, T.words, T.people, T.plot];
+  // What the course view loaded when the check started: nothing mastered (ChatTab's snapshot is not reloaded).
+  const SNAPSHOT: Syllabus = { ...OPENED_WITH, subtopics: ALL };
+  const save = (mastered: string[]) => sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'")
+    .run(JSON.stringify(ALL.map((s) => (mastered.includes(s.id) ? { ...s, mastered: true, practiced: true } : s))));
+  const masteredInDb = () => subtopicsInDb().filter((s) => s.mastered).map((s) => s.id);
+  const chips = () => events.filter((e) => e.kind === "result").map((e) => (e.kind === "result" ? describeToolDone(e.name, e.value) : ""));
+  const FIRST_Q = "Can you tell me what you think the initial conflict in the play is, based on the families mentioned?";
+  const FOLLOW_Q = "How do you think Romeo and Juliet's relationship starts? Are they friendly, or is there something else happening between them when they first meet?";
+  const NEXT_Q = "Who was the queen of England when Shakespeare wrote Romeo and Juliet?";
+  const PROSE_Q = "What do you already know about life during the Elizabethan Era?";
+  const NEXT_ANSWER = "Queen Elizabeth I ruled England, and people watched plays at the Globe Theatre.";
+  const PLOT_Q = "What happens to Romeo and Juliet at the end of the play?";
+  // The check up to the learner's request for another skill: picker, first skill (marked), the follow-up.
+  const UP_TO_NEXT: Sent = [
+    { role: "user", content: "Check if I've got this." },
+    { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${T.people.title}*\n\nThat is the right place to start. We have the young lovers, Romeo and Juliet, and the families they come from: the Capulets and the Montagues. ${FIRST_Q}` },
+    { role: "user", content: "The Capulets and the Montagues are two families who hate each other, a long feud." },
+    { role: "assistant", content: `That is exactly right. The core conflict at the very beginning of the play is the long-standing feud between the Capulets and the Montagues. ${FOLLOW_Q}` },
+    { role: "user", content: "They fall in love at first sight at a party. I think I know this topic now, can we check another one?" },
+  ];
+  const pickedNext = (title: string, question = NEXT_Q) =>
+    `Which one should we check next?\n\n*You picked: ${title}*\n\nYou are correct. Romeo and Juliet fall in love at first sight at a party. Now let's look at the world of the play. ${question}`;
+  const keys: Record<string, Key> = {
+    [FIRST_Q]: { question: FIRST_Q, working: "", answer: "The feud between the Capulets and the Montagues" },
+    [FOLLOW_Q]: { question: FOLLOW_Q, working: "", answer: "They fall in love at first sight" },
+    [NEXT_Q]: { question: NEXT_Q, working: "", answer: "Queen Elizabeth I" },
+    "Which act": { question: "Which act does the balcony scene happen in?", working: "", answer: "Act 2" },
+    [PLOT_Q]: { question: PLOT_Q, working: "", answer: "Romeo and Juliet both die" },
+  };
+  // The key call is sent the tutor's message the answer is to: the question latest in it wins.
+  const keyFor = (sentToKey: Sent) => {
+    const text = sentToKey.map((m) => m.content).join("\n");
+    return Object.entries(keys).map(([q, k]) => [text.lastIndexOf(q), k] as const).sort((a, b) => b[0] - a[0]).find(([at]) => at >= 0)?.[1] ?? KEY_12;
+  };
+  const appMarkOf = (id: string) => ({ name: "progress.mark_mastered", args: { subtopic_id: id, status: "mastered" }, ok: true, byApp: true });
+  const cardsShown: string[] = [];
+  const run = (conversation: Sent, picks: string[] = [], modelTier: ModelTier = "tiny", canAsk = true) => {
+    const { activeSkill, domainSkill } = chatTurnSkills("assess", "Romeo and Juliet", modelTier, true);
+    return tutorEngine.run(
+      { messages: [{ role: "system", content: "You are a tutor." }, ...conversation], config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev) },
+      {
+        courseId: "c1", level: 1, syllabus: SNAPSHOT, modelTier, contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
+        confirmTool: async (tool) => { confirms.push(tool); return true; },
+        ...(canAsk ? { askUser: async (question: string) => { cardsShown.push(question); return picks.shift() ?? ""; } } : {}),
+      },
+    );
+  };
+  beforeEach(() => {
+    cardsShown.length = 0;
+    keyOut = keyFor;
+    gradeOut = { student_answer: "", verdict: "correct" };
+    save([T.people.id]);
+  });
+
+  it("after the first skill is marked, the app asks which one is next and the model's question follows the pick", async () => {
+    script = [reply(`You are correct. Now let's look at the world of the play. ${NEXT_Q}`)];
+    const result = await run(UP_TO_NEXT, [T.world.title]);
+    expect(cardsShown).toEqual(["Which one should we check next?"]);
+    // The choices are the subtopics still not mastered in the saved syllabus, not the course view's snapshot.
+    const card = result.toolCalls.find((c) => c.name === "ask_user.question");
+    expect(card).toMatchObject({ byApp: true, ok: true, args: { question: "Which one should we check next?", choices: [T.world, T.words, T.plot].map((s) => ({ label: s.title, value: s.title })) } });
+    expect(result.text).toContain(`*You picked: ${T.world.title}*`);
+    // The follow-up on the skill already mastered is graded, and marks nothing.
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).toEqual(["ask_user.question"]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  it("marks the next skill on a first-try right answer to its question, through the same card and chip", async () => {
+    script = [reply("Yes, Queen Elizabeth I.")];
+    const result = await run([...UP_TO_NEXT, { role: "assistant", content: pickedNext(T.world.title) }, { role: "user", content: NEXT_ANSWER }]);
+    expect(result.answerCheck).toMatchObject({ question: NEXT_Q, verdict: "correct" });
+    expect(result.toolCalls).toEqual([appMarkOf(T.world.id)]);
+    expect(confirms).toEqual(["progress.mark_mastered"]);
+    expect(chips()).toEqual([`Marked “${T.world.title}” as learned`]);
+    expect(masteredInDb()).toEqual([T.world.id, T.people.id]);
+    // The skill just picked is not mastered, so no "which next?" card on this turn.
+    expect(cardsShown).toEqual([]);
+  });
+
+  it("marks it the same way when the claim filter put a verdict line in front of the card", async () => {
+    script = [reply("Yes, Queen Elizabeth I.")];
+    const result = await run([...UP_TO_NEXT, { role: "assistant", content: `That's right.
+
+${pickedNext(T.world.title)}` }, { role: "user", content: NEXT_ANSWER }]);
+    expect(result.toolCalls).toEqual([appMarkOf(T.world.id)]);
+    expect(masteredInDb()).toEqual([T.world.id, T.people.id]);
+  });
+
+  // Review 2026-11-20, P6/P10: code cannot tell from the saved text whether the turn the model showed its own
+  // card on was helped (a hint, a wrong try), so only a pick on the app's own card counts.
+  it("makes none for a skill picked on the model's own card, or on a card after the app's", async () => {
+    script = [reply("Yes, Queen Elizabeth I."), reply("Yes, Queen Elizabeth I.")];
+    const own = pickedNext(T.world.title).replace("Which one should we check next?", "Great! Which topic do you want to try now?");
+    const ownRun = await run([...UP_TO_NEXT, { role: "assistant", content: own }, { role: "user", content: NEXT_ANSWER }]);
+    expect(ownRun.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    const after = pickedNext(T.words.title).replace(NEXT_Q, `Which part should we start with?
+
+*You picked: ${T.world.title}*
+
+${NEXT_Q}`);
+    const afterRun = await run([...UP_TO_NEXT, { role: "assistant", content: after }, { role: "user", content: NEXT_ANSWER }]);
+    expect(afterRun.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  // Review 2026-11-20, P2/P3/P4/P9: the learner's message on the turn the card would show was a hint or help
+  // request, a wrong answer or "I don't know". The tutor's turn before it is the live run's (s6-next), asking
+  // the next skill's question in prose. The card stays away, so the answer after the hint or after the answer
+  // was given away is no first try and marks nothing, through both turns as ChatTab sends them.
+  const PROSE_NEXT = `You are correct. Romeo and Juliet fall in love at first sight at a party. That shows you have a good grasp of their initial connection. Now, let's move on to the next area we need to check for this level. We still need to solidify our understanding of ${T.world.title}. This means learning a little bit about what life was like in the 16th century, which helps us understand why Shakespeare wrote the play the way he did. ${NEXT_Q}`;
+  it.each([
+    ["a hint request", "Give me a hint.", null, `Think about whose name the era carries. ${NEXT_Q}`],
+    ["a wrong answer, then the answer given", "King Henry", { student_answer: "King Henry", verdict: "incorrect" }, `Not quite: it was Queen Elizabeth I. ${NEXT_Q}`],
+    ["a help request", "can you explain it?", null, `The era is named after the queen who ruled then. ${NEXT_Q}`],
+    ["\"I don't know\"", "I don't know", null, `That's okay. The era is named after the queen who ruled then. ${NEXT_Q}`],
+  ])("shows no next card after %s, and the answer after it marks nothing", async (_, said, grade, tutorAfter) => {
+    if (grade) gradeOut = grade;
+    script = [reply(tutorAfter)];
+    const before: Sent = [...UP_TO_NEXT, { role: "assistant", content: PROSE_NEXT }, { role: "user", content: said }];
+    const pickTurn = await run(before, [T.world.title]);
+    expect(cardsShown).toEqual([]);
+    expect(pickTurn.toolCalls.map((c) => c.name)).toEqual([]);
+    gradeOut = { student_answer: "", verdict: "correct" };
+    script = [reply("Yes, Queen Elizabeth I.")];
+    const answerTurn = await run([...before, { role: "assistant", content: pickTurn.text }, { role: "user", content: NEXT_ANSWER }], [], "tiny", false);
+    expect(answerTurn.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  // Review 2026-11-20, P12: a question or a flashcard request right after the mark gets its answer, not the card.
+  it.each([
+    ["a meaning question", "what does archaic mean?"],
+    ["a flashcard request", "Make me a flashcard about archaic words."],
+  ])("shows no next card for %s right after the mark", async (_, said) => {
+    script = [reply("Archaic means old and no longer in everyday use."), reply("Archaic means old and no longer in everyday use.")];
+    const result = await run([...UP_TO_NEXT.slice(0, -1), { role: "user", content: said }], [T.world.title]);
+    expect(cardsShown).toEqual([]);
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("ask_user.question");
+  });
+
+  // The live run's own path: the model named the next skill in prose and showed no card.
+  it("makes none for a right answer on a skill the model only named in prose", async () => {
+    script = [reply("Those are very important parts of the historical backdrop.")];
+    const result = await run([
+      ...UP_TO_NEXT,
+      { role: "assistant", content: `You are correct. Now, let's move on to the next area we need to check for this level. We still need to solidify our understanding of ${T.world.title}. ${PROSE_Q}` },
+      { role: "user", content: NEXT_ANSWER },
+    ], [], "tiny", false);
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  it.each([
+    ["a wrong answer", { student_answer: "", verdict: "incorrect" }],
+    ["a partly right answer", { student_answer: "", verdict: "partly" }],
+  ])("makes none for %s on the next skill", async (_, grade) => {
+    gradeOut = grade;
+    script = [reply("Not quite.")];
+    const result = await run([...UP_TO_NEXT, { role: "assistant", content: pickedNext(T.world.title) }, { role: "user", content: "King Henry" }]);
+    expect(result.toolCalls).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  it("makes none for a right answer after a hint on the next skill's question", async () => {
+    script = [reply("Yes, Queen Elizabeth I.")];
+    const result = await run([
+      ...UP_TO_NEXT,
+      { role: "assistant", content: pickedNext(T.world.title) },
+      { role: "user", content: "Give me a hint." },
+      { role: "assistant", content: `Think about whose name the era carries. ${NEXT_Q}` },
+      { role: "user", content: NEXT_ANSWER },
+    ]);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  it("makes none for a skill already tried in this check, picked again", async () => {
+    save([]);
+    script = [reply("Yes, Queen Elizabeth I.")];
+    const result = await run([
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: `Which one should we check first?\n\n*You picked: ${T.world.title}*\n\n${NEXT_Q}` },
+      { role: "user", content: "King Henry" },
+      { role: "assistant", content: pickedNext(T.world.title) },
+      { role: "user", content: NEXT_ANSWER },
+    ]);
+    expect(result.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(masteredInDb()).toEqual([]);
+  });
+
+  it("makes none when the learner typed into the next card instead of picking, or a card was answered after the pick", async () => {
+    script = [reply("Yes, Queen Elizabeth I."), reply("Yes, Act 2.")];
+    const typed = pickedNext(T.world.title).replace(`*You picked: ${T.world.title}*`, "*You answered: the queen one*");
+    const typedRun = await run([...UP_TO_NEXT, { role: "assistant", content: typed }, { role: "user", content: NEXT_ANSWER }]);
+    expect(typedRun.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    const cardAfter = `${pickedNext(T.world.title)}\n\n*You picked: Act 1*\n\nNot quite. Which act does the balcony scene happen in?`;
+    const cardRun = await run([...UP_TO_NEXT, { role: "assistant", content: cardAfter }, { role: "user", content: "Act 2" }]);
+    expect(cardRun.answerCheck).toMatchObject({ verdict: "correct" });
+    expect(cardRun.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(masteredInDb()).toEqual([T.people.id]);
+  });
+
+  // A third skill, after two picks: words typed into the card are no pick, even when they are a skill's title.
+  it("makes none when the words typed into the next card are a skill's title", async () => {
+    save([T.world.id, T.people.id]);
+    script = [reply("Yes, they both die.")];
+    const typed = `Yes, Queen Elizabeth I.
+
+Which one should we check next?
+
+*You answered: ${T.plot.title}*
+
+${PLOT_Q}`;
+    const result = await run([...UP_TO_NEXT, { role: "assistant", content: pickedNext(T.world.title) }, { role: "user", content: NEXT_ANSWER }, { role: "assistant", content: typed }, { role: "user", content: "They both die." }]);
+    expect(result.answerCheck).toMatchObject({ question: PLOT_Q, verdict: "correct" });
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("progress.mark_mastered");
+    expect(masteredInDb()).toEqual([T.world.id, T.people.id]);
+  });
+
+  it("shows the next card once: not again after the learner typed into it", async () => {
+    script = [reply("Okay, let's keep going.")];
+    const typed = `Which one should we check next?\n\n*You answered: not sure*\n\nThat is okay. ${FOLLOW_Q}`;
+    const result = await run([...UP_TO_NEXT, { role: "assistant", content: typed }, { role: "user", content: "They are enemies at first" }]);
+    expect(cardsShown).toEqual([]);
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("ask_user.question");
+  });
+
+  it.each([
+    ["a medium chat model", "medium" as ModelTier, () => {}],
+    ["one subtopic left", "tiny" as ModelTier, () => save([T.people.id, T.words.id, T.plot.id])],
+    ["the first skill not mastered (the learner said no to the mark)", "tiny" as ModelTier, () => save([])],
+  ])("shows no next card with %s", async (_, tier, setUp) => {
+    setUp();
+    script = [reply("You are correct.")];
+    const result = await run(UP_TO_NEXT, [T.world.title], tier);
+    expect(cardsShown).toEqual([]);
+    expect(result.toolCalls.map((c) => c.name)).not.toContain("ask_user.question");
+  });
+
+  it("shows no next card when the check would close before the answer to it", async () => {
+    // Two more answers on the first skill: the answer after a pick now would be the check's fifth (ASSESS_LOOKBACK).
+    const more = ["They meet at a party.", "They like each other."].flatMap((a) => [{ role: "user", content: a }, { role: "assistant", content: FOLLOW_Q }]);
+    const long = [...UP_TO_NEXT.slice(0, -1), ...more, UP_TO_NEXT[UP_TO_NEXT.length - 1]];
+    script = [reply("You are correct.")];
+    await run(long, [T.world.title]);
+    expect(cardsShown).toEqual([]);
+  });
+});
